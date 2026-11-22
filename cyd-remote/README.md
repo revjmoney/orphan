@@ -50,3 +50,6 @@ Build with PlatformIO and the pinned libraries in `platformio.ini`. Preserve a f
 The connected device has 4 MiB flash and `app0` at `0x10000`, 1,966,080 bytes long. Its original NVS is at `0x9000` for 20,480 bytes. Flashing only `app0` plus its OTA selector preserves NVS and the existing partition table. Re-check offsets for another device.
 
 Scene/control endpoints are intended for a trusted LAN.
+
+---
+[Buy me a coffee](https://buymeacoffee.com/revjmoney) · [orphan] · by [JMSCNC](https://jmscnc.com), makers of RotatoCAM · **[Rev. J. Money - 2026]**

@@ -29,3 +29,6 @@ netboot kernel's modules to `usr/lib/modules`, then apply step 4.
 wait until it stops answering ping, then rename the folders on the server and run `exportfs -ra`.
 
 The server must be on whenever the board starts.
+
+---
+[Buy me a coffee](https://buymeacoffee.com/revjmoney) · by [JMSCNC](https://jmscnc.com), makers of RotatoCAM · **[Rev. J. Money - 2026]**

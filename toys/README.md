@@ -1,6 +1,6 @@
 # Orphan Graphics Toys
 
-**By JMSCNC, makers of RotatoCAM.** Main Orphan project, separate from the Kaspa miner repository.
+**By JMSCNC, makers of RotatoCAM.** [Buy me a coffee](https://buymeacoffee.com/revjmoney)
 
 Menu: **F FPGA projects → Graphics toys: raycast + CYD → Orphan Graphics Toys**.
 
@@ -27,3 +27,6 @@ Live telemetry separates FPGA render time, framebuffer readback, Wi-Fi transfer 
 * [Original Doom source](https://github.com/id-Software/DOOM): CPU game-engine source, useful for a later Linux game port. No Doom game assets are included here.
 
 The current raycaster is a small maze-rendering demonstration, not the full Doom game. The menu also offers a two-minute ARM-rendered CYD preview and distinguishes it from the FPGA-rendered project.
+
+---
+[Buy me a coffee](https://buymeacoffee.com/revjmoney) · [orphan] · by [JMSCNC](https://jmscnc.com), makers of RotatoCAM · **[Rev. J. Money - 2026]**

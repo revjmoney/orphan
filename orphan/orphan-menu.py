@@ -161,7 +161,14 @@ def board_status():
         '  root filesystem    %s' % disk,
         '  model              %s' % read('/proc/device-tree/model').replace('\x00', ''),
         '', 'SENSORS (Zynq XADC)',
-    ] + xadc_lines() + ['', 'FPGA (ardzy status)'] + ['  ' + ln for ln in sh('ardzy status 2>&1').splitlines()]
+    ] + xadc_lines() + [
+        '', 'ABOUT ORPHAN',
+        '  Orphan · FPGA Dev Linux for the S9 Control Board',
+        '  by JMSCNC, makers of RotatoCAM · https://jmscnc.com',
+        '  Buy me a coffee: https://buymeacoffee.com/revjmoney',
+        '  Ardzy inside: Ardzy by chryso (GPL-3.0); every credit is in NOTICE.md',
+        '  [Rev. J. Money - 2026]',
+    ] + ['', 'FPGA (ardzy status)'] + ['  ' + ln for ln in sh('ardzy status 2>&1').splitlines()]
     return lines
 
 
@@ -190,7 +197,7 @@ def flash_info():
             '  This board right now:  %s' % root_mode(),
             '  NAND partitions:'] + ['    ' + ln for ln in read('/proc/mtd').splitlines()] + [
             '  UBI: ' + (sh('ubinfo -a 2>/dev/null | grep -E "Volume name|Size:" | head -2 | tr -s " " | tr "\\n" " "') or 'not attached'),
-            '', '  The one-command installer (s9-install-flash) comes with the public release.',
+            '', '  Installing to flash: see docs/flash.md in the Orphan repository (github.com/revjmoney/orphan).',
             '  It must write the NAND with the chip\'s ON-DIE ECC (see the docs).']
 
 
@@ -200,6 +207,37 @@ def project_meta(name):
         return json.load(open('/opt/ardzy/projects/%s/project.json' % name))
     except (OSError, ValueError):
         return {}
+
+
+def owner(name):
+    """[orphan] for Orphan's own projects, [ardzy] for Ardzy's examples (the folder names stay as they are)."""
+    return '[orphan]' if name.startswith('orphan_') else '[ardzy]'
+
+
+# the project tree: [orphan] / [ardzy], each split into branches (project.json "branch", else by category)
+BRANCHES = ['games', 'mining', 'science', 'radio & sound', 'lab toys', 'starters & tests', 'etc.']
+BRANCH_BY_NAME = {'13_sha256': 'mining', 'orphan_toys': 'lab toys'}
+BRANCH_BY_CAT = {'games': 'games', 'mining': 'mining', 'compute': 'mining', 'ai': 'science', 'computing': 'science',
+                 'radio': 'radio & sound', 'sound': 'radio & sound', 'starters': 'starters & tests',
+                 'tests': 'starters & tests', 'lights and display': 'lab toys', 'test and measurement': 'lab toys',
+                 'motors and motion': 'lab toys', 'communication': 'lab toys', 'sensors': 'lab toys',
+                 'graphics': 'lab toys'}
+
+
+def branch_of(name, m):
+    return m.get('branch') or BRANCH_BY_NAME.get(name) or BRANCH_BY_CAT.get(str(m.get('category', '')).lower(), 'etc.')
+
+
+def project_runs(name):
+    """Where a project runs: project.json "runs", else 'fpga core' when it has a bitstream, else 'arm linux'."""
+    m = project_meta(name)
+    if m.get('runs'):
+        return m['runs']
+    d = '/opt/ardzy/projects/' + name
+    try:
+        return 'fpga core' if any(f.endswith(('.bit', '.bin')) for f in os.listdir(d)) else 'arm linux'
+    except OSError:
+        return ''
 
 
 def wrap(text, width, indent='  '):
@@ -215,9 +253,13 @@ def project_lines(name, width):
     kinds = (('FPGA design', any(f.endswith(('.bit', '.bin')) for f in files)), ('Python program', 'main.py' in files),
              ('C program', any(f.endswith('.c') for f in files)), ('Arduino sketch', any(f.endswith('.ino') for f in files)))
     kind = ', '.join(x for x, ok in kinds if ok) or 'files'
-    out = [m.get('title', name), '']
+    out = ['%s %s' % (owner(name), m.get('title', name)), '']
     out += wrap(m.get('summary', 'No description yet (no project.json in %s).' % d), width)
-    out += ['', '  Folder    %s' % d, '  Contains  %s' % kind]
+    if m.get('quickstart'):
+        out += ['', '  Quick start']
+        for i, step in enumerate(m['quickstart'], 1):
+            out += wrap('%d. %s' % (i, step), width, '    ')
+    out += ['', '  Runs on   {%s}' % project_runs(name), '  Folder    %s' % d, '  Contains  %s' % kind]
     if m.get('category') or m.get('level'):
         out += ['  Kind      %s%s' % (m.get('category', ''), ('  ·  ' + m['level']) if m.get('level') else '')]
     if m.get('web'):
@@ -237,20 +279,21 @@ def project_lines(name, width):
 class Menu:
     # The hotkeys read down the menu as "MY ORPHAN LIFE" (+ S shell, C cooling).
     ITEMS = [
-        ('M', 'Midnight Commander', 'file manager'),
-        ('Y', 'System info', 'fastfetch with the monkey'),
-        ('O', 'Options', 'login settings and Axis BBS'),
-        ('R', 'Radio', '4-slice SDR receiver, web panel'),
-        ('P', 'Power', 'reboot or power off'),
-        ('H', 'htop', 'live processes and CPU'),
-        ('A', 'About this board', 'temperature, voltages, memory, FPGA'),
-        ('N', 'Network', 'addresses, route, ping'),
-        ('L', 'LED toys', 'LED ring, SD activity lights'),
-        ('I', 'Install to flash', 'how this board boots'),
-        ('F', 'FPGA projects', 'load a design + its program'),
+        # {fpga core} = runs in the FPGA, {arm linux} = runs on the ARM's Linux, {fpga + arm} = both
+        ('M', 'Midnight Commander', 'file manager  {arm linux}'),
+        ('Y', 'System info', 'fastfetch with the monkey  {arm linux}'),
+        ('O', 'Options', 'login settings and Axis BBS  {arm linux}'),
+        ('R', 'Radio', '4-slice SDR receiver, web panel  {fpga + arm}'),
+        ('P', 'Power', 'reboot or power off  {arm linux}'),
+        ('H', 'htop', 'live processes and CPU  {arm linux}'),
+        ('A', 'About this board', 'temperature, voltages, FPGA  {arm linux}'),
+        ('N', 'Network', 'addresses, route, ping  {arm linux}'),
+        ('L', 'LED toys', 'LED ring, SD activity lights  {fpga + arm}'),
+        ('I', 'Install to flash', 'how this board boots  {arm linux}'),
+        ('F', 'FPGA projects', 'load a design + its program  {fpga core}'),
         ('E', 'Exit', 'log out, end this session'),
-        ('S', 'Shell', 'drop to the command line'),
-        ('C', 'Cooling', 'fan speed (PWM) + live rpm'),
+        ('S', 'Shell', 'drop to the command line  {arm linux}'),
+        ('C', 'Cooling', 'fan speed (PWM) + live rpm  {fpga + arm}'),
     ]
     GAP_AFTER = (1, 7, 11)          # a blank line after MY / ORPHAN / LIFE
     # Home mode (started by the login hook): Shell opens a subshell and `exit` comes back here;
@@ -360,7 +403,7 @@ class Menu:
         if getattr(self, 'synth_on', False) and h - 3 > top + len(self.ITEMS) + len(self.GAP_AFTER):
             ffp = ' Synth running. Hear it on your PC:  ffplay -nodisp -f s16le -ar 48828 -ch_layout mono'                   ' -fflags nobuffer tcp://%s:8001' % self.slow[1]
             self.put(h - 3, 0, ffp[:w - 1], curses.color_pair(1) | curses.A_BOLD)
-        help_txt = ' arrows move · Enter or hotkey selects · Q shell · jmscnc.com'
+        help_txt = ' arrows move · Enter or hotkey selects · Q shell · jmscnc.com · buymeacoffee.com/revjmoney'
         self.put(h - 1, 0, help_txt, curses.color_pair(5))
         self.put(h - 1, max(len(help_txt) + 2, w - 24), '[Rev. J. Money - 2026]', curses.color_pair(1) | curses.A_BOLD)
         s.refresh()
@@ -390,18 +433,22 @@ class Menu:
             else:
                 return k
 
-    def pick(self, title, options, notes=()):
+    def pick(self, title, options, notes=(), tags=None, start=0):
         """Lightbar list (scrolls when longer than the screen); returns the chosen index or None."""
-        sel = top = 0
+        sel, top = min(start, len(options) - 1), 0
         while True:
             self.scr.erase()
             h, w = self.scr.getmaxyx()
             rows = max(1, h - 4 - len(notes))
             top = min(max(top, sel - rows + 1), sel)
             self.bar(0, ' ORPHAN  ·  ' + title + ('   (%d of %d)' % (sel + 1, len(options)) if len(options) > rows else ''))
+            width = max([len(o) for o in options] + [38]) + 2
             for i, o in enumerate(options[top:top + rows]):
                 attr = curses.color_pair(3) | curses.A_BOLD if top + i == sel else curses.color_pair(6)
-                self.put(2 + i, 3, (' ' + o)[:max(10, w - 6)].ljust(min(w - 6, max(40, len(o) + 2))), attr)
+                self.put(2 + i, 3, (' ' + o)[:max(10, w - 6)].ljust(min(w - 6, width)), attr)
+                t = tags[top + i] if tags and top + i < len(tags) else ''
+                if t and 3 + width + 2 < w - 2:
+                    self.put(2 + i, 3 + width + 1, ('{%s}' % t)[:w - width - 6], curses.color_pair(5))
             for i, note in enumerate(notes):
                 self.put(h - 1 - len(notes) + i, 3, note[:max(0, w - 4)], curses.color_pair(5))
             self.bar(h - 1, ' arrows move · Enter picks · Esc/Q back')
@@ -460,9 +507,43 @@ class Menu:
                 return
             i = 4 + projects.index(only)
         else:
-            opts = ['pin-control (general I/O, PWM, logic analyzer)', 'Sound toys  >', 'Graphics toys: raycast + CYD  >', 'Games: NES and more, in the browser + CYD  >'] + [
-                '%-15s %s' % (p, meta(p).get('title', '')) for p in projects]
-            i = self.pick('FPGA projects', opts)
+            fixed = ['pin-control (general I/O, PWM, logic analyzer)', 'Sound toys  >', 'Graphics toys: raycast + CYD  >',
+                     'Games: NES and more, in the browser + CYD  >']
+            tree = {}
+            for p in projects:
+                o = owner(p)[1:-1]
+                tree.setdefault(o, {}).setdefault(branch_of(p, meta(p)), []).append(p)
+            opened = getattr(self, 'tree_open', None) or {'orphan'}
+            sel = 0
+            while True:                                # Enter on a branch opens / closes it, on a project picks it
+                rows, opts, tags = [], list(fixed), ['fpga core', '', '', '']
+                for o in ('orphan', 'ardzy'):
+                    if o not in tree:
+                        continue
+                    n = sum(len(v) for v in tree[o].values())
+                    rows.append(('node', o)); opts.append('%s [%s]  (%d)' % ('v' if o in opened else '>', o, n)); tags.append('')
+                    if o not in opened:
+                        continue
+                    for b in BRANCHES:
+                        if b not in tree[o]:
+                            continue
+                        k = o + '/' + b
+                        rows.append(('node', k)); tags.append('')
+                        opts.append('   %s [%s]  (%d)' % ('v' if k in opened else '>', b, len(tree[o][b])))
+                        if k in opened:
+                            for p in tree[o][b]:
+                                rows.append(('proj', p)); tags.append(project_runs(p))
+                                opts.append('      %-15s %s' % (p, meta(p).get('title', '')))
+                i = self.pick('FPGA projects', opts, tags=tags, start=sel)
+                self.tree_open = opened
+                if i is None or i < len(fixed):
+                    break
+                kind, val = rows[i - len(fixed)]
+                if kind == 'proj':
+                    i = 4 + projects.index(val)
+                    break
+                opened.symmetric_difference_update({val})
+                sel = i
         if i is None:
             return
         # The LED ring hammers the FPGA's registers; reprogramming the FPGA under it hangs the board.
@@ -476,14 +557,15 @@ class Menu:
             if not sound:
                 self.page(['Sound toys', '', '  No sound projects installed in /opt/ardzy/projects.'])
                 return
-            j = self.pick('Sound toys', ['%s  (%s)' % (meta(p).get('title', p), p) for p in sound])
+            j = self.pick('Sound toys', ['%s %s  (%s)' % (owner(p), meta(p).get('title', p), p) for p in sound],
+                          tags=[project_runs(p) for p in sound])
             if j is None:
                 return
             name = sound[j]
         elif i == 2:
-            choices = ['%s  (%s)' % (meta(p).get('title', p), p) for p in graphics]
+            choices = ['%s %s  (%s)' % (owner(p), meta(p).get('title', p), p) for p in graphics]
             choices += ['Replay CYD raycast preview for 2 minutes (ARM)', 'FPGA demo source library / port candidates']
-            j = self.pick('Graphics toys', choices)
+            j = self.pick('Graphics toys', choices, tags=[project_runs(p) for p in graphics] + ['arm linux', ''])
             if j is None:
                 return
             if j == len(graphics):
@@ -506,7 +588,8 @@ class Menu:
                 self.page(['Games', '', '  No game consoles installed in /opt/ardzy/projects.'])
                 return
             j = self.pick('Games: the console runs in the FPGA, you play in the browser or on the CYD',
-                          ['%s  (%s)' % (meta(p).get('title', p), p) for p in games])
+                          ['%s %s  (%s)' % (owner(p), meta(p).get('title', p), p) for p in games],
+                          tags=[project_runs(p) for p in games])
             if j is None:
                 return
             name = games[j]
@@ -535,7 +618,9 @@ class Menu:
         if os.path.exists('/etc/systemd/system/s9-sdleds.service'):
             opts += ['SD activity lights: on', 'SD activity lights: off']
         opts += ['All status LEDs off']
-        i = self.pick('LED toys', opts)
+        where = {'LED ring: start': 'fpga + arm', 'LED ring: stop': 'fpga + arm', 'SD activity lights: on': 'arm linux',
+                 'SD activity lights: off': 'arm linux', 'All status LEDs off': 'arm linux'}
+        i = self.pick('LED toys', opts, tags=[where.get(o, '') for o in opts])
         if i is None:
             return
         cmd = {
@@ -622,7 +707,7 @@ class Menu:
                 'At login: plain terminal%s' % ('  (now)' if mode == 'plain' else '')]
         if shutil.which('axispc'):
             opts.append('Axis BBS: start, stop, startup and WFC')
-        i = self.pick('Settings', opts)
+        i = self.pick('Settings', opts, tags=['arm linux'] * len(opts))
         if i is None:
             return
         if i == 2:
@@ -658,7 +743,7 @@ class Menu:
                 self.run_outside('systemctl %s %s' % ('stop' if running else 'start', service), pause=False)
 
     def power(self):
-        i = self.pick('Power', ['Reboot', 'Power off', 'Back'])
+        i = self.pick('Power', ['Reboot', 'Power off', 'Back'], tags=['arm linux', 'arm linux', ''])
         if i == 0 and self.pick('Reboot now?', ['Yes, reboot', 'No']) == 0:
             self.run_outside('systemctl reboot', pause=False)
         elif i == 1 and self.pick('Power off now?', ['Yes, power off', 'No']) == 0:

@@ -27,5 +27,6 @@
       "PCM5102A DAC (MCLK, BCLK, DOUT, LRCLK)",
       "optional speaker out"
     ]
-  ]
+  ],
+  "runs": "fpga + arm"
 }

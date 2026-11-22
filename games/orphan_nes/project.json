@@ -13,5 +13,6 @@
   },
   "clocks": {
     "u_nes.nclk": 22
-  }
+  },
+  "runs": "fpga core"
 }

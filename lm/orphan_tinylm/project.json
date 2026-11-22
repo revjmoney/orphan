@@ -1,0 +1,22 @@
+{
+  "id": "TLM1",
+  "title": "Orphan TinyLM: retired silicon writes stories",
+  "category": "AI",
+  "branch": "science",
+  "level": "medium",
+  "summary": "Retired silicon writes stories: real Llama language models (Karpathy's stories15M and stories42M, MIT) with every matrix product in the FPGA: 64 multiply lanes stream 8-bit weights from DDR, up to 4 stories share one pass. Three modes: Write, 4 Stories, and Adventure (4 takes of every chapter, you pick). DDR streaming from Ardzy's AI Studio (by chryso, GPL-3.0). by JMSCNC, makers of RotatoCAM.",
+  "quickstart": [
+    "Load orphan_tinylm. Its page opens on port 8000 (the first start puts the models into DDR and self-checks the FPGA).",
+    "Pick a model: Stories 15M (fast) or Stories 42M (better stories).",
+    "Type a simple story opening, for example: Once upon a time, a little robot",
+    "Write = one story; 4 Stories = four versions at once; Adventure = 4 takes of each chapter, press Pick this to continue the one you like.",
+    "Race compares 1 story, 4 at once, and the ARM alone."
+  ],
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "tlm_gemv: int8 matrix x 4 vectors (64 lanes), weights streamed from DDR (HP0 + HP2), 16-bit results",
+    "15": "Fan (orphan_fan)"
+  },
+  "runs": "fpga + arm"
+}

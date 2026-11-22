@@ -1,1 +1,24 @@
-{"id":"TOY1","title":"Orphan Graphics Toys: FPGA raycast, color waves, XOR and Life","category":"Graphics","level":"easy","summary":"A compact FPGA graphics playground for the CYD Wi-Fi display and web browser. Wall tracing, projection and pixel shading run in the FPGA; ARM uploads view vectors and transports the framebuffer. Includes color waves, XOR fields and Ardzy's hardware Game of Life. by JMSCNC, makers of RotatoCAM.","web":8000,"slots":{"0":"Info","1":"Game of Life","2":"Graphics control","3":"View vectors","4..13":"Frame capture","15":"Fan control"},"wiring":[["CYD","Wi-Fi display on the LAN","No GPIO wiring required"]]}
+{
+  "id": "TOY1",
+  "title": "Orphan Graphics Toys: FPGA raycast, color waves, XOR and Life",
+  "category": "Graphics",
+  "level": "easy",
+  "summary": "A compact FPGA graphics playground for the CYD Wi-Fi display and web browser. Wall tracing, projection and pixel shading run in the FPGA; ARM uploads view vectors and transports the framebuffer. Includes color waves, XOR fields and Ardzy's hardware Game of Life. by JMSCNC, makers of RotatoCAM.",
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "Game of Life",
+    "2": "Graphics control",
+    "3": "View vectors",
+    "4..13": "Frame capture",
+    "15": "Fan control"
+  },
+  "wiring": [
+    [
+      "CYD",
+      "Wi-Fi display on the LAN",
+      "No GPIO wiring required"
+    ]
+  ],
+  "runs": "fpga core"
+}

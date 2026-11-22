@@ -10,5 +10,6 @@
     "1": "Game Boy (cart, frame buffer, sound, pads)",
     "14": "LEDs (orphan_leds)",
     "15": "Fan (orphan_fan)"
-  }
+  },
+  "runs": "fpga core"
 }

@@ -78,3 +78,6 @@ inputs. Never wire switches or drivers straight to these pins.
 - Package file: https://www.xilinx.com/support/packagefiles/z7packages/xc7z010clg400pkg.txt
 - S9 dev-board examples (HDMI, LCD2004 over I2C, SPI TFTs): https://github.com/astranome/Astra_S9_FPGA
 - Mainline U-Boot has an S9 board target (bitmain-antminer-s9.dts).
+
+---
+[Buy me a coffee](https://buymeacoffee.com/revjmoney) · by [JMSCNC](https://jmscnc.com), makers of RotatoCAM · **[Rev. J. Money - 2026]**

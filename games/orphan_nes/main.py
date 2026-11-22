@@ -1,9 +1,9 @@
-# Orphan Games: the ARM side of the FPGA game consoles (NES, Game Boy). by JMSCNC, makers of RotatoCAM. GPL-2.0-or-later.
+# Orphan Games: the ARM side of the FPGA game consoles (NES, Game Boy, Master System, Game Gear). by JMSCNC, makers of RotatoCAM. GPL-2.0-or-later.
 #
 #   Web page + WebSocket on port 8000: game list, the picture, sound, keyboard / gamepad
 #   raw s16le mono sound (47.95 kHz) on TCP 8001 for ffplay
 #   ORPHAN Remote (CYD): set ORPHAN_CYD=<cyd ip> (or /etc/orphan/cyd) and every picture also goes to its screen
-# Games: /opt/orphan-games/roms/<nes|gb> (free homebrew only, see the README). The loaded FPGA design says which.
+# Games: /opt/orphan-games/roms/<nes|gb|sms> (free homebrew only, see the README). The loaded FPGA design says which.
 import base64
 import glob
 import hashlib
@@ -24,6 +24,7 @@ import numpy as np
 from blocks import Bus, require
 import gbrom
 import nesrom
+import smsrom
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = 8000
@@ -34,6 +35,9 @@ SYSTEMS = {
              'audio_hz': 100e6 * 10.5 / 48.875 / 448},
     'GB01': {'name': 'Game Boy', 'dir': 'gb', 'ext': '.gb', 'w': 160, 'h': 144, 'words': 1440, 'stereo': True,
              'audio_hz': 100e6 * 12 / 35.75 / 8 / 87},
+    # Master System (256 x 192, 5 px of 6 bits) and Game Gear (160 x 144, 2 px of 12 bits): one design, CTRL bit 2
+    'SMS1': {'name': 'Master System / Game Gear', 'dir': 'sms', 'ext': '.sms .gg', 'w': 256, 'h': 192,
+             'words': 9831, 'stereo': True, 'audio_hz': 100e6 * 11.75 / 21.875 / 1119},
 }
 
 try:                                           # every Orphan design assumes a 100 MHz FPGA clock
@@ -48,10 +52,12 @@ W = lambda i, v: bus.wr(SLOT, i, v)    # noqa: E731
 R = lambda i: bus.rd(SLOT, i)          # noqa: E731
 SYS_ID = R(7).to_bytes(4, 'big').decode('ascii', 'replace')
 if SYS_ID not in SYSTEMS:
-    raise SystemExit('The FPGA holds no Orphan Games console (found %r). Load orphan_nes or orphan_gb first.' % SYS_ID)
+    raise SystemExit('The FPGA holds no Orphan Games console (found %r). Load orphan_nes, orphan_gb or orphan_sms first.' % SYS_ID)
 SYS = SYSTEMS[SYS_ID]
 ROMS = os.environ.get('ORPHAN_ROMS', '/opt/orphan-games/roms/' + SYS['dir'])
 FB_WORDS = SYS['words']
+RUN = 1                                        # CTRL value while running (+4 = Game Gear mode)
+SUB = {'NES1': 0, 'GB01': 1, 'SMS1': 2}[SYS_ID]  # picture type in the WebSocket frame (3 = Game Gear)
 AUDIO_HZ = SYS['audio_hz']
 WBASE = (bus.m._off >> 2) + SLOT * 1024        # word index of the slot in Ardzy's mapped view
 lock = threading.RLock()
@@ -73,13 +79,18 @@ def pop(window, n):
 
 # ---------------------------------------------------------------- games
 def game_list():
-    return sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROMS, '*' + SYS['ext'])))
+    return sorted(os.path.basename(p) for e in SYS['ext'].split() for p in glob.glob(os.path.join(ROMS, '*' + e)))
 
 
 def load(name):
+    global RUN, SUB, FB_WORDS
     path = os.path.join(ROMS, os.path.basename(name))
     try:
-        if SYS_ID == 'GB01':
+        if SYS_ID == 'SMS1':
+            cart = smsrom.parse(open(path, 'rb').read(), name)
+            reg2, parts = cart['cart'], ((0x00000, cart['rom']),)
+            info = '%s, ROM %d KB' % ('Game Gear' if cart['gg'] else 'Master System', cart['kb'])
+        elif SYS_ID == 'GB01':
             cart = gbrom.parse(open(path, 'rb').read())
             reg2, parts = cart['cart'], ((0x00000, cart['rom']),)
             info = 'mapper %d, ROM %d KB' % (cart['mbc'], cart['kb'])
@@ -106,8 +117,12 @@ def load(name):
                     if time.time() - t > 0.1:
                         state.update(error='upload stalled', running=False)
                         return False
+        if SYS_ID == 'SMS1':
+            RUN, SUB = (5, 3) if cart['gg'] else (1, 2)
+            FB_WORDS = 11520 if cart['gg'] else 9831
+            SYS.update(w=160 if cart['gg'] else 256, h=144 if cart['gg'] else 192)
         W(1, 0)
-        W(0, 1)                                # run
+        W(0, RUN)                              # run
     state.update(game=name, running=True, error='')
     print('loaded %s: %s' % (name, info), flush=True)
     return True
@@ -127,15 +142,15 @@ def frames():
         while (R(6) >> 28) & 1 and time.time() - t < 0.2:
             time.sleep(0.002)
         with lock:
-            W(0, 3)                            # run + freeze at the next frame end
+            W(0, RUN | 2)                      # run + freeze at the next frame end
         t = time.time()
         while not (R(6) >> 28) & 1 and time.time() - t < 0.2:
             time.sleep(0.002)
         with lock:
             W(4, 0)
             fb = pop(512, FB_WORDS)
-            W(0, 1)                            # capture again
-        pic = struct.pack('<hh%dI' % FB_WORDS, 1, 1 if SYS_ID == 'GB01' else 0, *fb)
+            W(0, RUN)                          # capture again
+        pic = struct.pack('<hh%dI' % len(fb), 1, SUB, *fb)
         broadcast(pic)
         cyd_frame(fb)
         n += 1
@@ -185,6 +200,11 @@ RGB565 = np.array([((v & 31) << 11) | ((v >> 5 & 31) << 6) | (v >> 10 & 31) for 
 # the Game Boy's 4 greens, lightest first, as RGB565
 GB565 = np.array([((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3) for r, g, b in
                   ((0xE0, 0xF0, 0xC8), (0x88, 0xC0, 0x70), (0x34, 0x68, 0x56), (0x08, 0x18, 0x20))], dtype='<u2')
+# Master System (BBGGRR, 2 bits each) and Game Gear (BGR 4-4-4) colors as RGB565
+SMS565 = np.array([((v & 3) * 31 // 3) << 11 | ((v >> 2 & 3) * 63 // 3) << 5 | (v >> 4 & 3) * 31 // 3
+                   for v in range(64)], dtype='<u2')
+GG565 = np.array([((v & 15) * 31 // 15) << 11 | ((v >> 4 & 15) * 63 // 15) << 5 | (v >> 8 & 15) * 31 // 15
+                  for v in range(4096)], dtype='<u2')
 cyd_q = queue.Queue(maxsize=1)
 
 
@@ -211,6 +231,12 @@ def cyd_sender():
         if SYS_ID == 'GB01':
             px = np.stack([(w >> (2 * k)) & 3 for k in range(16)], axis=1).reshape(-1)[:160 * 144]
             data, rect = GB565[px].tobytes(), 'x=80&y=48&w=160&h=144'
+        elif SUB == 3:
+            px = np.stack([(w >> (12 * k)) & 4095 for k in range(2)], axis=1).reshape(-1)[:160 * 144]
+            data, rect = GG565[px].tobytes(), 'x=80&y=48&w=160&h=144'
+        elif SUB == 2:
+            px = np.stack([(w >> (6 * k)) & 63 for k in range(5)], axis=1).reshape(-1)[:256 * 192]
+            data, rect = SMS565[px].tobytes(), 'x=32&y=24&w=256&h=192'
         else:
             px = np.stack([(w >> (6 * k)) & 63 for k in range(5)], axis=1).reshape(-1)[:256 * 240]
             data, rect = RGB565[px].tobytes(), 'x=32&y=0&w=256&h=240'
@@ -282,11 +308,11 @@ def handle(m):
         with lock:
             W(0, 0)
             time.sleep(0.05)
-            W(0, 1)
+            W(0, RUN)
     elif 'pause' in m:
         state['running'] = not m['pause']
         with lock:
-            W(0, 0 if m['pause'] else 1)
+            W(0, 0 if m['pause'] else RUN)
         broadcast(status(), opcode=1)
 
 

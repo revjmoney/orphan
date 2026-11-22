@@ -41,3 +41,6 @@ The default Zynq controller ECC writes a boot image the board will not boot (the
 - Back up the whole NAND first (`nanddump` of every partition) and keep the files off the board.
 - Have a way back: a 3.3 V USB-serial adapter on **J12** (115200 baud), or an SD card that boots with JP2 + JP4.
 - Write with `flash_erase` + `nandwrite -p`, and read back and compare checksums before rebooting.
+
+---
+[Buy me a coffee](https://buymeacoffee.com/revjmoney) · by [JMSCNC](https://jmscnc.com), makers of RotatoCAM · **[Rev. J. Money - 2026]**

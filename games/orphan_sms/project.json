@@ -1,0 +1,15 @@
+{
+  "id": "SMS1",
+  "title": "Orphan Games: Master System + Game Gear in the FPGA",
+  "category": "Games",
+  "level": "easy",
+  "summary": "The Sega Master System and Game Gear rebuilt in the FPGA: the T80 Z80, the SMS picture chip (VDP) and the SN76489 sound chip in hardware (MiSTer's SMS core, GPL-2.0-or-later, turned into Verilog with GHDL, plus jt89 by Jose Tejada, GPL-3). Play free homebrew SMS and Game Gear games from the browser (keyboard or a USB gamepad) or on an ORPHAN Remote (CYD) screen. Carts up to 128 KB with the Sega mapper. by JMSCNC, makers of RotatoCAM.",
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "Master System / Game Gear (cart, frame buffer, sound, pads)",
+    "14": "LEDs (orphan_leds)",
+    "15": "Fan (orphan_fan)"
+  },
+  "runs": "fpga core"
+}

@@ -1,0 +1,240 @@
+{
+  "01_led_strip": {
+    "summary": "Drives a WS2812B or SK6812 RGB LED strip (NeoPixel) with exact timing made by the FPGA, up to 1024 LEDs. The demo loops a rainbow, a colour wipe, a theatre chase and a breathing glow. It shows how hardware keeps a timing-critical signal perfect while Python just sends colours.",
+    "quickstart": [
+      "Wire strip DIN to J7 pin 5 and strip GND to J7 pin 1 (GND).",
+      "Power the strip from its own 5 V supply (about 60 mA per LED at full white) and join its ground to the board's.",
+      "If the strip flickers, add a 74AHCT125 level shifter on DIN (see the guide).",
+      "Load the project. The demo assumes 60 LEDs: change N in main.py for your strip.",
+      "Watch the effects; Program output prints frames sent and the measured pulse widths."
+    ]
+  },
+  "02_pattern_gen": {
+    "summary": "A pattern generator: plays any digital pattern of up to 1024 steps on 16 pins, up to 100 million steps per second, and checks the pins as it plays. The demo cycles a binary counter, a walking one, an SPI-like frame, PWM and Gray code. It is the opposite of a logic analyzer and teaches how digital signals are built step by step.",
+    "quickstart": [
+      "Optional: connect a scope or logic analyzer to J5..J8 pins 5, 11, 12, 15, with GND on pin 1 or 2.",
+      "Keep loads small (3.3 V levels, under 8 mA per pin).",
+      "Load the project. Each pattern plays for about 3 seconds, then the next one.",
+      "Program output names each pattern with its loop count and pin mismatches (should be 0)."
+    ]
+  },
+  "03_encoders": {
+    "summary": "Counts two quadrature rotary encoders (knobs, motor encoders, linear scales) in hardware, so no step is ever missed, with a glitch filter. You see each encoder's position, speed and error count, and the position on the 4 LEDs. It teaches how quadrature signals give both direction and distance.",
+    "quickstart": [
+      "Encoder 0: A to J5 pin 5, B to J5 pin 11. Encoder 1: A to J5 pin 12, B to J5 pin 15.",
+      "For a plain knob encoder, connect its common pin to GND (J5 pin 1); the pull-ups are on.",
+      "Use 3.3 V signals only; a 5 V encoder needs a divider or level shifter.",
+      "Load the project and turn a knob.",
+      "Program output shows position (usually 4 counts per click), speed and errors."
+    ]
+  },
+  "04_steppers": {
+    "summary": "Two stepper motor axes for driver boards like A4988, DRV8825 or TMC2208, with smooth speed-up and slow-down computed in the FPGA every microsecond. The demo moves axis 0 back and forth two turns while axis 1 follows at half the distance. It teaches step/dir control and acceleration ramps.",
+    "quickstart": [
+      "Axis 0: driver STEP to J8 pin 5, DIR to J8 pin 11. Axis 1: STEP to J8 pin 12, DIR to J8 pin 15.",
+      "Driver logic GND to J8 pin 1 and driver VDD (logic) to 3.3 V; tie driver EN to GND.",
+      "Motor supply (12 to 24 V) goes to the driver only. Set the driver's current limit first.",
+      "Set 16 microsteps on the driver (the demo assumes 3200 steps per turn), then Load the project.",
+      "Program output prints each move: position, time, top speed and pulses seen."
+    ]
+  },
+  "05_spi_i2c": {
+    "summary": "Hardware SPI (up to 50 MHz, all 4 modes) on J2 and an I2C controller (100 kHz to 1 MHz) on the board's I2C bus. The demo scans I2C, names known chips (BME280, DS3231, SSD1306 and more) and reads an SPI flash chip's ID. It teaches the two most common buses for sensors, displays and memories.",
+    "quickstart": [
+      "I2C module: SDA to pin 3, SCL to pin 4 of any header J1..J8 (the board has pull-ups).",
+      "SPI module: CS, MOSI, MISO, SCLK to J2 pins 5, 11, 12, 15.",
+      "Power small 3.3 V modules from pin 16 (3.3 V) and pin 1 (GND).",
+      "Load the project.",
+      "Program output lists the I2C addresses found and the SPI flash ID (or says nothing answered)."
+    ]
+  },
+  "06_signal_gen": {
+    "summary": "A function generator (DDS): sine, triangle, sawtooth and square from 0.02 Hz to several MHz, with amplitude, offset and sweeps, on four kinds of outputs. The demo steps through the four waves at 1 kHz, then sweeps a sine from 100 Hz to 10 kHz. It teaches direct digital synthesis and simple DACs.",
+    "quickstart": [
+      "Analog out: J6 pin 5 through 1 kohm, then 10 nF to GND; the signal is at the capacitor.",
+      "Scope trigger or clock: J6 pin 12 gives a clean square wave at the set frequency.",
+      "Other outputs (PWM DAC on J6 pin 11, 8-bit R-2R on J5 and J8): see the guide.",
+      "Load the project.",
+      "Program output shows each wave and the frequency measured at the sync pin."
+    ]
+  },
+  "07_vga": {
+    "summary": "Connect a VGA monitor with 8 resistors and the FPGA makes a 640 x 480 signal: a 320 x 240 picture with 16 colours, drawn from Python. The demo shows a status screen with the chip temperature graph, a clock and colour bars. It teaches video timing and simple resistor DACs.",
+    "quickstart": [
+      "Red: J6 pins 5 and 11, green: J6 pins 12 and 15, blue: J8 pins 5 and 11, each pair through 470 ohm and 1 kohm.",
+      "HSYNC J8 pin 12 to VGA pin 13, VSYNC J8 pin 15 to VGA pin 14, each through 100 ohm.",
+      "GND (J6 / J8 pin 1) to VGA pins 5, 6, 7, 8, 10. The guide has the full table.",
+      "Load the project and switch on the monitor.",
+      "You see the temperature graph, the clock and 16 colour bars, updated every second."
+    ]
+  },
+  "08_audio": {
+    "summary": "Sound in and out: plays through an I2S DAC or amplifier module (PCM5102A, MAX98357A), and can record from an I2S ADC or a PDM microphone. The demo plays a short melody made in Python, then a tone sweep, over and over. It teaches I2S digital audio and sample rates.",
+    "quickstart": [
+      "PCM5102A: BCK to J3 pin 11, DIN to J3 pin 12, LCK to J3 pin 15, SCK to GND, VIN 3.3 V, GND.",
+      "Or MAX98357A: BCLK J3 pin 11, DIN J3 pin 12, LRC J3 pin 15, VIN, GND, and a 4 to 8 ohm speaker.",
+      "Load the project and listen: a melody, then a rising tone sweep.",
+      "To hear your own sound, put a 16-bit WAV file named sound.wav in the project folder."
+    ]
+  },
+  "09_sensors": {
+    "summary": "Three sensor helpers timed by the FPGA to the microsecond: an HC-SR04 ultrasonic distance sensor, any NEC infrared remote control, and a capacitive touch pad. The demo prints distance, remote button codes and touches as they change; LED 0 lights on touch. It teaches pulse timing and simple sensing tricks.",
+    "quickstart": [
+      "HC-SR04: TRIG to J8 pin 5; ECHO to J8 pin 11 through a divider (1 kohm from ECHO, 2 kohm to GND). ECHO is 5 V.",
+      "IR receiver (VS1838B) OUT to J8 pin 12, its VCC to 3.3 V (pin 16).",
+      "Touch pad: a wire or coin on J8 pin 15, with 1 Mohm to 3.3 V.",
+      "Load the project, then wave a hand at the sensor, press remote buttons, touch the pad.",
+      "Program output prints the distance in mm, the remote's address and command, and touch state."
+    ]
+  },
+  "10_riscv": {
+    "summary": "A third processor next to the two ARM cores: a small RV32I RISC-V core with 16 KB of RAM, built in the FPGA. The ARM assembles the demo programs and loads them: blink.s runs the LEDs, then primes.s counts the primes below 12000, raced against Python. It teaches how a CPU runs machine code.",
+    "quickstart": [
+      "Nothing to wire: the 4 board LEDs show the programs (optional LEDs on J8, buttons on J5; see the guide).",
+      "Load the project.",
+      "Watch the LEDs run, then Program output shows the prime count and the speed of the RISC-V and Python.",
+      "Write your own: copy blink.s to a new file, change it, and add its name to PROGRAMS in main.py."
+    ]
+  },
+  "11_stream_lab": {
+    "summary": "The building blocks for data streams inside the FPGA (AXI-Stream): FIFOs, a width converter, a CRC-32 engine, a 100 million words per second source with a meter, and a frame-aware arbiter. Everything happens inside the chip. It teaches how FPGA designs move data with valid/ready handshakes.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project.",
+      "Program output shows the CRC-32 of a text from the FPGA and from Python (they should match).",
+      "Then the stream speed at 1, 2, 4 and 10 clocks per word, and the frames from two sources taking turns."
+    ]
+  },
+  "12_fm_radio": {
+    "summary": "A radio station on one FPGA pin: FM stereo with RDS station name and text, plus NFM, AM, SSB, Morse, RTTY, PSK31, SSTV pictures and network sound (AES67). The transmitter starts OFF; its settings live in radio.json. Radio transmissions are regulated: use a free frequency, low power and a short antenna, and follow your local rules.",
+    "quickstart": [
+      "Wire a short 10 to 20 cm wire to J9 pin 11 as the antenna (or nothing for a first test).",
+      "Pick a frequency that is silent where you live; listen with a radio first.",
+      "Load the project. It starts with the transmitter OFF.",
+      "Edit radio.json in the project folder: set freq_mhz, keep power low, set \"on\" to true. It notices within a second.",
+      "Tune an FM radio there: test tones play, and the station name appears after a second or two.",
+      "The full control page is in the Ardzy app; see the guide for every setting."
+    ]
+  },
+  "13_sha256": {
+    "summary": "SHA-256 in hardware, the job the Antminer was built for. The demo hashes a text, finds the real nonce of Bitcoin block 125552, races the FPGA against the ARM, then keeps mining a made-up header for ever. It teaches how hashing and proof-of-work mining work.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project.",
+      "Program output shows the FPGA hash next to Python's hashlib (they match).",
+      "Then the real nonce of block 125552 and the race: FPGA hashes per second against the ARM.",
+      "It then mines for ever and prints each block found; Stop the program when done."
+    ]
+  },
+  "14_fir_filter": {
+    "summary": "A digital filter (FIR) built from one hardware multiplier: up to 64 taps at about 1.5 million samples per second, matching the math to the last bit. The demo designs a 63-tap low-pass filter, cleans a noisy 10 kHz sine and measures the frequency response. It teaches DSP, fixed-point numbers and filter design.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project.",
+      "Program output draws a noisy sine before and after the filter.",
+      "Then the measured frequency response next to the computed one, then live noise levels every second.",
+      "Try other filters: change f1, taps or the window in main.py and load again."
+    ]
+  },
+  "15_game_of_life": {
+    "summary": "Conway's Game of Life on a 64 x 64 grid in hardware: a whole row is computed per clock, about 1.4 million generations per second. The demo shows still lifes, oscillators and spaceships, races Python, fires a Gosper glider gun, then runs random soup. It teaches why parallel hardware is fast.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project.",
+      "Program output draws the grid: gliders, a spaceship and blinking oscillators.",
+      "Then the race: 100 generations in Python against the FPGA, and the FPGA's full speed.",
+      "Last, a glider gun and random soup for ever; Stop the program when done."
+    ]
+  },
+  "16_digit_ai": {
+    "summary": "A real neural network inside the FPGA that reads handwritten digits: 64 multipliers work at once and read a digit in about 10 microseconds, far faster than the ARM. It tests itself on 50 digits, then serves a drawing page where you draw a digit and see the answer, how sure it is, and its hidden neurons. It teaches how a neural network works.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project. Program output shows 50 test digits, the FPGA's answers and the speed race.",
+      "On a PC or phone on the same network, open http://<board>:8080",
+      "Draw a digit big and in the middle, lift the pen: the FPGA reads it. Show an example draws a test digit."
+    ],
+    "web": 8080
+  },
+  "17_text_ai": {
+    "summary": "A tiny language model, the idea behind chatbots, running in the FPGA: it reads the last 16 letters and scores every letter that could come next. The demo checks the FPGA against Python, writes a few texts from given starts and races the ARM. It teaches how text models predict the next letter.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project.",
+      "Program output shows the bit-for-bit check, three texts it writes (the start in brackets) and the speed.",
+      "It then serves port 8080 for the Ardzy app's Text AI page only (no browser page); its texts show in Program output."
+    ]
+  },
+  "18_image_ai": {
+    "summary": "The opposite of project 16: a network in the FPGA draws new handwritten digits, never the same twice, and project 16's reader in the same engine checks each drawing. The demo checks the FPGA against Python, draws every digit and races the ARM. It teaches generative networks.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project.",
+      "Program output shows each digit drawn in text, what the reader says it is, and the speed.",
+      "It then serves port 8080 for the Ardzy app's Image AI page only (morph, styles); there is no browser page."
+    ]
+  },
+  "19_ai_studio": {
+    "summary": "All three AIs in one design and much bigger: about 2 MB of weights live in the board's DDR memory and stream into the FPGA while a network runs, about 100 times faster than the ARM. A bigger digit reader, a text model with 32 letters of memory, and a sharper digit drawer. It teaches how big models are fed from memory.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project. It takes a few seconds longer than the others (2 MB of networks).",
+      "Program output shows the bit-for-bit check and the speed of each network.",
+      "It then serves port 8080 for the Ardzy app's AI page only (Read, Write, Draw); there is no browser page."
+    ]
+  },
+  "ardzy_io": {
+    "summary": "Ardzy's general I/O design: every header pin can be read or driven, with PWM, measuring and a logic analyzer, controlled from the board's web page. There is no program of its own; the FPGA design does the work. It is the same idea as pin control.",
+    "quickstart": [
+      "Load the project.",
+      "Open the board's web page (http://<board>/) and use its pin controls.",
+      "Read or drive header pins, set PWM, or capture signals with the logic analyzer.",
+      "Keep signals at 3.3 V levels."
+    ]
+  },
+  "blink": {
+    "summary": "The smallest FPGA design: a counter in the FPGA drives the 4 LEDs (D5..D8) so they count in binary, with no help from the ARM. The program only prints the FPGA state. A good first check that loading designs works.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project.",
+      "Look at the board: the 4 LEDs count in binary, about 1.5 steps per second.",
+      "Program output prints the FPGA state."
+    ]
+  },
+  "board_hello": {
+    "summary": "No FPGA design at all, only the ARM side of the board, like a first Arduino sketch. The red/green status LED blinks, the IP button (S2) gives a short beep and the Reset button (S1) a long beep that ends the program. It teaches the board's own LED, buttons and beeper.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project: you hear a short beep and the status LED blinks green and red.",
+      "Press the IP button (S2): a short beep and a count in Program output.",
+      "Press the Reset button (S1): a long beep and the program ends."
+    ]
+  },
+  "fpga_ramtest": {
+    "summary": "Starts testers for 11 block RAM shapes (4096 x 32 down to 32768 x 1) three times and prints the results. It checks that all of the FPGA's memory works.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project.",
+      "Program output shows each of the 3 runs: how many RAM shapes passed.",
+      "The last line should read: all RAM shapes ok in 3 runs."
+    ]
+  },
+  "fpga_selftest": {
+    "summary": "The FPGA measures its own clocks, and the ARM tests its block RAM, DSP multipliers and shift registers. Every line prints ok or FAIL. Run it on a new board or after a scare.",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project.",
+      "Program output lists each check: clocks locked and measured, block RAM, DSP multiply and more.",
+      "Every line should say ok; any FAIL points to the part that is wrong."
+    ]
+  },
+  "leds_python": {
+    "summary": "The ARM drives the 4 LEDs through an AXI GPIO block in the FPGA at 0x41200000, in a Knight Rider pattern. It shows how a Python program writes FPGA registers (the LEDs are active low).",
+    "quickstart": [
+      "Nothing to wire.",
+      "Load the project: a light runs back and forth over the 4 LEDs.",
+      "Program output prints the step, the LEDs lit and the register value.",
+      "Change the pattern list in main.py and load again to make your own."
+    ]
+  }
+}

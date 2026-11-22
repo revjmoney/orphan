@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080a0c">
+<title>ORPHAN TINYLM · JMSCNC</title>
+<style>
+:root{color-scheme:dark;--ink:#e8efe6;--muted:#a3afa2;--lime:#d2ff51;--line:#364239;--panel:#101613b8;--mono:Consolas,"IBM Plex Mono",monospace;--space:clamp(7px,1.3vh,15px)}
+*{box-sizing:border-box}
+body{margin:0;background:#080a0c;color:var(--ink);font:clamp(11px,1.7vh,15px)/1.35 var(--mono)}
+button,input,textarea{font:inherit}
+button{cursor:pointer;color:var(--ink);border:1px solid #47584d;border-radius:3px;background:linear-gradient(#242e28,#131914);padding:.5em .8em;white-space:nowrap}
+button:hover,a:hover{color:var(--lime);border-color:var(--lime)}
+button.primary{background:linear-gradient(#e1ff8a,#a5cb37);border-color:var(--lime);color:#131a06;font-weight:700}
+button.stop{border-color:#744744;color:#ffaea3}
+a{color:var(--muted);text-decoration:none}
+#rain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+main{position:relative;min-height:100dvh;max-width:1300px;margin:auto;display:grid;grid-template-rows:auto auto 1fr auto;gap:var(--space);padding:var(--space) clamp(9px,2vw,28px)}
+header,footer,.panel-head,.row{display:flex;align-items:center;gap:.6em}
+header{justify-content:space-between;border-bottom:1px solid #71827170;padding:0 0 var(--space);flex-wrap:wrap}
+.identity{display:flex;align-items:center;gap:11px}
+.mark{display:grid;place-items:center;width:2.7em;aspect-ratio:1;color:#142000;background:linear-gradient(140deg,#eaffac,#bddf47 55%,#667e25 56%,#aed438 82%,#edfaba);border:1px solid var(--lime);border-radius:3px;font-weight:bold;font-size:1.15em}
+h1,h2,p{margin:0}
+h1{font:800 clamp(24px,5vh,54px)/.87 "Arial Narrow",Bahnschrift,Impact,sans-serif;letter-spacing:-.035em;white-space:nowrap}
+h1 span{color:var(--lime)}
+.brand,.label,footer{color:var(--muted);font-size:.84em;letter-spacing:.09em;text-transform:uppercase}
+.brand{margin-top:.44em}
+.tools{display:flex;gap:.5em;align-items:center}
+.pill{color:var(--lime);font-size:.83em;border:1px solid #596e3e;background:#152112;padding:.45em .7em;white-space:nowrap}
+.bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:3px;padding:.4em .7em;font-weight:700;white-space:nowrap;box-shadow:0 0 14px #ffcc2e55}
+.bmc.small{padding:.1em .5em;box-shadow:none;text-transform:none;letter-spacing:0}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space)}
+.metric,.panel{position:relative;min-width:0;border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:var(--space);box-shadow:inset 0 1px #e1ffc810,0 10px 24px #0005}
+.metric::before,.panel::before{content:"";position:absolute;top:-1px;left:12px;width:28px;height:1px;background:#b3c3b3}
+.metric strong{display:block;font-size:clamp(17px,4.9vh,49px);line-height:1.1;font-weight:500;letter-spacing:-.06em;white-space:nowrap}
+.metric:first-child strong{color:var(--lime);text-shadow:0 0 22px #cfff5140}
+.metric small{font-size:.43em;letter-spacing:0;color:var(--muted)}
+.work{display:grid;grid-template-columns:minmax(0,2fr) minmax(240px,1fr);gap:var(--space);min-height:0}
+.panel-head{justify-content:space-between;margin-bottom:.55em}
+h2{font-size:1em;color:var(--lime);text-transform:uppercase;letter-spacing:.11em}
+#story{min-height:42vh;max-height:60vh;overflow:auto;background:#080e0a;border:1px solid #2d3b31;padding:1em;white-space:pre-wrap;font-size:1.1em;line-height:1.6;color:#e2f0d8}
+#story .cur{display:inline-block;width:.6em;height:1.1em;background:var(--lime);vertical-align:text-bottom;animation:b 1s steps(2) infinite}
+@keyframes b{50%{opacity:0}}
+select{width:100%;background:#090e0b;border:1px solid #405044;border-radius:2px;padding:.38em .48em;color:var(--ink);font:inherit}
+textarea{width:100%;min-height:4.2em;background:#090e0b;border:1px solid #405044;border-radius:2px;padding:.5em;color:var(--ink);resize:vertical}
+input[type=range]{accent-color:var(--lime);width:100%}
+label{color:var(--muted);font-size:.88em;display:block;margin:.6em 0 .2em}
+.row{flex-wrap:wrap;margin-top:.6em}
+.note{font-size:.82em;color:var(--muted);line-height:1.5;margin-top:.8em}
+.note b{color:var(--ink)}
+#race{font-size:.95em;margin-top:.6em;color:#d8ead1}
+#quad{display:none;grid-template-columns:1fr 1fr;gap:var(--space)}
+#quad .pane,.take{background:#080e0a;border:1px solid #2d3b31;padding:.7em;white-space:pre-wrap;line-height:1.5;color:#e2f0d8;min-height:18vh;max-height:30vh;overflow:auto;position:relative}
+#quad .pane b,.take b{display:block;color:var(--lime);font-size:.8em;letter-spacing:.1em;margin-bottom:.3em}
+#adv{display:none}
+#advstory{background:#080e0a;border:1px solid #2d3b31;padding:1em;white-space:pre-wrap;line-height:1.6;color:#e2f0d8;max-height:28vh;overflow:auto;margin-bottom:var(--space)}
+#takes{display:grid;grid-template-columns:1fr 1fr;gap:var(--space)}
+.take button{margin-top:.5em}
+.modes{display:flex;gap:.4em;flex-wrap:wrap;margin-top:.6em}
+footer{justify-content:space-between;gap:6px;flex-wrap:wrap}
+@media(max-width:800px){.metrics{grid-template-columns:repeat(2,1fr)}.work{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+<main>
+<header>
+ <div class="identity"><div class="mark" aria-hidden="true">L</div><div><h1>ORPHAN <span>TINYLM</span></h1><div class="brand">[orphan] · retired silicon writes stories · stories15M + stories42M on the FPGA</div></div></div>
+ <div class="tools"><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a><button id="motion" type="button">FX on</button><span class="pill" id="conn">CONNECTING</span></div>
+</header>
+<div class="metrics">
+ <div class="metric"><div class="label">Tokens / second</div><strong><span id="tps">0</span> <small>tok/s</small></strong></div>
+ <div class="metric"><div class="label">FPGA time / token</div><strong><span id="fms">-</span> <small>ms</small></strong></div>
+ <div class="metric"><div class="label">Engine</div><strong id="eng">FPGA</strong></div>
+ <div class="metric"><div class="label">Die temperature</div><strong><span id="temp">-</span> <small>°C</small></strong></div>
+</div>
+<div class="work">
+ <section class="panel">
+  <div class="panel-head"><h2>The story</h2><span id="cnt">0 tokens</span></div>
+  <div id="story">Type the start of a story and press Write.</div>
+  <div id="quad"><div class="pane"><b>STORY 1</b><span></span></div><div class="pane"><b>STORY 2</b><span></span></div>
+   <div class="pane"><b>STORY 3</b><span></span></div><div class="pane"><b>STORY 4</b><span></span></div></div>
+  <div id="adv"><div id="advstory"></div><div id="takes"></div></div>
+ </section>
+ <section class="panel">
+  <div class="panel-head"><h2>Your prompt</h2></div>
+  <label for="model">Model</label><select id="model"></select>
+  <textarea id="prompt">Once upon a time, a little robot</textarea>
+  <label for="temp_">Creativity (temperature) <span id="tv">0.8</span></label><input type="range" id="temp_" min="0" max="1.2" step="0.1" value="0.8">
+  <label for="len">Length <span id="lv">200</span> tokens</label><input type="range" id="len" min="20" max="256" step="4" value="200">
+  <div class="modes"><button class="primary" id="go" title="one story">Write</button>
+   <button class="primary" id="four" title="4 different stories from the same opening, in one FPGA pass">4 Stories</button>
+   <button class="primary" id="advbtn" title="choose your own adventure: 4 takes of every chapter, you pick">Adventure</button></div>
+  <div class="row"><button class="stop" id="stop">Stop</button><button id="dl" title="Save the story as a text file: in Adventure, your opening and only the takes you picked">Download .txt</button><button id="racebtn" title="1 story on the FPGA, 4 at once on the FPGA, 1 on the ARM alone">Race</button></div>
+  <div id="race"></div>
+  <p class="note"><b>What runs where:</b> every matrix product (15 or 42 million 8-bit weights per word, streamed from DDR
+   through two HP ports into 64 multiply lanes: up to 4 stories share one pass) runs in the FPGA; attention, RMSNorm,
+   RoPE and the word choice run on the ARM. <b>Adventure:</b> 4 takes of every chapter, you pick, the story goes on
+   from your choice. <b>Roots:</b> models and tokenizer are Karpathy's llama2.c stories15M and stories42M (MIT), trained on TinyStories; the DDR
+   streaming comes from <a href="https://github.com/chrysovalantischryso/ardzy">Ardzy</a>'s AI Studio (by chryso, GPL-3.0).</p>
+ </section>
+</div>
+<footer><span><a class="bmc small" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> · <b>[Rev. J. Money - 2026]</b> · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM</span>
+ <span>Ardzy inside: DDR streaming from AI Studio by chryso (GPL-3.0) · models: llama2.c by Andrej Karpathy (MIT) · Orphan · FPGA Dev Linux for the S9 Control Board</span></footer>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+$('temp_').oninput = () => $('tv').textContent = $('temp_').value;
+$('len').oninput = () => $('lv').textContent = $('len').value;
+async function post(d) { const r = await fetch('/api/go', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(d)});
+  const j = await r.json(); if (j.error) $('race').textContent = j.error; }
+const opts = a => ({action: a, prompt: $('prompt').value, temp: +$('temp_').value, steps: +$('len').value});
+$('go').onclick = () => { $('race').textContent = ''; post(opts('write')); };
+$('four').onclick = () => { $('race').textContent = ''; post(opts('four')); };
+$('advbtn').onclick = () => { $('race').textContent = ''; post(opts('adventure')); };
+window.pick = i => post({action: 'pick', take: i});
+let lastS = null;
+$('dl').onclick = () => {
+  const s = lastS; if (!s) return;
+  const NL = String.fromCharCode(10), P = NL + NL;
+  const MN = {stories15M: 'Stories 15M', stories42M: 'Stories 42M'}[s.model] || s.model;
+  let title, body;
+  if (s.mode === 'adventure' && s.chapters.length) {           // the opening + only the chosen takes
+    title = 'Choose your own adventure'; body = s.chapters.map(c => c.trim()).join(P);
+  } else if (s.mode === 'four') {
+    title = '4 Stories'; body = s.slots.map((t, i) => 'STORY ' + (i + 1) + P + t.trim()).join(P + NL);
+  } else { title = 'Story'; body = (s.slots[0] || '').trim(); }
+  if (!body) return;
+  const text = 'ORPHAN TINYLM: ' + title + NL + 'Written by ' + MN + ' on the FPGA of an S9 control board, ' +
+    new Date().toLocaleString() + P + body + P + '---' + NL +
+    'Orphan · FPGA Dev Linux for the S9 Control Board · by JMSCNC, makers of RotatoCAM' + NL +
+    'Buy me a coffee: https://buymeacoffee.com/revjmoney · [Rev. J. Money - 2026]' + NL;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type: 'text/plain'}));
+  a.download = 'orphan-story-' + new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-') + '.txt';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+const MODEL_NAMES = {stories15M: 'Stories 15M (fast)', stories42M: 'Stories 42M (better stories)'};
+$('model').onchange = () => post({action: 'model', model: $('model').value});
+$('stop').onclick = () => post({action: 'stop'});
+$('racebtn').onclick = () => { $('race').textContent = 'Racing: 1 story on the FPGA, 4 at once on the FPGA, then 1 on the ARM alone...'; post({action: 'race', prompt: $('prompt').value}); };
+let lastText = '';
+async function tick() {
+  try {
+    const s = await (await fetch('/api/status')).json(); lastS = s;
+    $('conn').textContent = s.running ? 'WRITING' : 'BOARD ONLINE';
+    $('tps').textContent = s.tps; $('fms').textContent = s.fpga_ms || '-';
+    $('eng').textContent = {write: 'FPGA x1', four: 'FPGA x4', adventure: 'FPGA x4', race: 'RACE'}[s.mode] || 'FPGA';
+    const mode = s.mode === 'four' || (s.mode === 'race' && s.slots[1]) ? 'four' : s.mode === 'adventure' ? 'adv' : 'one';
+    $('story').style.display = mode === 'one' ? 'block' : 'none';
+    $('quad').style.display = mode === 'four' ? 'grid' : 'none';
+    $('adv').style.display = mode === 'adv' ? 'block' : 'none';
+    if (mode === 'four') document.querySelectorAll('#quad .pane span').forEach((e, i) => { if (e.textContent !== s.slots[i]) { e.textContent = s.slots[i]; e.parentNode.scrollTop = 1e9; } });
+    if (mode === 'adv') {
+      if ($('advstory').textContent !== s.story) { $('advstory').textContent = s.story; $('advstory').scrollTop = 1e9; }
+      const T = $('takes'), ready = !s.running && s.takes.length === 4, key = JSON.stringify([s.slots, ready]);
+      if (T.dataset.k !== key) { T.dataset.k = key;
+        T.innerHTML = s.slots.map((t, i) => '<div class="take"><b>TAKE ' + (i + 1) + '</b><span></span>' + (ready ? '<br><button class="primary" onclick="pick(' + i + ')">Pick this</button>' : '') + '</div>').join('');
+        T.querySelectorAll('.take span').forEach((e, i) => e.textContent = s.slots[i]); }
+    }
+    $('temp').textContent = s.temp == null ? '-' : s.temp;
+    $('cnt').textContent = s.tokens + ' tokens';
+    s.text = s.slots[0];
+    if (mode === 'one' && (s.text !== lastText || s.running)) {
+      lastText = s.text; const st = $('story'); st.textContent = s.text || ' ';
+      if (s.running) { const c = document.createElement('span'); c.className = 'cur'; st.appendChild(c); }
+      st.scrollTop = st.scrollHeight;
+    }
+    if ($('model').dataset.k !== s.models.join()) { $('model').dataset.k = s.models.join();
+      $('model').innerHTML = s.models.map(n => '<option value="' + n + '">' + (MODEL_NAMES[n] || n) + '</option>').join(''); }
+    if (document.activeElement !== $('model')) $('model').value = s.model;
+    if (s.race && s.race.fpga4 && s.race.arm === 0) $('race').textContent = 'Race: FPGA 1 story ' + s.race.fpga1 + ' tok/s, FPGA 4 at once ' + s.race.fpga4 + ' tok/s (the ARM-alone leg runs on Stories 15M only)';
+    else if (s.race && s.race.arm) $('race').textContent = 'Race: FPGA 1 story ' + s.race.fpga1 + ' tok/s, FPGA 4 at once ' + s.race.fpga4 + ' tok/s, ARM alone ' + s.race.arm + ' tok/s (' + (s.race.fpga4 / s.race.arm).toFixed(1) + 'x)';
+    if (s.error) $('race').textContent = 'Error: ' + s.error;
+  } catch (e) { $('conn').textContent = 'OFFLINE'; }
+}
+tick(); setInterval(tick, 250);
+(() => {
+  const cv = $('rain'), btn = $('motion'); let on = true, frame = 0, last = 0;
+  try { on = localStorage.getItem('orphan-fx') !== 'off'; } catch (e) {}
+  function draw(t) { const w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const x = cv.getContext('2d'); x.clearRect(0, 0, w, h); x.font = '12px Consolas';
+    for (let l = 0; l < w / 22; l++) { const st = Math.floor(t / (82 + l % 6 * 16)), y = ((st * 14 + l * 89) % (h + 154)) - 12;
+      for (let i = 0; i < 8; i++) { x.fillStyle = i === 0 ? '#bfef6650' : 'rgba(139,208,57,' + (8 - i) * .014 + ')';
+        x.fillText((st + i * 13 + l * 29) % 7 < 3 ? '0' : '1', l * 22 + 4, y - i * 14); } } }
+  function anim(t) { if (!on) return; if (t - last >= 48) { last = t; draw(t); } frame = requestAnimationFrame(anim); }
+  function set(v) { on = v; btn.textContent = v ? 'FX on' : 'FX off'; cv.hidden = !v; if (!v) { cancelAnimationFrame(frame); frame = 0; } else if (!frame) frame = requestAnimationFrame(anim); }
+  btn.onclick = () => { set(!on); try { localStorage.setItem('orphan-fx', on ? 'on' : 'off'); } catch (e) {} };
+  set(on);
+})();
+</script>
+</body>
+</html>

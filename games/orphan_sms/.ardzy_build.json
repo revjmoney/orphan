@@ -1,0 +1,131 @@
+{
+ "orphan_sms.bit": {
+  "board": "s9",
+  "sha256": "68e75459e57de52ef00cf1421ca5fe333ab780bb104a64a3f055c36bcbac32c5",
+  "date": "2026-11-22 11:46",
+  "report": {
+   "board": "s9",
+   "board_name": "Antminer S9",
+   "part": "xc7z010clg400-1",
+   "top": "top",
+   "seconds": 218,
+   "date": "2026-11-22 11:46",
+   "used": {
+    "LUT": 4460,
+    "FF": 3333,
+    "BRAM": 52,
+    "DSP": 1,
+    "LUT_RAM": 0,
+    "SRL": 2,
+    "CARRY": 296,
+    "BUFG": 3,
+    "MMCM_PLL": 1
+   },
+   "max": {
+    "LUT": 17600,
+    "FF": 35200,
+    "BRAM": 60,
+    "DSP": 80,
+    "PINS": 100
+   },
+   "pins": 11,
+   "clocks": {
+    "clk": {
+     "fmax": 144.01,
+     "need": 100.0,
+     "pass": true
+    },
+    "u_sms.sclk": {
+     "fmax": 72.94,
+     "need": 53.71,
+     "pass": true
+    }
+   },
+   "hold_problems": 0,
+   "timing_ok": true,
+   "paths": [
+    {
+     "clock": "clk",
+     "cross": false,
+     "start": "u_sms.fr_s2[13]",
+     "end": "u_sms (logic)",
+     "delay": 6.94,
+     "levels": 12,
+     "logic_ns": 2.16,
+     "route_ns": 4.79,
+     "steps": [
+      {
+       "net": "u_sms.fr_s2[13]",
+       "ns": 0.34,
+       "src": "orphan_sms_block.v:260"
+      },
+      {
+       "net": "u_sms (logic)",
+       "ns": 0.02,
+       "src": ""
+      }
+     ]
+    },
+    {
+     "clock": "u_sms.sclk",
+     "cross": false,
+     "start": "u_sms.u_z80.u0.n1128_o[4]",
+     "end": "u_sms.u_z80.u0.n1128_o[4]",
+     "delay": 13.71,
+     "levels": 15,
+     "logic_ns": 3.29,
+     "route_ns": 10.4,
+     "steps": [
+      {
+       "net": "u_sms.u_z80.u0.n1128_o[4]",
+       "ns": 0.73,
+       "src": "T80s_ghdl.v:17234"
+      }
+     ]
+    },
+    {
+     "clock": "posedge clk -> posedge u_sms.sclk",
+     "cross": true,
+     "start": "u_sms.pads[13]",
+     "end": "u_sms.pads[13]",
+     "delay": 1.66,
+     "levels": 0,
+     "logic_ns": 0.45,
+     "route_ns": 1.21,
+     "steps": [
+      {
+       "net": "u_sms.pads[13]",
+       "ns": 1.21,
+       "src": "orphan_sms_block.v:59"
+      }
+     ]
+    },
+    {
+     "clock": "posedge u_sms.sclk -> posedge clk",
+     "cross": true,
+     "start": "lvl[7]",
+     "end": "lvl[7]",
+     "delay": 4.82,
+     "levels": 8,
+     "logic_ns": 1.97,
+     "route_ns": 2.83,
+     "steps": [
+      {
+       "net": "lvl[7]",
+       "ns": 0.31,
+       "src": "orphan_sms_block.v:236"
+      },
+      {
+       "net": "(logic)",
+       "ns": 0.02,
+       "src": "orphan_leds.v:96"
+      }
+     ]
+    }
+   ],
+   "debug": null,
+   "seed": 1,
+   "ethernet_added": false
+  }
+ }
+}

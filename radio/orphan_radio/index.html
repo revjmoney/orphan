@@ -97,7 +97,11 @@
   .panbar .rdg { font:600 12px var(--num); color:#8fb3c9; font-variant-numeric:tabular-nums; }
   #spec, #wf { width:100%; height:100%; display:block; min-height:0; }
   #spec { cursor:crosshair; touch-action:none; }
-  .wfwrap { min-height:0; border-top:1px solid #1a2a37; }
+  .wfwrap { min-height:0; border-top:1px solid #1d2a22; }
+  .center > header { grid-row:1; } .center > .ovw { grid-row:2; } .center > #slices { grid-row:3; }
+  .center > .panbar { grid-row:4; } .center > #spec { grid-row:5; } .center > .wfwrap { grid-row:6; }
+  #rain { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+  .source-bar, .app { position:relative; z-index:1; }
 
   .vfo { display:grid; grid-template-columns:118px 1fr; gap:6px; align-items:start; }
   #knob { width:118px; height:118px; display:block; cursor:grab; touch-action:none; }
@@ -157,18 +161,19 @@
   }
   @media (prefers-reduced-motion:reduce) { .meter > div { transition:none; } }
 
-  :root { color-scheme:dark; --ink:#090d11; --rail:#151a20; --line:#303842; --line2:#414b56;
-    --amber:#fbcc79; --amber2:#ffe4ac; --cyan:#72d8ff; --dim:#a8b3be; --txt:#e5edf4; }
+  /* the Orphan firmware palette on the radio faceplate: lime readouts like a green VFD receiver */
+  :root { color-scheme:dark; --ink:#080a0c; --rail:#101613; --line:#2d3b31; --line2:#3d4c41;
+    --amber:#d2ff51; --amber2:#e6ff9a; --cyan:#7ee0c8; --dim:#a3afa2; --txt:#e8efe6; }
   body { display:grid; grid-template-rows:auto minmax(0,1fr); height:100dvh; }
   .source-bar { position:static; padding:8px clamp(8px,1.15vw,22px); gap:8px; min-height:48px;
-    background:linear-gradient(#22282f,#13171d); }
+    background:linear-gradient(#1b231e,#0d130f); }
   .source-bar .brand { margin-right:12px; }
   .source-bar .key { min-height:30px; }
   .source-bar .tuner-spacer { flex:1; }
   #coverage { color:#aebac6; text-align:right; font-size:11px; }
   .app { height:auto; min-height:0; grid-template-rows:minmax(0,1fr) auto; }
   main { grid-template-columns:minmax(0,1fr) clamp(290px,30vw,470px); gap:clamp(7px,.85vw,16px);
-    padding:clamp(7px,.85vw,16px); background:linear-gradient(145deg,#191f26,#0d1116 75%); }
+    padding:clamp(7px,.85vw,16px); background:linear-gradient(145deg,#141b16c8,#0a0e0bd0 75%); }
   .center { order:0; grid-template-rows:auto auto auto auto minmax(0,.75fr) minmax(0,1fr);
     border:1px solid #454e59; border-radius:10px; overflow:hidden;
     box-shadow:0 0 0 3px #0a0d11,inset 0 0 20px #0009; }
@@ -233,15 +238,16 @@
     .right-console { overflow:visible; }
     #knob { width:130px; }
   }
-</style>
+.bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:4px;padding:3px 10px;font-weight:700;font-size:12px;text-decoration:none;white-space:nowrap;box-shadow:0 0 12px #ffcc2e55;vertical-align:middle}.bmc:hover{color:#000!important;box-shadow:0 0 18px #ffcc2e99}</style>
 </head>
 <body>
+<canvas id="rain" aria-hidden="true"></canvas>
 <nav aria-label="Radio tuners" class="source-bar">
  <div class="brand">ORPHAN<b>7600</b></div>
  <button type="button" class="key on" id="sourceNative" data-tuner="native" aria-pressed="true">Built-in</button>
  <button type="button" class="key" id="sourceNetwork" data-tuner="nesdr" aria-pressed="false">Network NESDR</button>
  <button type="button" class="key" id="sourceGPIO" data-tuner="gpio" aria-pressed="false">GPIO I/Q</button>
- <span class="tuner-spacer"></span><span id="coverage"></span>
+ <span class="tuner-spacer"></span><span id="coverage"></span><button type="button" class="key" id="fx" title="Matrix rain on/off">FX on</button>
  <button type="button" class="key" id="fullscreen" title="Toggle full screen">Full screen</button>
 </nav>
 <div class="app" id="nativeRadio">
@@ -352,7 +358,7 @@
   <span class="pill off" id="link_pill">OFFLINE</span><span class="pill" id="in_pill">IN: ANT</span><span class="pill" id="tx_pill">TX: OFF</span>
   <span id="i_step">STEP 1 kHz</span><span id="i_agc">AGC</span><span id="i_rf">RF x1</span><span id="i_in">ANT</span>
   <span id="i_scan" style="color:var(--cyan)"></span><span id="m_info" style="color:var(--amber2)"></span><span id="status">connecting</span>
-  <span class="cred"><b>[Rev. J. Money - 2026]</b> Orphan 7600, FPGA Dev Linux for the S9 control board</span>
+  <span class="cred"><b>[Rev. J. Money - 2026]</b> [orphan] Orphan 7600 · FPGA Dev Linux for the S9 Control Board · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM</span> <a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a>
  </div>
 </div>
 
@@ -424,7 +430,7 @@ $('fullscreen').onclick = async () => {
 document.addEventListener('fullscreenchange', () => { $('fullscreen').textContent = document.fullscreenElement ? 'Exit full screen' : 'Full screen'; });
 let plan = [], mems = {channels: [], birdies: []}, span = 2000, wsProg = true, stepK = 1, memIdx = -1;
 let pFloor = 40, pRange = 100;
-const MODECOL = {am: '#ffb02e', sam: '#ffb02e', usb: '#52e58b', lsb: '#52e58b', cw: '#5fd4ff', nfm: '#c47aff', wfm:'#ff7ab8'};
+const MODECOL = {am: '#d2ff51', sam: '#d2ff51', usb: '#52e58b', lsb: '#52e58b', cw: '#5fd4ff', nfm: '#c47aff', wfm:'#ff7ab8'};
 const PASS = {am: [-4500, 4500], sam: [-4500, 4500], usb: [250, 3050], lsb: [-3050, -250], cw: [-250, 250], nfm: [-5000, 5000], wfm: [-90000,90000]};
 const HELP = {antenna: 'Wire on J8-12; the FPGA keeps the pin at its switching point.', loopback: 'Test transmitter fed inside the FPGA.',
   jumper: 'Wire J8-5 to J8-12, TX on.', rc: 'R from J8-15 to the node, C to ground (Tuesday parts).'};
@@ -442,7 +448,7 @@ function setv(k, v) {
   st[k] = v; send({set: {[k]: v}}); show();
 }
 // ---- slices: A is tuner 1 (FPGA AM, decoders, hum); B..D are tuners 2..4. 'cur' is the slice the controls drive.
-const SLC = ['#ffb02e', '#ff7ab8', '#7be38f', '#c99bff'], LET = 'ABCD';
+const SLC = ['#d2ff51', '#ff7ab8', '#7ee0c8', '#c99bff'], LET = 'ABCD';
 let cur = 0;
 const sa = [0, 1, 2, 3].map(() => ({vol: 0.8, pan: 0, g: null, p: null, at: 0}));     // per-slice audio (this browser)
 function sl(k) { if (networkSelected) return {freq:net.frequency / 1000, demod:net.mode, on:k === 0};
@@ -715,7 +721,7 @@ function showMems() {
   if (!mems.channels.length) { L.textContent = 'No memories yet. Run a scan, or press M+ to save this frequency.'; L.style.padding = '6px'; return; }
   L.style.padding = '';
   mems.channels.forEach((m, i) => { const r = document.createElement('div'); r.className = 'mrow';
-    r.innerHTML = `<span style="width:30px;color:#7f92a3">M${i + 1}</span><b style="width:80px;color:#ffe08a">${m.freq.toFixed(2)}</b>
+    r.innerHTML = `<span style="width:30px;color:#7f92a3">M${i + 1}</span><b style="width:80px;color:#e6ff9a">${m.freq.toFixed(2)}</b>
       <span style="width:34px;color:${MODECOL[m.mode] || '#ccc'}">${m.mode.toUpperCase()}</span><span style="flex:1">${m.label || ''}${m.kind && m.kind !== m.mode && m.kind !== 'saved' ? ' (' + m.kind + ')' : ''}</span>
       <span style="width:46px;color:#7f92a3">${m.snr ? m.snr + ' dB' : m.auto ? 'auto' : 'saved'}</span>
       <button class="key" data-b="1" title="Board noise: never list it again">Birdie</button><button class="key" data-x="1" title="Delete">x</button>`;
@@ -805,7 +811,7 @@ function fft(re, im) { const n = re.length;
       vr = re[i + k + len / 2] * cr - im[i + k + len / 2] * ci, vi = re[i + k + len / 2] * ci + im[i + k + len / 2] * cr;
       re[i + k] = ur + vr; im[i + k] = ui + vi; re[i + k + len / 2] = ur - vr; im[i + k + len / 2] = ui - vi; const t = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = t; } } } }
 function wfColor(t) {                                         // ink -> deep blue -> teal -> amber -> white
-  const S = [[0, 6, 12, 26], [.3, 18, 52, 120], [.55, 30, 165, 185], [.8, 255, 176, 46], [1, 255, 250, 235]];
+  const S = [[0, 4, 8, 6], [.3, 10, 48, 26], [.55, 40, 150, 64], [.8, 210, 255, 81], [1, 246, 255, 228]];   // green phosphor
   for (let i = 1; i < S.length; i++) if (t <= S[i][0]) { const a = S[i - 1], b = S[i], u = (t - a[0]) / (b[0] - a[0]);
     return [a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u, a[3] + (b[3] - a[3]) * u]; }
   return [255, 250, 235]; }
@@ -813,7 +819,7 @@ function onPan(q, center, spanHz) {
   const n = q.length; if (!panDb || panDb.length !== n) { panDb = new Float32Array(n); panAvg = new Float32Array(n).fill(-200); }
   for (let i = 0; i < n; i++) { panDb[i] = q[i] / 100; panAvg[i] = panAvg[i] < -150 ? panDb[i] : panAvg[i] * 0.5 + panDb[i] * 0.5; }
   panMeta = {center: center / 1000, span: spanHz / 1000}; panFresh = true; }
-function clearWf() { const wv = $('wf'), g = wv.getContext('2d'); g.fillStyle = '#060c1a'; g.fillRect(0, 0, wv.width, wv.height); wfNoise = null; }
+function clearWf() { const wv = $('wf'), g = wv.getContext('2d'); g.fillStyle = '#040806'; g.fillRect(0, 0, wv.width, wv.height); wfNoise = null; delete wv.dataset.primed; }
 // the view: wide = panadapter centre +- 40 % of its span; narrow = the active slice +- fs/2
 function view() { if (networkSelected) { const f = sl(cur).freq, h = net.iq_rate * VIS / (2000 * net.zoom); return [f - h, f + h]; }
   if (wide() && panMeta.span) { const h = panMeta.span * VIS / 2; return [panMeta.center - h, panMeta.center + h]; }
@@ -846,7 +852,7 @@ function drawSpectrum() {
   const [col, raw] = columns(W, lo, hi); let pk = -1e9; for (let x = 0; x < W; x++) pk = Math.max(pk, col[x]);
   $('spec_pk').textContent = networkSelected ? (panAvg ? 'Peak ' + pk.toFixed(0) + ' dBFS' : 'Waiting for I/Q') :
     (isWide ? 'Wide ' : 'Narrow ') + 'peak ' + (pk > -1e8 ? pk.toFixed(0) + ' dB' : '-');
-  const bg = c.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#0b1620'); bg.addColorStop(1, '#04080c'); c.fillStyle = bg; c.fillRect(0, 0, W, H);
+  const bg = c.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#0d1a12'); bg.addColorStop(1, '#040806'); c.fillStyle = bg; c.fillRect(0, 0, W, H);
   c.lineWidth = 1; c.font = (10 * d) + 'px Bahnschrift, system-ui';
   for (let v = Math.ceil(pFloor / 10) * 10; v < pFloor + pRange; v += 10) { const y = Math.round(yOf(v)) + .5;
     c.strokeStyle = '#132230'; c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); c.fillStyle = '#4f6b80'; c.fillText(v + ' dB', 4 * d, y - 3 * d); }
@@ -858,8 +864,8 @@ function drawSpectrum() {
     let xa = xf(S0.freq + pb[0] / 1000), xb = xf(S0.freq + pb[1] / 1000); if (xb - xa < 2 * d) { const m = (xa + xb) / 2; xa = m - d; xb = m + d; }
     c.globalAlpha = k === cur ? 0.14 : 0.08; c.fillStyle = SLC[k]; c.fillRect(xa, 0, xb - xa, H); c.globalAlpha = 1; }
   c.beginPath(); c.moveTo(0, H); for (let x = 0; x < W; x++) c.lineTo(x, yOf(col[x])); c.lineTo(W, H); c.closePath();
-  const fg = c.createLinearGradient(0, 0, 0, H); fg.addColorStop(0, 'rgba(95,212,255,0.38)'); fg.addColorStop(1, 'rgba(95,212,255,0.02)'); c.fillStyle = fg; c.fill();
-  c.strokeStyle = '#5fd4ff'; c.lineWidth = 1.2 * d; c.beginPath(); for (let x = 0; x < W; x++) { const y = yOf(col[x]); x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke();
+  const fg = c.createLinearGradient(0, 0, 0, H); fg.addColorStop(0, 'rgba(150,230,80,0.34)'); fg.addColorStop(1, 'rgba(150,230,80,0.02)'); c.fillStyle = fg; c.fill();
+  c.strokeStyle = '#b6f05a'; c.lineWidth = 1.2 * d; c.beginPath(); for (let x = 0; x < W; x++) { const y = yOf(col[x]); x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke();
   flags = []; const sc = cv.getBoundingClientRect().width / W;
   slicesOn().sort((a, b) => (a === cur) - (b === cur)).forEach((k, row) => {                     // slice lines + flags
     const S0 = sl(k), x = xf(S0.freq); if (x < -2 || x > W + 2) return;
@@ -871,21 +877,25 @@ function drawSpectrum() {
     const fx = xc + tw + 6 * d < W ? xc : xc - tw;
     c.fillStyle = 'rgba(10,17,24,0.9)'; c.fillRect(fx, fy, tw, fh); c.fillStyle = SLC[k]; c.fillRect(fx, fy, 17 * d, fh);
     if (k === cur) { c.strokeStyle = SLC[k]; c.strokeRect(fx + .5, fy + .5, tw - 1, fh - 1); }
-    c.fillStyle = '#0a1118'; c.fillText(LET[k], fx + 4 * d, fy + 14.5 * d); c.fillStyle = k === cur ? '#ffe08a' : '#c9d6e0'; c.fillText(lab, fx + 22 * d, fy + 14.5 * d);
+    c.fillStyle = '#0a1118'; c.fillText(LET[k], fx + 4 * d, fy + 14.5 * d); c.fillStyle = k === cur ? '#e6ff9a' : '#c9d6e0'; c.fillText(lab, fx + 22 * d, fy + 14.5 * d);
     flags.push({k, x0: fx * sc, x1: (fx + tw) * sc, y0: fy * sc, y1: (fy + fh) * sc}); });
 
   const wv = $('wf'); if (fitCanvas(wv)) clearWf();
   if (isWide && !panFresh) return;                             // one waterfall row per new panadapter frame
   panFresh = false;
   const g = wv.getContext('2d'), WW = wv.width, WH = wv.height;
-  g.drawImage(wv, 0, 0, WW, WH - 1, 0, 1, WW, WH - 1);
+  // rows a few pixels tall (about 120 frames fill the panel), so the waterfall fills its space and moves
+  const RH = Math.max(1, Math.ceil(WH / 120));
+  g.drawImage(wv, 0, 0, WW, WH - RH, 0, RH, WW, WH - RH);
   const [wcol, wraw] = columns(WW, lo, hi), srt = Array.from(wcol).filter(v => v > -1e8).sort((a, b) => a - b);
   if (srt.length) { const noise = srt[Math.floor(srt.length * 0.4)]; wfNoise = wfNoise === null ? noise : wfNoise * 0.95 + noise * 0.05; }
   const row = g.createImageData(WW, 1), wfFloor = (wfNoise || 0) - 12, wfRange = 30 + pRange * 0.15;
   for (let x = 0; x < WW; x++) { const t = Math.max(0, Math.min(1, ((wraw[x] + wcol[x]) / 2 - wfFloor) / wfRange)), cl = wfColor(t);
     row.data[4 * x] = cl[0]; row.data[4 * x + 1] = cl[1]; row.data[4 * x + 2] = cl[2]; row.data[4 * x + 3] = 255; }
-  g.putImageData(row, 0, 0);
-  for (const k of slicesOn()) { const x = (sl(k).freq - lo) / (hi - lo) * WW; g.fillStyle = SLC[k]; g.fillRect(x - 1, 0, 2, 1); } }
+  // a fresh (cleared) waterfall starts full: the first row is painted down the whole height
+  const rows = wv.dataset.primed ? RH : WH; wv.dataset.primed = '1';
+  for (let y = 0; y < rows; y++) g.putImageData(row, 0, y);
+  for (const k of slicesOn()) { const x = (sl(k).freq - lo) / (hi - lo) * WW; g.fillStyle = SLC[k]; g.fillRect(x - 1, 0, 2, RH); } }
 // click: tune the active slice there (or pick a slice by its flag); drag: move the panadapter (wide) or retune (narrow)
 let panDrag = null, panSent = 0, wfNoise = null;
 const specCv = $('spec');
@@ -945,7 +955,7 @@ function drawScope(a, iq) {
   scope.strokeStyle = '#52e58b'; scope.lineWidth = 2; scope.beginPath();
   for (let x = 0; x < W; x++) { const s = a[Math.floor(x * a.length / W)], y = H / 2 - s * H * 0.46; x ? scope.lineTo(x, y) : scope.moveTo(x, y); } scope.stroke(); scope.lineWidth = 1;
   iqc.fillStyle = 'rgba(3,7,10,0.35)'; iqc.fillRect(0, 0, 300, 300); iqc.strokeStyle = '#182430'; iqc.beginPath(); iqc.moveTo(150, 0); iqc.lineTo(150, 300); iqc.moveTo(0, 150); iqc.lineTo(300, 150); iqc.stroke();
-  iqc.fillStyle = '#ffb02e'; let mag = 0;
+  iqc.fillStyle = '#d2ff51'; let mag = 0;
   for (let i = 0; i < iq.length; i += 2) { iqc.fillRect(150 + iq[i] / 32768 * 146, 150 - iq[i + 1] / 32768 * 146, 3, 3); mag += Math.hypot(iq[i], iq[i + 1]); }
   $('iq_mag').textContent = 'IQ ' + (mag / Math.max(1, iq.length / 2) / 32768).toFixed(3); }
 
@@ -1026,8 +1036,8 @@ function refreshSourceControls() {
   });
   $('slices').hidden = networkSelected;
   $('network_rx').hidden = $('network_status').hidden = !networkSelected;
-  $('coverage').textContent = networkSelected ? net.label + ' · ' + net.min_hz / 1000000 + '–' + net.max_hz / 1000000 + ' MHz' :
-    'FPGA · 1 kHz–49 MHz';
+  $('coverage').textContent = networkSelected ? net.label + ' · ' + net.min_hz / 1000000 + ' to ' + net.max_hz / 1000000 + ' MHz' :
+    'FPGA · 1 kHz to 49 MHz';
   $('rf_label').textContent = networkSelected ? 'Tuner gain' : 'RF gain x2^n';
   $('ws_all').textContent = networkSelected ? (net.max_hz >= 88000000 ? 'Scan FM broadcast' : 'Scan AM broadcast') : 'Scan 10 kHz to 49 MHz';
   const nativeWWVB = networkSelected && !(net.min_hz <= 60000 && net.max_hz >= 60000);
@@ -1274,6 +1284,22 @@ async function pollRemoteDecoder() {
 setInterval(pollRemoteDecoder, 400);
 setInterval(drawSpectrum, 70); setInterval(drawSmeter, 50);
 drawKnob(); refreshSourceControls(); show(); connect();
+</script>
+<script>/* the falling 0/1 rain of the Orphan firmware (FX on/off remembered) */
+(() => {
+  const cv = document.getElementById('rain'), btn = document.getElementById('fx');
+  let on = !matchMedia('(prefers-reduced-motion: reduce)').matches, frame = 0, last = 0;
+  try { on = on && localStorage.getItem('orphan-fx') !== 'off'; } catch (e) {}
+  function draw(t) { const w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const x = cv.getContext('2d'); x.clearRect(0, 0, w, h); x.font = '12px Consolas';
+    for (let l = 0; l < w / 22; l++) { const st = Math.floor(t / (82 + l % 6 * 16)), y = ((st * 14 + l * 89) % (h + 154)) - 12;
+      for (let i = 0; i < 8; i++) { x.fillStyle = i === 0 ? '#bfef6650' : 'rgba(139,208,57,' + (8 - i) * .014 + ')';
+        x.fillText((st + i * 13 + l * 29) % 7 < 3 ? '0' : '1', l * 22 + 4, y - i * 14); } } }
+  function anim(t) { if (!on) return; if (t - last >= 48) { last = t; draw(t); } frame = requestAnimationFrame(anim); }
+  function set(v) { on = v; btn.textContent = v ? 'FX on' : 'FX off'; cv.hidden = !v; if (!v) { cancelAnimationFrame(frame); frame = 0; } else if (!frame) frame = requestAnimationFrame(anim); }
+  btn.onclick = () => { set(!on); try { localStorage.setItem('orphan-fx', on ? 'on' : 'off'); } catch (e) {} };
+  set(on);
+})();
 </script>
 </body>
 </html>

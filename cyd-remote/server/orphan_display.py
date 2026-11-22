@@ -11,6 +11,13 @@ sample_lock=threading.Lock()
 samples={key:collections.deque(maxlen=60) for key in ('temperature','rate')}
 latest_system={}
 latest_miner={}
+def is_miner(project):
+    """A loaded project counts as a miner when its project.json puts it in the mining branch (or category)."""
+    try:
+        meta=json.load(open('/opt/ardzy/projects/%s/project.json'%project))
+    except (OSError,ValueError):return False
+    return str(meta.get('branch') or meta.get('category','')).lower() in ('mining','compute')
+
 def json_get(url):
     try:
         with urllib.request.urlopen(url,timeout=.4) as r:return json.load(r)
@@ -40,7 +47,7 @@ def collect():
             except (OSError,subprocess.TimeoutExpired):project='unknown'
             next_project=now+5
         current=system(project)
-        miner=json_get('http://127.0.0.1:8000/api/status') if project=='orphan_kas' else {}
+        miner=json_get('http://127.0.0.1:8000/api/status') if is_miner(project) else {}
         if 'hardware' not in miner:miner={}
         else:miner={key:miner[key] for key in ('mode','message','hardware','mining','earnings') if key in miner}
         hardware=miner.get('hardware',{})

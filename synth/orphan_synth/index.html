@@ -3,43 +3,62 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080a0c">
 <title>Orphan Synth</title>
 <style>
-  :root { --bg:#0b0b0c; --panel:#141416; --gold:#f5a800; --gold2:#ffcc4d; --dim:#8a8172; --txt:#eee6d6; --line:#2a2722; }
+  /* the Orphan firmware look (same as the board page and the miners): dark, lime, matrix rain, translucent cards */
+  :root { color-scheme:dark; --bg:#080a0c; --panel:#101613b8; --gold:#d2ff51; --gold2:#e6ff9a; --amber:#ffb02e;
+          --dim:#a3afa2; --txt:#e8efe6; --line:#364239; --mono:Consolas,"IBM Plex Mono",ui-monospace,monospace; }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.4 system-ui,Segoe UI,Arial,sans-serif; }
-  header { padding:14px 18px; border-bottom:1px solid var(--line); display:flex; gap:14px; align-items:baseline; flex-wrap:wrap; }
-  header h1 { margin:0; color:var(--gold); letter-spacing:.18em; font-size:22px; }
-  header .sub { color:var(--dim); }
-  main { max-width:1280px; margin:0 auto; padding:16px; }
+  body { margin:0; background:var(--bg); color:var(--txt); font:14px/1.4 var(--mono); }
+  a { color:var(--dim); } a:hover { color:var(--gold); }
+  #rain { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; border:0; border-radius:0; background:none; z-index:0; }
+  header, main, footer { position:relative; z-index:1; }
+  header { padding:14px 18px; border-bottom:1px solid #71827170; display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+           max-width:1320px; margin:0 auto; }
+  header h1 { margin:0; font:800 clamp(28px,5vh,50px)/.9 "Arial Narrow",Bahnschrift,Impact,sans-serif; letter-spacing:-.03em; color:var(--txt); }
+  header h1 span { color:var(--gold); }
+  header .sub { color:var(--dim); font-size:.82em; letter-spacing:.08em; text-transform:uppercase; }
+  #fx { margin-left:auto; }
+  main { max-width:1320px; margin:0 auto; padding:16px; }
   .row { display:flex; flex-wrap:wrap; gap:12px; }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; flex:1 1 200px; min-width:190px; }
-  .card h2 { margin:0 0 6px; font-size:12px; letter-spacing:.14em; color:var(--gold); text-transform:uppercase; }
+  .card { position:relative; background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:10px 12px; flex:1 1 200px; min-width:190px;
+          box-shadow:inset 0 1px #e1ffc810, 0 10px 24px #0005; backdrop-filter:blur(2px); }
+  .card::before { content:""; position:absolute; top:-1px; left:12px; width:28px; height:1px; background:#b3c3b3; }
+  .card h2 { margin:0 0 6px; font-size:12px; letter-spacing:.12em; color:var(--gold); text-transform:uppercase; }
   label { display:flex; justify-content:space-between; color:var(--dim); font-size:12px; margin-top:4px; }
   input[type=range] { width:100%; accent-color:var(--gold); margin:2px 0; }
-  select { background:#1d1b18; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:5px; width:100%; margin-top:3px; }
-  .btn { background:#1d1b18; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:6px 9px; cursor:pointer; margin:2px 2px 0 0; font-size:13px; }
-  .btn.on { background:var(--gold); color:#000; border-color:var(--gold); font-weight:600; }
+  select { background:#090e0b; color:var(--txt); border:1px solid #405044; border-radius:2px; padding:5px; width:100%; margin-top:3px; font:inherit; }
+  .btn { background:linear-gradient(#242e28,#131914); color:var(--txt); border:1px solid #47584d; border-radius:3px; padding:6px 9px; cursor:pointer;
+         margin:2px 2px 0 0; font:13px var(--mono); }
+  .btn:hover { color:var(--gold); border-color:var(--gold); }
+  .btn.on { background:linear-gradient(#e1ff8a,#a5cb37); color:#131a06; border-color:var(--gold); font-weight:700; }
   #start { font-size:16px; padding:10px 16px; }
   .btns { display:flex; flex-wrap:wrap; }
   #kb { position:relative; height:170px; margin-top:12px; user-select:none; touch-action:none; }
-  .key { position:absolute; bottom:0; border:1px solid #000; border-radius:0 0 6px 6px; }
-  .w { background:#efe7d6; height:170px; z-index:1; }
-  .b { background:#151413; height:105px; z-index:2; top:0; }
-  .key.down.w { background:var(--gold2); } .key.down.b { background:var(--gold); }
-  .key span { position:absolute; bottom:6px; width:100%; text-align:center; font-size:11px; color:#7b6f5b; }
-  canvas { width:100%; height:80px; background:#050505; border:1px solid var(--line); border-radius:8px; }
+  .key { position:absolute; bottom:0; border:1px solid #000; border-radius:0 0 4px 4px; }
+  .w { background:#dfe8da; height:170px; z-index:1; }
+  .b { background:#0d130f; height:105px; z-index:2; top:0; border-color:#2d3b31; }
+  .key.down.w { background:var(--gold2); box-shadow:0 0 18px #d2ff5199; } .key.down.b { background:var(--gold); }
+  .key span { position:absolute; bottom:6px; width:100%; text-align:center; font-size:11px; color:#5d6b64; }
+  canvas { width:100%; height:80px; background:#080e0a; border:1px solid #2d3b31; border-radius:2px; }
   .status { color:var(--dim); font-size:12px; }
   .bendrow { display:flex; gap:12px; align-items:center; margin-top:8px; }
   .bendrow input { flex:1; }
-  footer { color:var(--dim); text-align:center; padding:18px; font-size:12px; }
+  footer { color:var(--dim); text-align:center; padding:18px; font-size:12px; letter-spacing:.04em; }
   footer b { color:var(--gold); }
+  .bmc { display:inline-block; color:#1a1200!important; background:linear-gradient(#ffe27a,#ffcc2e); border:1px solid #ffdd55; border-radius:3px;
+         padding:4px 10px; font-weight:700; font-size:12px; text-decoration:none; white-space:nowrap; box-shadow:0 0 12px #ffcc2e55; vertical-align:middle; }
+  .bmc:hover { color:#000!important; box-shadow:0 0 18px #ffcc2e99; }
 </style>
 </head>
 <body>
+<canvas id="rain" aria-hidden="true"></canvas>
 <header>
-  <h1>ORPHAN SYNTH</h1>
-  <span class="sub">8-voice FPGA synth on the S9 control board · by JMSCNC, makers of RotatoCAM</span>
+  <h1>ORPHAN <span>SYNTH</span></h1>
+  <span class="sub">[orphan] · 8-voice FPGA synth on the S9 Control Board · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM</span>
+  <a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a>
+  <button class="btn" id="fx" type="button">FX on</button>
 </header>
 <main>
   <div class="row" style="align-items:center">
@@ -107,7 +126,7 @@
   <p class="status">Play with the mouse/touch (higher on a key = louder), or the computer keyboard: <b>A W S E D F T G Y H U J K</b> = one octave from C,
     <b>Z / X</b> = octave down / up. A MIDI keyboard on this computer works too (Web MIDI, Chrome), or over the network (rtpMIDI, "Orphan Synth").</p>
 </main>
-<footer><b>[Rev. J. Money - 2026]</b> · Orphan · FPGA Dev Linux for the S9 Control Board</footer>
+<footer><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> <b>[Rev. J. Money - 2026]</b> · Orphan · FPGA Dev Linux for the S9 Control Board · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM</footer>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -306,6 +325,22 @@ if (navigator.requestMIDIAccess) navigator.requestMIDIAccess().then(m => {
   };
 }).catch(() => {});
 buildKb(); connect();
+</script>
+<script>/* the falling 0/1 rain of the Orphan firmware (FX on/off remembered) */
+(() => {
+  const cv = document.getElementById('rain'), btn = document.getElementById('fx');
+  let on = !matchMedia('(prefers-reduced-motion: reduce)').matches, frame = 0, last = 0;
+  try { on = on && localStorage.getItem('orphan-fx') !== 'off'; } catch (e) {}
+  function draw(t) { const w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const x = cv.getContext('2d'); x.clearRect(0, 0, w, h); x.font = '12px Consolas';
+    for (let l = 0; l < w / 22; l++) { const st = Math.floor(t / (82 + l % 6 * 16)), y = ((st * 14 + l * 89) % (h + 154)) - 12;
+      for (let i = 0; i < 8; i++) { x.fillStyle = i === 0 ? '#bfef6650' : 'rgba(139,208,57,' + (8 - i) * .014 + ')';
+        x.fillText((st + i * 13 + l * 29) % 7 < 3 ? '0' : '1', l * 22 + 4, y - i * 14); } } }
+  function anim(t) { if (!on) return; if (t - last >= 48) { last = t; draw(t); } frame = requestAnimationFrame(anim); }
+  function set(v) { on = v; btn.textContent = v ? 'FX on' : 'FX off'; cv.hidden = !v; if (!v) { cancelAnimationFrame(frame); frame = 0; } else if (!frame) frame = requestAnimationFrame(anim); }
+  btn.onclick = () => { set(!on); try { localStorage.setItem('orphan-fx', on ? 'on' : 'off'); } catch (e) {} };
+  set(on);
+})();
 </script>
 </body>
 </html>

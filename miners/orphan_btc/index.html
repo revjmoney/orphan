@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080a0c">
+<title>ORPHAN BTC · JMSCNC</title>
+<style>
+:root{color-scheme:dark;--ink:#e8efe6;--muted:#a3afa2;--lime:#d2ff51;--orange:#f7931a;--line:#364239;--panel:#101613b8;--mono:Consolas,"IBM Plex Mono",monospace;--space:clamp(7px,1.3vh,15px)}
+*{box-sizing:border-box}
+body{margin:0;background:#080a0c;color:var(--ink);font:clamp(11px,1.7vh,15px)/1.35 var(--mono)}
+button,input{font:inherit}
+button{cursor:pointer;color:var(--ink);border:1px solid #47584d;border-radius:3px;background:linear-gradient(#242e28,#131914);padding:.5em .7em;white-space:nowrap}
+button:hover,a:hover{color:var(--lime);border-color:var(--lime)}
+button.primary{background:linear-gradient(#e1ff8a,#a5cb37);border-color:var(--lime);color:#131a06;font-weight:700}
+button.stop{border-color:#744744;color:#ffaea3}
+a{color:var(--muted);text-decoration:none}
+#rain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+main{position:relative;min-height:100dvh;max-width:1500px;margin:auto;display:grid;grid-template-rows:auto auto 1fr auto;gap:var(--space);padding:var(--space) clamp(9px,2vw,28px)}
+header,footer,.panel-head,.actions{display:flex;align-items:center;gap:.6em}
+header{justify-content:space-between;border-bottom:1px solid #71827170;padding:0 0 var(--space);flex-wrap:wrap}
+.identity{display:flex;align-items:center;gap:11px}
+.mark{display:grid;place-items:center;width:2.7em;aspect-ratio:1;color:#1a0d00;background:linear-gradient(140deg,#ffd08a,#f7931a 55%,#9a5a10 56%,#e48a1a 82%,#ffe1b0);border:1px solid var(--orange);border-radius:3px;font-weight:bold;font-size:1.15em}
+h1,h2,p{margin:0}
+h1{font:800 clamp(24px,5vh,54px)/.87 "Arial Narrow",Bahnschrift,Impact,sans-serif;letter-spacing:-.035em;white-space:nowrap}
+h1 span{color:var(--orange)}
+.brand,.label,label,.panel-head span,footer{color:var(--muted)}
+.brand,.label,footer{font-size:.84em;letter-spacing:.09em;text-transform:uppercase}
+.brand{margin-top:.44em}
+.tools{display:flex;gap:.5em;align-items:center;flex-wrap:wrap}
+.pill{color:var(--lime);font-size:.83em;border:1px solid #596e3e;background:#152112;padding:.45em .7em;white-space:nowrap}
+.pill.fee{color:var(--orange);border-color:#8a5a1a;background:#21160a}
+.bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:3px;padding:.4em .7em;font-weight:700;white-space:nowrap;box-shadow:0 0 14px #ffcc2e55}
+.bmc.small{padding:.1em .5em;box-shadow:none;text-transform:none;letter-spacing:0}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space)}
+.metric,.panel{position:relative;min-width:0;border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:var(--space);box-shadow:inset 0 1px #e1ffc810,0 10px 24px #0005}
+.metric::before,.panel::before{content:"";position:absolute;top:-1px;left:12px;width:28px;height:1px;background:#b3c3b3}
+.metric strong{display:block;font-size:clamp(17px,4.9vh,49px);line-height:1.1;font-weight:500;letter-spacing:-.06em;white-space:nowrap}
+.metric:first-child strong{color:var(--lime);text-shadow:0 0 22px #cfff5140}
+.metric small{font-size:.43em;letter-spacing:0;color:var(--muted)}
+.work{display:grid;grid-template-columns:minmax(260px,1fr) minmax(300px,1.5fr);gap:var(--space);min-height:0}
+.panel-head{justify-content:space-between;margin-bottom:.55em}
+h2{font-size:1em;color:var(--lime);text-transform:uppercase;letter-spacing:.11em}
+label{display:block;margin-bottom:.2em;font-size:.88em}
+.field{margin-bottom:.5em}
+input:not([type=checkbox]){width:100%;background:#090e0b;border:1px solid #405044;border-radius:2px;padding:.38em .48em;color:var(--ink)}
+input[type=checkbox]{accent-color:var(--lime)}
+label.devfee{display:flex;gap:.5em;align-items:flex-start;font-size:.82em;line-height:1.35;margin:.3em 0 .7em}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:.5em}
+.logwindow{height:min(46vh,460px);overflow:auto;background:#080e0a;border:1px solid #2d3b31;padding:.5em;white-space:pre-wrap;overflow-wrap:anywhere;color:#b2c7a6;font-size:.86em;line-height:1.5;margin:0}
+.status{display:flex;gap:.6em;padding:.48em .65em;border-left:2px solid var(--lime);background:#112017;color:#d8ead1;margin-top:var(--space)}
+.roots{font-size:.82em;color:var(--muted);line-height:1.5;margin-top:.8em}
+.roots b{color:var(--ink)}
+dl.est{margin:0;display:grid;grid-template-columns:auto 1fr;gap:.45em .8em}
+dl.est dt{color:var(--muted);font-size:.88em}dl.est dd{margin:0;text-align:right;color:#d9e8d7;font-variant-numeric:tabular-nums}
+#coin{color:var(--orange)}
+footer{justify-content:space-between;gap:6px;flex-wrap:wrap}
+@media(max-width:800px){.metrics{grid-template-columns:repeat(2,1fr)}.work{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+<main>
+<header>
+ <div class="identity"><div class="mark" aria-hidden="true">₿</div><div><h1>ORPHAN <span>BTC</span></h1><div class="brand">[orphan] · JMSCNC · S9 FPGA · SHA-256d Stratum miner</div></div></div>
+ <div class="tools"><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a>
+  <span class="pill fee" id="feeNote" hidden>DEV FEE SLICE</span><button id="motion" type="button">FX on</button><span class="pill" id="conn">CONNECTING</span></div>
+</header>
+<div class="metrics">
+ <div class="metric"><div class="label">FPGA hashrate</div><strong><span id="rate">0</span> <small>MH/s</small></strong></div>
+ <div class="metric"><div class="label">Accepted / rejected</div><strong id="shares">0 / 0</strong></div>
+ <div class="metric"><div class="label">Best share</div><strong><span id="best">0</span> <small>zero bits</small></strong></div>
+ <div class="metric"><div class="label">Die temperature</div><strong><span id="temp">-</span> <small>°C</small></strong></div>
+</div>
+<div class="work">
+ <section class="panel">
+  <div class="panel-head"><h2>Wallet &amp; pool</h2><span id="mode">IDLE</span></div>
+  <form id="f">
+   <div class="field"><label for="wallet">Your address or pool account</label><input id="wallet" placeholder="bc1... (or a multipool account name)" autocomplete="off"></div>
+   <div class="field"><label for="pool">Pool (Stratum v1)</label><input id="pool" placeholder="stratum+tcp://public-pool.io:21496"></div>
+   <div class="row"><div class="field"><label for="worker">Worker</label><input id="worker"></div>
+    <div class="field"><label for="diff">Ask pool for difficulty</label><input id="diff" placeholder="0.001"></div></div>
+   <div class="field"><label for="password">Pool password</label><input id="password" type="password" placeholder="Keep saved"></div>
+   <label class="devfee"><input type="checkbox" id="devfee" checked> 3 % dev fee: 3 of every 100 minutes mine to the Orphan developer's pool account. Untick to opt out.</label>
+   <div class="actions"><button type="button" class="primary" id="mine">Start mining</button><button type="button" class="stop" id="stop">Stop</button><button type="submit">Save</button></div>
+  </form>
+  <div class="status"><strong>BOARD</strong><span id="msg">Waiting for the board.</span></div>
+  <p class="roots"><b>Roots:</b> the SHA-256 hardware is <a href="https://github.com/chrysovalantischryso/ardzy">Ardzy</a>'s
+   13_sha256 lab by chryso (GPL-3.0): 4 double-SHA-256 units at 100 MHz. Orphan turned that lab into a real miner:
+   Stratum v1, coinbase and merkle root, extranonce rolling, every result re-checked on the ARM, fan control.
+   At about 1 MH/s it is a lottery miner for solo pools; every share it sends is real work.</p>
+ </section>
+ <section class="panel">
+  <div class="panel-head"><h2>Coin &amp; earnings</h2><span id="coin">-</span></div>
+  <dl class="est">
+   <dt>Block height / reward</dt><dd id="blk">-</dd>
+   <dt>Network difficulty</dt><dd id="ndiff">-</dd>
+   <dt>Pool share difficulty</dt><dd id="sdiff">-</dd>
+   <dt>Expected shares</dt><dd id="sph">-</dd>
+   <dt>Expected earnings / day</dt><dd id="epd">-</dd>
+   <dt>Solo: one block every</dt><dd id="solo">-</dd>
+  </dl>
+  <p class="roots" id="estnote">Estimates use this board's live FPGA hashrate and the pool's own job (block reward incl. fees). Pool fees, luck and the 3 % dev fee are not subtracted.</p>
+ </section>
+ <section class="panel" style="grid-column:1/-1">
+  <div class="panel-head"><h2>Live miner log</h2><span id="cnt"></span></div>
+  <pre class="logwindow" id="log">Waiting for miner events...</pre>
+ </section>
+</div>
+<footer><span><a class="bmc small" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> · 3 % opt-out dev fee supports Orphan · <b>[Rev. J. Money - 2026]</b> · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM</span>
+ <span>Ardzy inside: SHA-256 core by chryso (GPL-3.0) · Orphan · FPGA Dev Linux for the S9 Control Board</span></footer>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let ready = false;
+async function cmd(d) { const r = await fetch('/api/command', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(d)});
+  const j = await r.json(); $('msg').textContent = j.error || 'Command accepted'; }
+$('mine').onclick = () => cmd({action: 'mine'});
+$('stop').onclick = () => cmd({action: 'stop'});
+$('f').onsubmit = e => { e.preventDefault(); cmd({action: 'settings', settings: {wallet: $('wallet').value.trim(), pool: $('pool').value.trim(),
+  worker: $('worker').value.trim(), password: $('password').value, suggest_diff: $('diff').value || 0, devfee: $('devfee').checked}}); };
+async function tick() {
+  try {
+    const s = await (await fetch('/api/status')).json(), m = s.mining || {};
+    $('conn').textContent = 'BOARD ONLINE';
+    $('rate').textContent = ((s.rate || 0) / 1e6).toFixed(2);
+    $('shares').textContent = (m.accepted || 0) + ' / ' + (m.rejected || 0);
+    $('best').textContent = m.best || 0;
+    $('temp').textContent = s.temp == null ? '-' : s.temp;
+    $('mode').textContent = (s.mode || 'idle').toUpperCase();
+    $('msg').textContent = s.message || '';
+    $('feeNote').hidden = !(s.devfee && s.devfee.active);
+    // coin + earnings estimates from the pool's own job and the live hashrate
+    const ch = s.chain || {}, mk = s.market || {}, H = s.rate || 0, T32 = 4294967296;
+    const fmt = (v, d) => v == null || !isFinite(v) ? '-' : Number(v).toLocaleString(undefined, {maximumFractionDigits: d});
+    const isBtc = ch.height && mk.btc_height && Math.abs(ch.height - mk.btc_height) <= 3;
+    const unit = isBtc ? 'BTC' : 'coins';
+    $('coin').textContent = !ch.height ? '-' : isBtc ? 'BITCOIN' : 'ANOTHER SHA-256 COIN';
+    $('blk').textContent = ch.height ? fmt(ch.height, 0) + ' / ' + fmt(ch.reward, 8) + ' ' + unit : '-';
+    $('ndiff').textContent = ch.net_diff ? fmt(ch.net_diff, 0) : '-';
+    const sd = m.difficulty;
+    $('sdiff').textContent = sd ? fmt(sd, 4) : '-';
+    $('sph').textContent = H && sd ? fmt(H * 3600 / (sd * T32), 3) + ' / hour' : '-';
+    const perDay = H && ch.net_diff && ch.reward ? H * 86400 / (ch.net_diff * T32) * ch.reward : null;
+    $('epd').textContent = perDay == null ? '-' : perDay.toExponential(3) + ' ' + unit +
+      (isBtc && mk.btc_usd ? ' ($' + (perDay * mk.btc_usd).toExponential(2) + ')' : '');
+    const days = H && ch.net_diff ? ch.net_diff * T32 / H / 86400 : null;
+    $('solo').textContent = days == null ? '-' : days > 365 * 1e3 ? fmt(days / 365, 0) + ' years' : fmt(days, 1) + ' days';
+    if (!ready && s.settings) { const c = s.settings; $('wallet').value = c.wallet; $('pool').value = c.pool; $('worker').value = c.worker;
+      $('diff').value = c.suggest_diff || ''; $('devfee').checked = c.devfee !== false; ready = true; }
+    const L = $('log'), end = L.scrollTop + L.clientHeight >= L.scrollHeight - 20;
+    L.textContent = (s.log || []).map(l => '[' + new Date(l.time * 1000).toLocaleTimeString() + '] ' + l.message).join('\n') || 'Waiting for miner events...';
+    $('cnt').textContent = (s.log || []).length + ' events';
+    if (end) L.scrollTop = L.scrollHeight;
+  } catch (e) { $('conn').textContent = 'OFFLINE'; }
+}
+tick(); setInterval(tick, 1000);
+// the falling 0/1 rain (FX on/off is remembered in this browser)
+(() => {
+  const cv = $('rain'), btn = $('motion'); let on = true, frame = 0, last = 0;
+  try { on = localStorage.getItem('orphan-fx') !== 'off'; } catch (e) {}
+  function draw(t) { const w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const x = cv.getContext('2d'); x.clearRect(0, 0, w, h); x.font = '12px Consolas';
+    for (let l = 0; l < w / 22; l++) { const st = Math.floor(t / (82 + l % 6 * 16)), y = ((st * 14 + l * 89) % (h + 154)) - 12;
+      for (let i = 0; i < 8; i++) { x.fillStyle = i === 0 ? '#f7b24a50' : 'rgba(208,150,57,' + (8 - i) * .014 + ')';
+        x.fillText((st + i * 13 + l * 29) % 7 < 3 ? '0' : '1', l * 22 + 4, y - i * 14); } } }
+  function anim(t) { if (!on) return; if (t - last >= 48) { last = t; draw(t); } frame = requestAnimationFrame(anim); }
+  function set(v) { on = v; btn.textContent = v ? 'FX on' : 'FX off'; cv.hidden = !v; if (!v) { cancelAnimationFrame(frame); frame = 0; } else if (!frame) frame = requestAnimationFrame(anim); }
+  btn.onclick = () => { set(!on); try { localStorage.setItem('orphan-fx', on ? 'on' : 'off'); } catch (e) {} };
+  set(on);
+})();
+</script>
+</body>
+</html>

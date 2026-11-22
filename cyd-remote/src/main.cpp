@@ -11,7 +11,7 @@
 
 WiFiServer control(80);
 WiFiServer graphics(8091);
-String target="http://192.168.1.172:8090";
+String target="http://orphan.local:8090";
 const char* views[]={"system","mining","projects","radio","synth"};
 int view=0;
 uint32_t lastPoll=0,lastTouch=0,lastFrame=0;
@@ -214,7 +214,7 @@ void controlRequest(){
   if(count==(size_t)length){for(int i=0;i<5;i++)if(name==views[i])view=i;lastFrame=0;lastPoll=0;redrawScene=true;body="View selected";}
   else{status=400;body="Incomplete body";}
  }else if(request.startsWith("GET / ")){
-  type="text/html";body="<h1>ORPHAN Remote</h1><p>by JMSCNC, makers of RotatoCAM</p><form method='post' action='/target'>S9 URL <input name='url' placeholder='http://192.168.1.172:8090'><button>Save</button></form><p>Scene terminal and RGB565 rectangle receiver on TCP 8091.</p>";
+  type="text/html";body="<h1>ORPHAN Remote</h1><p>[orphan] · by <a href='https://jmscnc.com'>JMSCNC</a>, makers of RotatoCAM · <a href='https://buymeacoffee.com/revjmoney'>Buy me a coffee</a></p><p>[Rev. J. Money - 2026] · Orphan · FPGA Dev Linux for the S9 Control Board</p><form method='post' action='/target'>S9 URL <input name='url' placeholder='http://orphan.local:8090'><button>Save</button></form><p>Scene terminal and RGB565 rectangle receiver on TCP 8091.</p>";
  }else {status=404;body="Not found";}
  String response="HTTP/1.1 "+String(status)+(status==200?" OK\r\n":" Error\r\n")+"Content-Type: "+type+"\r\nContent-Length: "+String(body.length())+"\r\nConnection: close\r\n\r\n"+body;
  c.setNoDelay(true);c.print(response);delay(2);c.stop();

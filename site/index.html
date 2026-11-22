@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080a0c">
+<title>ORPHAN · FPGA Dev Linux for the S9 Control Board</title>
+<meta name="description" content="Orphan turns the Antminer S9 control board into a hacker's bench computer: game consoles, a software radio, a synth, a miner and a language model built inside its FPGA. By JMSCNC, makers of RotatoCAM.">
+<style>
+:root{color-scheme:dark;--ink:#e8efe6;--muted:#a3afa2;--lime:#d2ff51;--gold:#ffb02e;--line:#364239;--panel:#101613c8;--mono:Consolas,"IBM Plex Mono",ui-monospace,monospace;
+ --fs:clamp(12px,1.75vh,17px)}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:#080a0c;color:var(--ink);font:var(--fs)/1.45 var(--mono);touch-action:pan-y}
+a{color:var(--lime)}a:hover{color:#fff}
+#rain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+/* one screen: header, the stage, footer; nothing ever scrolls */
+.shell{position:fixed;inset:0;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto 1fr auto;gap:1.2vh;padding:1.6vh clamp(10px,2.6vw,34px)}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #71827170;padding-bottom:1.2vh}
+.identity{display:flex;align-items:center;gap:12px;min-width:0}
+.identity img{height:clamp(36px,7vh,70px);width:auto;filter:drop-shadow(0 0 10px #ffb02e55)}
+h1{margin:0;font:800 min(5.6vh,7.4vw,58px)/.9 "Arial Narrow",Bahnschrift,Impact,sans-serif;letter-spacing:-.03em;white-space:nowrap}
+h1 span{color:var(--lime)}
+.brand{color:var(--muted);font-size:.78em;letter-spacing:.08em;text-transform:uppercase;margin-top:.35em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tools{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.pill{color:var(--lime);font-size:.78em;border:1px solid #596e3e;background:#152112;padding:.45em .7em;text-decoration:none}
+.bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:3px;padding:.45em .8em;font-weight:700;text-decoration:none;box-shadow:0 0 14px #ffcc2e55;white-space:nowrap}
+button{font:inherit;cursor:pointer;color:var(--ink);border:1px solid #47584d;border-radius:3px;background:linear-gradient(#242e28,#131914);padding:.4em .8em}
+button:hover{color:var(--lime);border-color:var(--lime)}
+.stage{position:relative;overflow:hidden;min-height:0}
+footer{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:.72em;letter-spacing:.06em;text-transform:uppercase;border-top:1px solid #71827140;padding-top:1vh;white-space:nowrap;overflow:hidden}
+/* home: every tile on one screen */
+.home{position:absolute;inset:0;display:grid;grid-template-rows:auto 1fr;gap:1.4vh;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .45s}
+.home.away{transform:translateX(-8%);opacity:0;pointer-events:none}
+.hero{margin:0;color:#cfe0c6;max-width:1100px}
+.hero b{color:var(--lime)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:1.4vh;min-height:0}
+.tile{position:relative;display:flex;flex-direction:column;gap:.3em;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:1.4vh 1.2vw;box-shadow:inset 0 1px #e1ffc810,0 10px 24px #0006;cursor:pointer;overflow:hidden;min-height:0;transition:transform .15s,border-color .15s;backdrop-filter:blur(2px)}
+.tile::before,.card::before{content:"";position:absolute;top:-1px;left:12px;width:28px;height:1px;background:#b3c3b3}
+.tile:hover{transform:translateY(-3px);border-color:var(--lime)}
+.tile .tag{font-size:.7em;color:var(--gold);letter-spacing:.1em;text-transform:uppercase}
+.tile h2{margin:0;font-size:1.02em;color:var(--lime);letter-spacing:.06em;text-transform:uppercase}
+.tile p{margin:0;color:var(--muted);font-size:.86em}
+.tile .th{flex:1;min-height:0;background-size:cover;background-position:center top;border:1px solid #2d3b31;opacity:.85;margin-top:.3em}
+/* a card: slides in over the stage, its pages slide sideways */
+.card{position:absolute;inset:0;display:grid;grid-template-rows:auto 1fr auto;border:1px solid #587053;background:#0d130fdc;border-radius:4px;box-shadow:0 20px 60px #000;transform:translateX(105%);transition:transform .45s cubic-bezier(.2,.8,.2,1);backdrop-filter:blur(6px);overflow:hidden}
+.card.on{transform:none}
+.card .head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:1.2vh 1.4vw;border-bottom:1px solid #364239}
+.card .head h2{margin:0;color:var(--lime);letter-spacing:.08em;text-transform:uppercase;font-size:1.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .head .tag{color:var(--gold);font-size:.75em;letter-spacing:.1em;text-transform:uppercase;margin-right:auto;padding-left:1em}
+.pages{position:relative;overflow:hidden;min-height:0}
+.page{position:absolute;inset:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:2vw;padding:2vh 1.6vw;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .45s;align-items:center}
+.page.text-only{grid-template-columns:minmax(0,1fr)}
+.page .txt{min-height:0;overflow:hidden}
+.page .pic{min-height:0;height:100%;display:flex;align-items:center;justify-content:center}
+.page .pic img{max-width:100%;max-height:100%;object-fit:contain;border:1px solid #2d3b31;box-shadow:0 10px 30px #000a}
+.page h3{margin:0 0 .5em;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;font-size:.95em}
+.page p{margin:0 0 .7em}
+.page ul{margin:0 0 .7em;padding-left:1.2em}.page li{margin:.2em 0}
+.page b{color:var(--lime)}
+.page code,.page pre{background:#080e0a;border:1px solid #2d3b31;color:#b8f0c9}
+.page code{padding:0 .3em}.page pre{padding:.6em;margin:0 0 .7em;white-space:pre-wrap;font-size:.92em}
+.page table{border-collapse:collapse;width:100%;font-size:.9em}.page td,.page th{border:1px solid #2d3b31;padding:.3em .5em;text-align:left;vertical-align:top}.page th{color:var(--lime)}
+.card .foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:1vh 1.4vw;border-top:1px solid #364239}
+.dots{display:flex;gap:8px}.dots i{width:10px;height:10px;border:1px solid var(--lime);border-radius:50%;cursor:pointer}.dots i.on{background:var(--lime);box-shadow:0 0 8px var(--lime)}
+@media (max-width:820px),(max-aspect-ratio:1/1){
+ .grid{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(6,1fr)}
+ .tile .th,.tile p{display:none}
+ .page{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+ .brand,.pill,#fx{display:none}
+ .identity img{height:clamp(30px,6vh,52px)}
+ h1{font-size:min(5.6vh,6.2vw)}
+ .page{padding:1.4vh 3vw;gap:1.4vh}
+ :root{--fs:clamp(11px,1.6vh,15px)}
+ footer span:last-child{display:none}
+}
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+<div class="shell">
+<header>
+ <div class="identity"><img src="img/logo.png" alt=""><div style="min-width:0"><h1>ORPHAN <span>FPGA</span></h1>
+  <div class="brand">[orphan] · FPGA Dev Linux for the S9 Control Board · by JMSCNC, makers of RotatoCAM</div></div></div>
+ <div class="tools"><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Coffee</a>
+  <a class="pill" href="https://github.com/revjmoney/orphan">GITHUB</a><button id="fx" type="button">FX on</button></div>
+</header>
+<div class="stage">
+ <section class="home" id="home">
+  <p class="hero">In Bitcoin, an <i>orphan block</i> is one the chain left behind. <b>Orphan</b> is for the control boards the
+   mining world left behind: an S9 controller (Zynq ARM + FPGA, a few dollars used) becomes a hacker's bench computer with
+   <b>game consoles, a radio, a synth, a miner and a language model built inside the FPGA</b>. Pick a card.</p>
+  <div class="grid" id="grid"></div>
+ </section>
+ <section class="card" id="card" role="dialog" aria-modal="true">
+  <div class="head"><h2 id="ctitle"></h2><span class="tag" id="ctag"></span><button id="close" type="button">Close [Esc]</button></div>
+  <div class="pages" id="pages"></div>
+  <div class="foot"><button id="prev" type="button">&lt; Prev</button><div class="dots" id="dots"></div><button id="next" type="button">Next &gt;</button></div>
+ </section>
+</div>
+<footer><span><a href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> · [Rev. J. Money - 2026] · by <a href="https://jmscnc.com">JMSCNC</a>, makers of RotatoCAM</span>
+ <span>GPL-3.0-or-later · Ardzy inside (by chryso, GPL-3.0)</span></footer>
+</div>
+<script>
+// every card is a list of pages; every page fits one screen: some text, at most one picture
+const S = 'shots/';
+const CARDS = [
+ {id: 'start', tag: 'start here', title: 'What is Orphan', thumb: 'board.png', blurb: 'A $5 mining controller turned FPGA bench computer.', pages: [
+  {img: 'board.png', h: 'The board', t: `<p>The Antminer S9's control board has a Xilinx <b>Zynq XC7Z010</b>: two ARM cores running Linux
+   plus a real FPGA, 512 MB RAM, Ethernet and 51 free FPGA pins.</p><p>Orphan installs on top of <a href="https://github.com/chrysovalantischryso/ardzy">Ardzy</a>
+   (chryso's Debian 13 + FPGA toolchain) and adds a BBS-style menu, a web control page, and machines built inside the FPGA.</p>`},
+  {img: 'menu.png', h: 'Where things run', t: `<ul><li><code>{fpga core}</code>: the hardware is built in the FPGA.</li>
+   <li><code>{arm linux}</code>: a program on the ARM.</li><li><code>{fpga + arm}</code>: both, working together.</li></ul>
+   <p>Load a core in one keypress or one click; its own page opens. No Vivado: everything builds with Yosys + nextpnr.</p>`}]},
+ {id: 'install', tag: 'install', title: 'Getting started', thumb: 'menu.png', blurb: 'SD card, one script, done.', pages: [
+  {h: 'You need', t: `<ul><li>An <b>Antminer S9 control board</b></li><li>A 12 V supply with a 6-pin PCIe plug</li>
+   <li>A microSD card, 8 GB or more</li><li>Ethernet to your router</li><li>Recommended: a fan on a fan header</li></ul>`},
+  {h: '1. Ardzy on the SD card', t: `<p>Write <code>Ardzy-0.3-sdcard.img.xz</code> from <a href="https://github.com/chrysovalantischryso/ardzy/releases">Ardzy's releases</a>.
+   Set the jumpers <b>JP2 = 1, JP4 = 1</b>, power up, wait 2 minutes.</p><pre>ssh root@ardzy.local    # password root
+passwd                   # change it now</pre>`},
+  {img: 'menu.png', h: '2. Orphan', t: `<pre>apt update && apt install -y git
+git clone https://github.com/revjmoney/orphan
+cd orphan
+sh orphan/setup-board.sh orphan</pre><p>Log in again: the Orphan menu opens. Open <code>http://orphan.local</code> for the board page.</p>`}]},
+ {id: 'board', tag: 'web', title: 'The board page', thumb: 'board.png', blurb: 'Matrix rain, project tree, quick starts.', pages: [
+  {img: 'board.png', h: 'Ardzy inside, Orphan outside', t: `<p>Ardzy's board app in the Orphan look. Projects sit in a tree:
+   <b>[orphan]</b> and <b>[ardzy]</b>, each split into [games], [mining], [science], [radio &amp; sound], [lab toys], [starters &amp; tests].</p>`},
+  {img: 'board-popup.png', h: 'Quick starts', t: `<p>Click a project's name: what it is, a <b>quick start</b> and the wiring.</p>
+   <p><b>Load</b> starts it and opens its own page in a new tab; the header shows OPEN &lt;core&gt; GUI while it runs.</p>`}]},
+ {id: 'tinylm', tag: 'fpga + arm', title: 'Orphan TinyLM', thumb: 'tinylm-adventure.png', blurb: 'Retired silicon writes stories: a Llama on the FPGA.', pages: [
+  {img: 'tinylm-adventure.png', h: 'Choose your own adventure', t: `<p>Real Llama language models with every matrix product in the FPGA.
+   <b>Adventure</b>: the FPGA writes <b>4 takes of the next chapter at once</b>; you pick one and the story goes on from your choice.</p>`},
+  {img: 'tinylm-4stories.png', h: '64 lanes, 4 stories, one pass', t: `<p>8-bit weights stream from DDR into <b>64 multiply lanes</b>:
+   every weight read serves 4 stories. The ARM does attention and picks the words.</p><p>The FPGA's integers match the ARM's exactly (self-check at every start).</p>`},
+  {h: 'Models and modes', t: `<ul><li><b>Stories 15M</b> (fast) and <b>Stories 42M</b> (better): Karpathy's llama2.c models, both in DDR, switch instantly.</li>
+   <li><b>Write</b>, <b>4 Stories</b>, <b>Adventure</b>, and a <b>Race</b>: FPGA vs the ARM alone.</li></ul>`}]},
+ {id: 'games', tag: 'fpga core', title: 'Orphan Games', thumb: 'sms.png', blurb: 'NES, Game Boy, Master System, Game Gear.', pages: [
+  {img: 'sms.png', h: 'Master System', t: `<p>MiSTer's SMS core turned into Verilog with GHDL: the T80 Z80, the VDP and jt89 sound in the FPGA.</p>`},
+  {img: 'gamegear.png', h: 'Game Gear', t: `<p>A <code>.gg</code> file switches the same core into Game Gear mode: 160 x 144, 4096 colours, stereo.</p>`},
+  {img: 'games.png', h: 'NES', t: `<p>fpganes by Ludvig Strigeus: CPU, picture and sound chips, mappers 0 to 4.</p>`},
+  {img: 'gameboy.png', h: 'Game Boy', t: `<p>VerilogBoy by Wenting Zhang with Orphan's own boot ROM, MBC1/3/5. Play in the browser or on an ORPHAN Remote screen.</p>`}]},
+ {id: 'radio', tag: 'fpga + arm', title: 'Orphan Radio 7600', thumb: 'radio.png', blurb: '1 kHz to 49 MHz from one FPGA pin.', pages: [
+  {img: 'radio.png', h: 'Four tuners, one pin', t: `<p>A receiver built in the FPGA from a single sigma-delta pin: 4 tuners and a panadapter.</p>
+   <ul><li>AM, SAM, USB, LSB, CW, NFM</li><li>CW, NAVTEX, WWVB and SSTV decoders on the board</li><li>Scanner, memories, band plan</li></ul>`}]},
+ {id: 'synth', tag: 'fpga + arm', title: 'Orphan Synth', thumb: 'synth.png', blurb: '8 voices in the FPGA.', pages: [
+  {img: 'synth.png', h: 'Eight voices', t: `<p>6-oscillator mixer, filters, envelopes, 2 LFOs, a mod matrix, drive, bitcrusher, delay, looper,
+   arpeggiator, presets and LED light shows.</p><p>Web keys, the terminal keyboard or network MIDI.</p>`}]},
+ {id: 'btc', tag: 'fpga + arm', title: 'Orphan BTC', thumb: 'btc.png', blurb: 'The S9 mines again, on its own controller.', pages: [
+  {img: 'btc.png', h: 'A real Stratum miner', t: `<p>Ardzy's SHA-256 core turned into a Stratum v1 miner: the board builds block headers, rolls
+   extranonces and re-checks every share on the ARM.</p><p>The <b>Coin &amp; earnings</b> panel reads the reward from the pool's own
+   job: honest numbers for a 1 MH/s lottery ticket. 3 % opt-out dev fee, shown while it runs.</p>`}]},
+ {id: 'more', tag: 'fpga + arm', title: 'Toys, fans, remote', thumb: 'board.png', blurb: 'Raycaster, Life, fan control everywhere.', pages: [
+  {h: 'More', t: `<ul><li><b>Graphics Toys</b>: a raycaster, colour waves, XOR fields and the Game of Life drawn by the FPGA.</li>
+   <li><b>Fan control everywhere</b>: Orphan's designs and Ardzy's examples carry Orphan's fan block; the Cooling page sets the speed and reads rpm.</li>
+   <li><b>ORPHAN Remote</b>: a $15 ESP32 Cheap Yellow Display as a Wi-Fi touch screen for the board.</li></ul>`}]},
+ {id: 'next', tag: 'coming', title: 'SPEKTOR / INJEKTOR 3000', thumb: 'board.png', blurb: 'ORPHAN LOGIC LAB: the next build.', pages: [
+  {h: 'Orphan Logic Lab', t: `<p><b>SPEKTOR</b> sees: 16 channels, hardware triggers, PulseView support, decoders on the board.</p>
+   <p><b>INJEKTOR</b> drives: UART, I&#178;C, SPI, CAN, 1-Wire, IR; record and bit-exact replay; glitch timing.</p>
+   <p>Probe build plans and pinouts on the page, and a terminal drawer.</p>`}]},
+ {id: 'support', tag: 'coffee', title: 'Support Orphan', thumb: 'board.png', blurb: 'Made in a garage, fueled by coffee.', pages: [
+  {h: 'Keep the soldering iron hot', t: `<p>Orphan is made by one person in a garage. If it brought your old control board back to life:</p>
+   <p><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a></p>
+   <p>Mining cores carry a <b>3 % dev fee, on by default, opt-out</b>, shown on their page while it runs. Nothing else takes a fee.</p>`}]},
+ {id: 'credits', tag: 'licences', title: 'Credits', thumb: 'board.png', blurb: 'Standing on open-source shoulders.', pages: [
+  {h: 'Built on', t: `<table><tr><th>Part</th><th>By</th></tr><tr><td>Ardzy</td><td>chryso, GPL-3.0</td></tr>
+   <tr><td>fpganes</td><td>Ludvig Strigeus, GPL-2.0</td></tr><tr><td>VerilogBoy</td><td>Wenting Zhang, OHDL 1.0</td></tr>
+   <tr><td>MiSTer SMS core, T80</td><td>Sorgelig, Daniel Wallner, MiSTer developers</td></tr><tr><td>jt89</td><td>Jose Tejada, GPL-3.0</td></tr>
+   <tr><td>stories15M / 42M</td><td>Andrej Karpathy (llama2.c), MIT</td></tr><tr><td>Yosys, nextpnr, GHDL</td><td>YosysHQ, f4pga, GHDL</td></tr></table>`},
+  {h: 'Licence', t: `<p>Orphan is GPL-3.0-or-later with two additional terms: keep "by JMSCNC, makers of RotatoCAM", and a fork uses its own
+   name and logo. The monkey logo is not GPL. No Bitmain software, firmware or schematic is in the repository.</p>
+   <p>Full list: <a href="https://github.com/revjmoney/orphan/blob/main/NOTICE.md">NOTICE.md</a></p>`}]},
+];
+const $ = id => document.getElementById(id);
+$('grid').innerHTML = CARDS.map(c => '<button class="tile" data-id="' + c.id + '"><div class="tag">' + c.tag + '</div><h2>' + c.title +
+  '</h2><p>' + c.blurb + '</p><div class="th" style="background-image:url(' + S + c.thumb + ')"></div></button>').join('');
+let ci = -1, pi = 0;
+function renderCard() {
+  const c = CARDS[ci];
+  $('ctitle').textContent = c.title; $('ctag').textContent = c.tag;
+  $('pages').innerHTML = c.pages.map((p, i) => '<div class="page' + (p.img ? '' : ' text-only') + '" data-i="' + i + '"><div class="txt"><h3>' + p.h +
+    '</h3>' + p.t + '</div>' + (p.img ? '<div class="pic"><img src="' + S + p.img + '" alt=""></div>' : '') + '</div>').join('');
+  $('dots').innerHTML = c.pages.map((p, i) => '<i data-i="' + i + '"></i>').join('');
+  place();
+}
+function place() {
+  document.querySelectorAll('#pages .page').forEach((el, i) => {
+    el.style.transform = 'translateX(' + ((i - pi) * 104) + '%)'; el.style.opacity = i === pi ? 1 : 0; });
+  document.querySelectorAll('#dots i').forEach((el, i) => el.classList.toggle('on', i === pi));
+  const n = CARDS[ci].pages.length;
+  $('prev').textContent = pi > 0 ? '< Prev' : '< Back'; $('next').textContent = pi < n - 1 ? 'Next >' : 'Next card >';
+}
+function openCard(i, page) {
+  ci = (i + CARDS.length) % CARDS.length; pi = page || 0; renderCard();
+  $('card').classList.add('on'); $('home').classList.add('away');
+  history.replaceState(null, '', '#' + CARDS[ci].id);
+}
+function closeCard() { $('card').classList.remove('on'); $('home').classList.remove('away'); ci = -1; history.replaceState(null, '', location.pathname); }
+function step(d) {
+  const n = CARDS[ci].pages.length;
+  if (pi + d >= 0 && pi + d < n) { pi += d; place(); }
+  else if (d > 0) openCard(ci + 1); else if (pi === 0) closeCard();
+}
+$('grid').onclick = e => { const t = e.target.closest('.tile'); if (t) openCard(CARDS.findIndex(c => c.id === t.dataset.id)); };
+$('close').onclick = closeCard; $('prev').onclick = () => step(-1); $('next').onclick = () => step(1);
+$('dots').onclick = e => { const d = e.target.closest('i'); if (d) { pi = +d.dataset.i; place(); } };
+document.onkeydown = e => { if (ci < 0) return; if (e.key === 'Escape') closeCard(); if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); };
+let sx = null;
+$('card').addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, {passive: true});
+$('card').addEventListener('touchend', e => { if (sx == null) return; const dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 50) step(dx < 0 ? 1 : -1); sx = null; });
+document.addEventListener('wheel', e => { e.preventDefault(); }, {passive: false});
+const start = CARDS.findIndex(c => '#' + c.id === location.hash); if (start >= 0) openCard(start);
+// the falling 0/1 rain of the Orphan firmware (FX on/off remembered)
+(() => {
+  const cv = $('rain'), btn = $('fx'); let on = !matchMedia('(prefers-reduced-motion: reduce)').matches, frame = 0, last = 0;
+  try { on = on && localStorage.getItem('orphan-fx') !== 'off'; } catch (e) {}
+  function draw(t) { const w = cv.clientWidth, h = cv.clientHeight; if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    const x = cv.getContext('2d'); x.clearRect(0, 0, w, h); x.font = '12px Consolas';
+    for (let l = 0; l < w / 22; l++) { const st = Math.floor(t / (82 + l % 6 * 16)), y = ((st * 14 + l * 89) % (h + 154)) - 12;
+      for (let i = 0; i < 8; i++) { x.fillStyle = i === 0 ? '#bfef6650' : 'rgba(139,208,57,' + (8 - i) * .014 + ')';
+        x.fillText((st + i * 13 + l * 29) % 7 < 3 ? '0' : '1', l * 22 + 4, y - i * 14); } } }
+  function anim(t) { if (!on) return; if (t - last >= 48) { last = t; draw(t); } frame = requestAnimationFrame(anim); }
+  function set(v) { on = v; btn.textContent = v ? 'FX on' : 'FX off'; cv.hidden = !v; if (!v) { cancelAnimationFrame(frame); frame = 0; } else if (!frame) frame = requestAnimationFrame(anim); }
+  btn.onclick = () => { set(!on); try { localStorage.setItem('orphan-fx', on ? 'on' : 'off'); } catch (e) {} };
+  set(on);
+})();
+</script>
+</body>
+</html>

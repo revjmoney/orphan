@@ -1,0 +1,22 @@
+{
+  "id": "OBTC",
+  "title": "Orphan BTC: real Stratum Bitcoin miner in the FPGA",
+  "category": "Mining",
+  "branch": "mining",
+  "level": "medium",
+  "summary": "A real Bitcoin miner on the S9 control board's FPGA: 4 double-SHA-256 units (about 1.1 MH/s) driven by a Stratum v1 pool client on the ARM, every result re-checked against the pool's exact share target. Built on Ardzy's 13_sha256 lab (by chryso, GPL-3.0). At this speed it is a lottery miner for solo pools such as public-pool.io. Includes a 3 % opt-out dev fee and fan control. by JMSCNC, makers of RotatoCAM.",
+  "quickstart": [
+    "Load orphan_btc. Its page opens on port 8000.",
+    "Enter your Bitcoin address; the pool defaults to the solo pool public-pool.io (difficulty 0.001).",
+    "Save, then Start mining. The log shows jobs, shares sent and the pool's answers.",
+    "3 % dev fee is on by default (3 of every 100 minutes to the developer); untick it to opt out.",
+    "Fans: Cooling in the Orphan menu."
+  ],
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "SHA-256 miner (Ardzy's sha_miner: 4 units, midstate + tail, zero-bit target)",
+    "15": "Fan (orphan_fan)"
+  },
+  "runs": "fpga + arm"
+}

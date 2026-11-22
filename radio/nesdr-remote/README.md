@@ -6,7 +6,7 @@ The PC runs Osmocom `rtl_tcp` on loopback. An OpenSSH reverse tunnel carries uns
 
 Audio playback starts after about 700 ms of samples arrive. The USB receiver can deliver samples in bursts, so the buffer trades a short listening delay for continuous playback. The spectrum and waterfall draw independently of audio scheduling.
 
-The NESDR supports WFM, NFM, AM, SAM, USB, LSB and CW. Auto chooses the mode from the band plan. It uses Q direct sampling from 100 kHz to 25 MHz and the tuner above 25 MHz. The scanner can sweep FM broadcast, the current band, or up to a 32 MHz overview. Click a hit to tune it or enable Auto-program to save hits as automatic memories. The NESDR feeds CW, NAVTEX and SSTV to `orphan-rxd`. The **WWVB 60** button switches to the built-in tuner if the selected tuner cannot reach 60 kHz. Parallel FPGA slices B–D, FPGA noise filters and test TX are built-in tuner features.
+The NESDR supports WFM, NFM, AM, SAM, USB, LSB and CW. Auto chooses the mode from the band plan. It uses Q direct sampling from 100 kHz to 25 MHz and the tuner above 25 MHz. The scanner can sweep FM broadcast, the current band, or up to a 32 MHz overview. Click a hit to tune it or enable Auto-program to save hits as automatic memories. The NESDR feeds CW, NAVTEX and SSTV to `orphan-rxd`. The **WWVB 60** button switches to the built-in tuner if the selected tuner cannot reach 60 kHz. Parallel FPGA slices B to D, FPGA noise filters and test TX are built-in tuner features.
 
 ## Additional tuner adapters
 
@@ -17,3 +17,6 @@ If the NESDR has a physical LF upconverter rated for 60 kHz, set `ORPHAN_NESDR_L
 Use `start.ps1` on the PC after a restart or USB reconnect with the WinUSB driver installed and the [Osmocom Windows binaries](https://downloads.osmocom.org/binaries/windows/rtl-sdr/) (set their folder in `start.ps1`). Close other programs using the dongle. On the radio board, the systemd unit launches the unprivileged receiver. Build `demod.so` with `gcc -O3 -Wall -Wextra -Werror -fPIC -shared demod.c -o demod.so -lm`. Build the shared decoder with `gcc -O2 ../orphan_radio/rxd.c -o rxd-external -lm`. Install both binaries, `server.py` and the standalone fallback `index.html` in `/opt/orphan-nesdr/`.
 
 The board exposes `GET /iq` on port 8002 for a raw client and `GET /stream` for the browser. The dongle serves one stream at a time. The board web panel and its tuning endpoint are for the trusted LAN.
+
+---
+[Buy me a coffee](https://buymeacoffee.com/revjmoney) · [orphan] · by [JMSCNC](https://jmscnc.com), makers of RotatoCAM · **[Rev. J. Money - 2026]**

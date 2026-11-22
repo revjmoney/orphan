@@ -1,0 +1,86 @@
+{
+  "orphan_radio": {
+    "summary": "A shortwave and longwave receiver built in the FPGA: 4 independent tuners plus a live panadapter, covering 1 kHz to 49 MHz from a single input pin. Listen to AM, SSB, CW and NFM, and decode CW, NAVTEX, WWVB time and SSTV pictures on the board itself.",
+    "quickstart": [
+      "Wire an antenna: a long wire on J8 pin 12 works with zero parts.",
+      "Load orphan_radio. Its web panel opens on port 8000.",
+      "Click a band in the band plan or type a frequency, then pick the mode (AM, USB, LSB, CW).",
+      "Press Sound on in the page, or on your PC: ffplay -nodisp -f s16le -ar 12207 -ch_layout mono -fflags nobuffer tcp://<board>:8001",
+      "Optional: a PCM5102A DAC on J3 pins 5, 11, 12, 15 for speaker out."
+    ],
+    "web": 8000
+  },
+  "orphan_synth": {
+    "summary": "An 8-voice synthesizer built in the FPGA: 6 oscillators per voice, filters, envelopes, 2 LFOs, a mod matrix, drive, bitcrusher, delay, looper and arpeggiator. Play it from the browser, the terminal keyboard or MIDI over the network.",
+    "quickstart": [
+      "Load orphan_synth. Its web page opens on port 8000.",
+      "Press Sound on in the page, then play the on-screen keys or your computer keyboard.",
+      "Pick a preset, then turn the knobs: filter, envelope, LFO, effects.",
+      "Optional: a PCM5102A DAC on J3 pins 5, 11, 12, 15 for line out."
+    ],
+    "web": 8000
+  },
+  "orphan_nes": {
+    "summary": "The NES rebuilt in the FPGA (fpganes by Ludvig Strigeus): its CPU, picture chip and sound run as hardware. Play free homebrew NES games in the browser with the keyboard or a USB gamepad, or on an ORPHAN Remote (CYD) screen.",
+    "quickstart": [
+      "Load orphan_nes. Its game page opens on port 8000.",
+      "Click a game in the list on the left.",
+      "Press Sound on. Keys: arrows move, Z = B, X = A, Enter = Start, Right Shift = Select.",
+      "A USB gamepad works too: press a button once so the browser sees it.",
+      "Your own free homebrew .nes files go in /opt/orphan-games/roms/nes."
+    ],
+    "web": 8000
+  },
+  "orphan_gb": {
+    "summary": "The original Game Boy rebuilt in the FPGA (VerilogBoy by Wenting Zhang) with Orphan's own boot ROM. Play free homebrew Game Boy games in the browser or on an ORPHAN Remote (CYD) screen. Carts up to 128 KB.",
+    "quickstart": [
+      "Load orphan_gb. Its game page opens on port 8000.",
+      "Click a game in the list on the left.",
+      "Press Sound on. Keys: arrows move, Z = B, X = A, Enter = Start, Right Shift = Select.",
+      "Your own free homebrew .gb files go in /opt/orphan-games/roms/gb."
+    ],
+    "web": 8000
+  },
+  "orphan_sms": {
+    "summary": "The Sega Master System and Game Gear rebuilt in the FPGA: the Z80, the picture chip and the sound chip run as hardware (MiSTer's SMS core turned into Verilog with GHDL, plus jt89). Play free homebrew SMS and Game Gear games in the browser. Carts up to 128 KB.",
+    "quickstart": [
+      "Load orphan_sms. Its game page opens on port 8000.",
+      "Click a game; Game Gear games are marked (Game Gear) and switch the core into Game Gear mode.",
+      "Press Sound on. Keys: arrows move, Z = button 1, X = button 2, Enter = Start / Pause.",
+      "Your own free homebrew .sms and .gg files go in /opt/orphan-games/roms/sms."
+    ],
+    "web": 8000
+  },
+  "orphan_toys": {
+    "summary": "An FPGA graphics playground: a raycast maze, color waves, XOR fields and a hardware Game of Life, drawn by the FPGA and shown in the browser or on a CYD Wi-Fi display.",
+    "quickstart": [
+      "Load orphan_toys. Its page opens on port 8000.",
+      "Click a toy: FPGA Raycast, Color Waves, XOR Field or Game of Life.",
+      "Raycast: press Manual, then Forward, Back and Turn left / right (or Auto rotate).",
+      "Life: Benchmark Life vs CPU shows how much faster the FPGA is.",
+      "Optional: type a CYD's address and press Send to CYD to show it on that screen."
+    ],
+    "web": 8000
+  },
+  "orphan_btc": {
+    "summary": "A real Bitcoin (SHA-256) miner in the FPGA: 4 double-SHA-256 units at about 1.1 MH/s driven by a Stratum v1 client on the ARM, every result re-checked against the pool's exact share target. Built on Ardzy's 13_sha256 lab. A lottery miner for solo or low-difficulty pools, with a live coin and earnings panel and a 3 % opt-out dev fee.",
+    "quickstart": [
+      "Load orphan_btc. Its page opens on port 8000.",
+      "Enter your Bitcoin address (or your pool account name) and a Stratum v1 pool; the default is the solo pool public-pool.io.",
+      "Save, then Start mining. The log shows jobs, shares sent and the pool's answers; the Coin & earnings panel names the coin and estimates per day.",
+      "The 3 % dev fee is on by default (3 of every 100 minutes to the developer); untick it to opt out."
+    ],
+    "web": 8000
+  },
+  "orphan_tinylm": {
+    "summary": "Retired silicon writes stories: real Llama language models (Karpathy's stories15M and stories42M, MIT) with every matrix product in the FPGA: 64 multiply lanes stream 8-bit weights from DDR, up to 4 stories share one pass. Three modes: Write, 4 Stories, and Adventure (4 takes of every chapter, you pick).",
+    "quickstart": [
+      "Load orphan_tinylm. Its page opens on port 8000 (the first start puts the models into DDR and self-checks the FPGA).",
+      "Pick a model: Stories 15M (fast) or Stories 42M (better stories).",
+      "Type a simple story opening, for example: Once upon a time, a little robot",
+      "Write = one story; 4 Stories = four versions at once; Adventure = 4 takes of each chapter, press Pick this to continue the one you like.",
+      "Race compares 1 story, 4 at once, and the ARM alone."
+    ],
+    "web": 8000
+  }
+}

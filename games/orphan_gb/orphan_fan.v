@@ -10,7 +10,7 @@
 //   1 DUTY    0..100 percent (reset 0 = fans idle: quiet by default)
 //   2..7      TACH0..5: rising edges counted in the last 1 s window (rpm = count * 60 / 2)
 //   8 WINDOWS completed 1 s windows
-module orphan_fan #(parameter [3:0] SLOT = 4'd15) (
+module orphan_fan #(parameter [3:0] SLOT = 4'd15, parameter integer CLK_HZ = 100_000_000) (
     input  wire        clk,
     input  wire        rstn,
     input  wire [15:0] bus_addr,
@@ -26,9 +26,10 @@ module orphan_fan #(parameter [3:0] SLOT = 4'd15) (
 
     reg [6:0]  duty = 7'd0;
     reg [11:0] pwm_cnt = 12'd0;                       // 4000 clocks = 25 kHz at 100 MHz
-    wire [11:0] high = duty * 12'd40;
+    localparam integer PER = CLK_HZ / 25000;          // clocks per PWM period (25 kHz); CLK_HZ = the bus clock
+    wire [11:0] high = duty * (PER / 100);
     always @(posedge clk) begin
-        pwm_cnt <= (pwm_cnt == 12'd3999) ? 12'd0 : pwm_cnt + 1'b1;
+        pwm_cnt <= (pwm_cnt == PER - 1) ? 12'd0 : pwm_cnt + 1'b1;
         fan_pwm <= (pwm_cnt < high);
     end
 
@@ -42,7 +43,7 @@ module orphan_fan #(parameter [3:0] SLOT = 4'd15) (
     initial for (i = 0; i < 6; i = i + 1) begin cnt[i] = 16'd0; val[i] = 16'd0; end
     always @(posedge clk) begin
         s1 <= fan_tach; s2 <= s1; s3 <= s2;
-        if (gate == 27'd99_999_999) begin
+        if (gate == CLK_HZ - 1) begin
             gate <= 27'd0;
             windows <= windows + 1'b1;
             for (i = 0; i < 6; i = i + 1) begin val[i] <= cnt[i]; cnt[i] <= 16'd0; end

@@ -22,8 +22,9 @@ and nine 18-pin hashboard connectors that go straight to FPGA pins.
   - Orphan Radio: **J8 pin 12** RF input, J8 pin 15 RC feedback, J8 pin 5 test transmitter.
   - I2S DAC (PCM5102A) for the radio and the synth: **J3** pins 5 (MCLK), 11 (BCLK), 12 (DOUT), 15 (LRCLK).
 - **Fans 1 .. 6**: one PWM for all (FPGA pin J18, 25 kHz in Orphan's designs) and six tach inputs.
-  With no FPGA design loaded the fans run at full speed. Every Orphan design includes the fan block, and the
-  menu's **Cooling** screen sets the speed and shows the rpm of each header.
+  With no FPGA design loaded the fans run at full speed. Every Orphan design includes the fan block, Ardzy's
+  examples 01 to 17 get it too (`orphan/fan-bits`), and the menu's **Cooling** screen sets the speed and shows the
+  rpm of each header.
 - **J12**: 3.3 V serial console, 115200 baud (U-Boot and Linux messages). Needed only for recovery work.
 
 ## LEDs, buttons, beeper
@@ -38,3 +39,6 @@ and nine 18-pin hashboard connectors that go straight to FPGA pins.
 
 The Zynq's own XADC: die temperature (about 50 C idle) and its supply voltages. The menu's **About this board**
 shows them. There are no other sensors on the control board.
+
+---
+[Buy me a coffee](https://buymeacoffee.com/revjmoney) · by [JMSCNC](https://jmscnc.com), makers of RotatoCAM · **[Rev. J. Money - 2026]**

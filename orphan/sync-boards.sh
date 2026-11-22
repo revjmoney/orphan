@@ -28,15 +28,29 @@ for b in $BOARDS; do
 	tar -C "$SD" $EXCL -cf - orphan_synth | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
 	GD=$REPO/games; [ -d "$GD" ] || GD=$REPO/games-work
 	TD=$REPO/toys; [ -d "$TD" ] || TD=$REPO/toys-work
-	tar -C "$GD" $EXCL -cf - orphan_nes orphan_gb | ssh root@$b 'tar -xf - -C /opt/ardzy/projects && mkdir -p /opt/orphan-games/roms/nes /opt/orphan-games/roms/gb'
+	tar -C "$GD" $EXCL -cf - orphan_nes orphan_gb orphan_sms | ssh root@$b 'tar -xf - -C /opt/ardzy/projects && mkdir -p /opt/orphan-games/roms/nes /opt/orphan-games/roms/gb /opt/orphan-games/roms/sms'
 	tar -C "$TD" $EXCL -cf - orphan_toys | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
-	# your own game libraries (free homebrew), if you keep them: orphan/roms.local = lines "nes <folder>", "gb <folder>"
+	MD=$REPO/miners; [ -d "$MD" ] || MD=$REPO/miners-work
+	tar -C "$MD" $EXCL --exclude=settings.local.json --exclude=devfee.local.json -cf - orphan_btc | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
+	LD=$REPO/lm; [ -d "$LD" ] || LD=$REPO/lm-work
+	# TinyLM: the code from here; its model/ (weights) stays on the board (copy it once: see lm/orphan_tinylm/README.md)
+	[ -n "${SKIP_LM:-}" ] || tar -C "$LD" $EXCL --exclude=model -cf - orphan_tinylm | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
+	# your own game libraries (free homebrew), if you keep them: orphan/roms.local = lines "nes <folder>", "gb <folder>", "sms <folder>" (.sms + .gg)
 	while read -r sys dir; do
 		[ -n "$dir" ] && [ -d "$dir" ] || continue
-		(cd "$dir" && tar -cf - *.$sys) | ssh root@$b "tar -xf - -C /opt/orphan-games/roms/$sys && echo \"   $sys games: \$(ls /opt/orphan-games/roms/$sys | wc -l)\""
+		pat="*.$sys"; [ "$sys" = sms ] && pat="*.sms *.gg"
+		(cd "$dir" && shopt -s nullglob && tar -cf - $pat) | ssh root@$b "tar -xf - -C /opt/orphan-games/roms/$sys && echo \"   $sys games: \$(ls /opt/orphan-games/roms/$sys | wc -l)\""
 	done < <(cat "$REPO/orphan/roms.local" 2>/dev/null)
+	# Ardzy's web page in the Orphan look (Ardzy inside); the original stays as index.ardzy.html
+	ssh root@$b 'W=/opt/ardzy/web; [ -f $W/index.ardzy.html ] || cp $W/index.html $W/index.ardzy.html; python3 - $W/index.ardzy.html $W/index.html' < "$REPO/orphan/brand-ardzy-web.py"
+	# Orphan's fan control in Ardzy's example designs (rebuilt by orphan/add-fan.py): replace their bitstreams
+	for f in "$REPO"/orphan/fan-bits/*.bit; do [ -f "$f" ] || continue; n=$(basename "$f" .bit)
+		ssh root@$b "[ -d /opt/ardzy/projects/$n ] && cat > /opt/ardzy/projects/$n/$n.bit" < "$f"; done
+	echo "   fan control bitstreams: $(ls "$REPO"/orphan/fan-bits/*.bit 2>/dev/null | wc -l)"
 	# 4. descriptions
 	tar -C "$REPO/orphan/project-meta" -cf - . | ssh root@$b 'mkdir -p /tmp/pmeta && tar -xf - -C /tmp/pmeta && for f in /tmp/pmeta/*.json; do p=$(basename $f .json); [ -d /opt/ardzy/projects/$p ] && cp $f /opt/ardzy/projects/$p/project.json; done; rm -rf /tmp/pmeta /tmp/orphan-src
 		n=0; for d in /opt/ardzy/projects/*/; do [ -f $d/project.json ] || { echo "   no description: $d"; n=1; }; done
 		echo "   $(ls /opt/ardzy/projects | wc -l) projects, all with descriptions: $([ $n = 0 ] && echo yes || echo no)"'
+	# descriptions + quick starts (orphan/project-meta/quickstart*.json) merged into each project.json
+	tar -C "$REPO/orphan" -cf - merge-quickstart.py project-meta/quickstart.json project-meta/quickstart-orphan.json 2>/dev/null | ssh root@$b 'mkdir -p /tmp/oqs && tar -xf - -C /tmp/oqs && python3 /tmp/oqs/merge-quickstart.py /tmp/oqs/project-meta/quickstart*.json; rm -rf /tmp/oqs'
 done

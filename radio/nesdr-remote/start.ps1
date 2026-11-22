@@ -1,5 +1,5 @@
 param(
-    [ValidatePattern('^[a-zA-Z0-9.-]+$')][string]$Board = '192.168.1.170',
+    [ValidatePattern('^[a-zA-Z0-9.-]+$')][string]$Board = $(if ($env:ORPHAN_BOARD) { $env:ORPHAN_BOARD } else { 'orphan.local' }),
     [string]$ToolRoot = $(if ($env:ORPHAN_RTLSDR) { $env:ORPHAN_RTLSDR } else { Join-Path $PSScriptRoot 'rtl-sdr' })
 )
 $ErrorActionPreference = 'Stop'

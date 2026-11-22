@@ -12,9 +12,10 @@ button{cursor:pointer}#start{background:#edbd6c;color:#161510}#status{color:#9cd
 .mode-keys button[aria-pressed="true"]{color:#ffe2a6;border-color:#edbd6c;background:#30271c}
 canvas{display:block;width:100%;background:#0a1015;border:1px solid #334641} #waterfall{height:160px;image-rendering:pixelated}
 .axis{display:flex;justify-content:space-between;color:#bbcbc5;font:12px monospace;margin:6px 0 14px}
-</style>
+.bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:4px;padding:3px 10px;font-weight:700;font-size:12px;text-decoration:none;white-space:nowrap;box-shadow:0 0 12px #ffcc2e55;vertical-align:middle}.bmc:hover{color:#000!important;box-shadow:0 0 18px #ffcc2e99}</style>
 <main>
 <h1>Network NESDR</h1>
+<p>[orphan] · an RTL-SDR on another computer as Orphan Radio's second tuner · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM · <a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a></p>
 <form id="tuner"><label>Frequency (MHz)<input id="frequency" type="number" value="99.5" min="0.1" max="1750" step="0.000001" required></label>
 <label>RF gain<select id="rf"><option value="">Auto</option></select></label><button>Tune</button>
 <button type="button" id="start">Start receiver</button><button type="button" id="stop">Stop</button>
@@ -29,6 +30,7 @@ canvas{display:block;width:100%;background:#0a1015;border:1px solid #334641} #wa
 <div class="axis"><span id="lo"></span><span id="center"></span><span id="hi"></span></div>
 <canvas id="waterfall" width="768" height="160" aria-label="Radio spectrum history"></canvas>
 </main>
+<footer style="font:12px monospace;color:#8fa09a;margin:18px 0"><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> <b>[Rev. J. Money - 2026]</b> · Orphan · FPGA Dev Linux for the S9 Control Board · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM</footer>
 <script>
 const el=id=>document.getElementById(id);
 const spectrum=el('spectrum'),waterfall=el('waterfall');
