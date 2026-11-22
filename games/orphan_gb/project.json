@@ -1,0 +1,14 @@
+{
+  "id": "GB01",
+  "title": "Orphan Games: Game Boy in the FPGA",
+  "category": "Games",
+  "level": "easy",
+  "summary": "The original Game Boy rebuilt in the FPGA (VerilogBoy by Wenting Zhang, OHDL 1.0): its CPU, picture chip and sound in hardware, with Orphan's own boot ROM. Play free homebrew Game Boy games from the browser (keyboard or a USB gamepad) or on an ORPHAN Remote (CYD) screen. Carts up to 128 KB, no mapper / MBC1 / MBC3 / MBC5. by JMSCNC, makers of RotatoCAM.",
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "Game Boy (cart, frame buffer, sound, pads)",
+    "14": "LEDs (orphan_leds)",
+    "15": "Fan (orphan_fan)"
+  }
+}

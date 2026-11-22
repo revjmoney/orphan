@@ -13,6 +13,8 @@ an optional program that runs after it loads (`main.py`, a C program, a sketch o
 | `radio/sim` | Icarus Verilog testbenches and test-signal generators (CW, NAVTEX, WWVB, SSTV) |
 | `synth/orphan_synth` | Orphan Synth: FPGA core `orphan_synth.v`, effects daemon `fxd.c`, `main.py`, `term.py`, panel |
 | `games/orphan_nes` | Orphan Games: fpganes (GPL-2) in `orphan_nes_block.v` (cart RAM, frame buffer, sound, pads), `main.py`, `index.html` |
+| `games/orphan_gb` | Orphan Games: VerilogBoy (OHDL) in `orphan_gb_block.v` (cart + mapper, frame buffer, stereo sound, pads); `brom.v` is Orphan's own boot ROM (`make_gb_bootrom.py`) |
+| `games/shared` | the board program and web page both consoles use (`main.py` reads the loaded console's ID) |
 | `games/sim/tb_nes.v` | loads a ROM through the bus, runs frames, dumps a picture (`nesframe.py` turns it into a PNG) |
 | `toys/orphan_toys` | Orphan Graphics Toys (raycast, color waves, XOR, Life) |
 | `cyd-remote` | ORPHAN Remote: ESP32 CYD firmware (PlatformIO) + the board's display service |

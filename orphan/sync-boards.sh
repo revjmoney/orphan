@@ -28,13 +28,13 @@ for b in $BOARDS; do
 	tar -C "$SD" $EXCL -cf - orphan_synth | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
 	GD=$REPO/games; [ -d "$GD" ] || GD=$REPO/games-work
 	TD=$REPO/toys; [ -d "$TD" ] || TD=$REPO/toys-work
-	tar -C "$GD" $EXCL -cf - orphan_nes | ssh root@$b 'tar -xf - -C /opt/ardzy/projects && mkdir -p /opt/orphan-games/roms/nes'
+	tar -C "$GD" $EXCL -cf - orphan_nes orphan_gb | ssh root@$b 'tar -xf - -C /opt/ardzy/projects && mkdir -p /opt/orphan-games/roms/nes /opt/orphan-games/roms/gb'
 	tar -C "$TD" $EXCL -cf - orphan_toys | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
-	# your own game library (free homebrew), if you keep one: ORPHAN_NES_ROMS=<folder> or orphan/roms.local
-	NR=${ORPHAN_NES_ROMS:-$(cat "$REPO/orphan/roms.local" 2>/dev/null)}
-	if [ -n "$NR" ] && [ -d "$NR" ]; then
-		(cd "$NR" && tar -cf - *.nes) | ssh root@$b 'tar -xf - -C /opt/orphan-games/roms/nes && echo "   NES games: $(ls /opt/orphan-games/roms/nes | wc -l)"'
-	fi
+	# your own game libraries (free homebrew), if you keep them: orphan/roms.local = lines "nes <folder>", "gb <folder>"
+	while read -r sys dir; do
+		[ -n "$dir" ] && [ -d "$dir" ] || continue
+		(cd "$dir" && tar -cf - *.$sys) | ssh root@$b "tar -xf - -C /opt/orphan-games/roms/$sys && echo \"   $sys games: \$(ls /opt/orphan-games/roms/$sys | wc -l)\""
+	done < <(cat "$REPO/orphan/roms.local" 2>/dev/null)
 	# 4. descriptions
 	tar -C "$REPO/orphan/project-meta" -cf - . | ssh root@$b 'mkdir -p /tmp/pmeta && tar -xf - -C /tmp/pmeta && for f in /tmp/pmeta/*.json; do p=$(basename $f .json); [ -d /opt/ardzy/projects/$p ] && cp $f /opt/ardzy/projects/$p/project.json; done; rm -rf /tmp/pmeta /tmp/orphan-src
 		n=0; for d in /opt/ardzy/projects/*/; do [ -f $d/project.json ] || { echo "   no description: $d"; n=1; }; done

@@ -1,0 +1,239 @@
+{
+ "orphan_gb.bit": {
+  "board": "s9",
+  "sha256": "eb38fba5c8b48df7def90ad73155d57eac178ff16757c77c62b5f4173288c816",
+  "date": "2026-11-22 11:12",
+  "report": {
+   "board": "s9",
+   "board_name": "Antminer S9",
+   "part": "xc7z010clg400-1",
+   "top": "top",
+   "seconds": 197,
+   "date": "2026-11-22 11:12",
+   "used": {
+    "LUT": 3502,
+    "FF": 2587,
+    "BRAM": 48,
+    "DSP": 3,
+    "LUT_RAM": 23,
+    "SRL": 1,
+    "CARRY": 274,
+    "BUFG": 6,
+    "MMCM_PLL": 1
+   },
+   "max": {
+    "LUT": 17600,
+    "FF": 35200,
+    "BRAM": 60,
+    "DSP": 80,
+    "PINS": 100
+   },
+   "pins": 11,
+   "clocks": {
+    "u_gb.c33": {
+     "fmax": 1043.84,
+     "need": 33.56,
+     "pass": true
+    },
+    "u_gb.u_boy.sound.sound_ch1.octo_freq_out": {
+     "fmax": 618.81,
+     "need": 100.0,
+     "pass": true
+    },
+    "u_gb.u_boy.sound.sound_ch2.octo_freq_out": {
+     "fmax": 572.41,
+     "need": 100.0,
+     "pass": true
+    },
+    "clk": {
+     "fmax": 149.08,
+     "need": 100.0,
+     "pass": true
+    },
+    "u_gb.gclk": {
+     "fmax": 75.51,
+     "need": 4.2,
+     "pass": true
+    }
+   },
+   "hold_problems": 0,
+   "timing_ok": true,
+   "paths": [
+    {
+     "clock": "u_gb.c33",
+     "cross": false,
+     "start": "u_gb.graw",
+     "end": "u_gb.graw",
+     "delay": 0.96,
+     "levels": 1,
+     "logic_ns": 0.6,
+     "route_ns": 0.36,
+     "steps": [
+      {
+       "net": "u_gb.graw",
+       "ns": 0.34,
+       "src": "orphan_gb_block.v:40"
+      }
+     ]
+    },
+    {
+     "clock": "u_gb.u_boy.sound.sound_ch1.octo_freq_out",
+     "cross": false,
+     "start": "u_gb.u_boy.sound.sound_ch1.duty_counter[0]",
+     "end": "u_gb.u_boy.sound.sound_ch1.duty_counter[0]",
+     "delay": 1.62,
+     "levels": 3,
+     "logic_ns": 1.21,
+     "route_ns": 0.4,
+     "steps": [
+      {
+       "net": "u_gb.u_boy.sound.sound_ch1.duty_counter[0]",
+       "ns": 0.18,
+       "src": "sound_square.v:77"
+      },
+      {
+       "net": "(logic)",
+       "ns": 0.2,
+       "src": "sound_square.v:80"
+      },
+      {
+       "net": "(logic)",
+       "ns": 0.02,
+       "src": "sound_square.v:80"
+      }
+     ]
+    },
+    {
+     "clock": "u_gb.u_boy.sound.sound_ch2.octo_freq_out",
+     "cross": false,
+     "start": "u_gb.u_boy.sound.sound_ch2.duty_counter[0]",
+     "end": "u_gb.u_boy.sound.sound_ch2.duty_counter[0]",
+     "delay": 1.75,
+     "levels": 3,
+     "logic_ns": 1.21,
+     "route_ns": 0.53,
+     "steps": [
+      {
+       "net": "u_gb.u_boy.sound.sound_ch2.duty_counter[0]",
+       "ns": 0.18,
+       "src": "sound_square.v:77"
+      },
+      {
+       "net": "(logic)",
+       "ns": 0.33,
+       "src": "sound_square.v:80"
+      },
+      {
+       "net": "(logic)",
+       "ns": 0.02,
+       "src": "sound_square.v:80"
+      }
+     ]
+    },
+    {
+     "clock": "clk",
+     "cross": false,
+     "start": "u_gb.fr_s2[12]",
+     "end": "u_gb (logic)",
+     "delay": 6.71,
+     "levels": 13,
+     "logic_ns": 2.19,
+     "route_ns": 4.49,
+     "steps": [
+      {
+       "net": "u_gb.fr_s2[12]",
+       "ns": 0.46,
+       "src": "orphan_gb_block.v:198"
+      },
+      {
+       "net": "u_gb (logic)",
+       "ns": 0.02,
+       "src": ""
+      }
+     ]
+    },
+    {
+     "clock": "u_gb.gclk",
+     "cross": false,
+     "start": "u_gb.u_boy.cpu.control.ct_op[0]",
+     "end": "u_gb.u_boy.cpu.alu_result[6]",
+     "delay": 13.24,
+     "levels": 13,
+     "logic_ns": 4.0,
+     "route_ns": 9.21,
+     "steps": [
+      {
+       "net": "u_gb.u_boy.cpu.control.ct_op[0]",
+       "ns": 1.05,
+       "src": ""
+      },
+      {
+       "net": "u_gb.u_boy.cpu.alu_result[6]",
+       "ns": 1.19,
+       "src": "cpu.v:76"
+      }
+     ]
+    },
+    {
+     "clock": "posedge clk -> posedge u_gb.gclk",
+     "cross": true,
+     "start": "u_gb.cart[1]",
+     "end": "u_gb.cart[1]",
+     "delay": 1.89,
+     "levels": 0,
+     "logic_ns": 0.45,
+     "route_ns": 1.44,
+     "steps": [
+      {
+       "net": "u_gb.cart[1]",
+       "ns": 1.44,
+       "src": "orphan_gb_block.v:48"
+      }
+     ]
+    },
+    {
+     "clock": "posedge u_gb.gclk -> posedge $techmap251219\\u_gb.u_boy.ppu.oam_u.0.5.WCLK",
+     "cross": true,
+     "start": "u_gb.u_boy.cpu_a[1]",
+     "end": "u_gb.u_boy.cpu_a[1]",
+     "delay": 8.3,
+     "levels": 11,
+     "logic_ns": 3.1,
+     "route_ns": 4.92,
+     "steps": [
+      {
+       "net": "u_gb.u_boy.cpu_a[1]",
+       "ns": 0.76,
+       "src": "timer.v:20"
+      }
+     ]
+    },
+    {
+     "clock": "posedge u_gb.gclk -> posedge clk",
+     "cross": true,
+     "start": "lvl[7]",
+     "end": "lvl[7]",
+     "delay": 4.72,
+     "levels": 7,
+     "logic_ns": 1.82,
+     "route_ns": 2.89,
+     "steps": [
+      {
+       "net": "lvl[7]",
+       "ns": 0.49,
+       "src": "orphan_leds.v:23"
+      },
+      {
+       "net": "(logic)",
+       "ns": 0.02,
+       "src": "orphan_leds.v:96"
+      }
+     ]
+    }
+   ],
+   "debug": null,
+   "seed": 1,
+   "ethernet_added": false
+  }
+ }
+}

@@ -13,16 +13,20 @@ Copyright (C) 2026 Rev. J. Money. Licensed under GPL-3.0-or-later with the addit
 | U-Boot (Ardzy's SD card image) | the U-Boot developers | GPL-2.0 | https://source.denx.de/u-boot/u-boot |
 | Debian 13 (trixie) | the Debian project | many free licenses (`/usr/share/doc/*/copyright`) | https://www.debian.org |
 | Yosys, nextpnr, Project X-Ray (used to build the FPGA designs) | YosysHQ, f4pga | ISC, CC0-1.0 | https://github.com/YosysHQ |
-
 | fpganes: the NES console in `games/orphan_nes/` (cpu, ppu, apu, mmu, nes, MicroCode, compat .v) | Ludvig Strigeus | GPL-2.0 (`games/orphan_nes/COPYING-fpganes`) | https://github.com/strigeus/fpganes |
+| VerilogBoy: the Game Boy in `games/orphan_gb/` (boy, cpu, ppu, sound, timer, dma ... .v) | Wenting Zhang (zephray) | Open Hardware Description License 1.0 (`games/orphan_gb/LICENSE-VerilogBoy-OHDL`) | https://github.com/zephray/VerilogBoy |
 | LovyanGFX, ArduinoJson (ORPHAN Remote firmware, fetched by PlatformIO) | lovyan03, Benoit Blanchon | FreeBSD/BSD-2, MIT | PlatformIO registry |
 
 The NES project is licensed **GPL-2.0-or-later** as a whole (Orphan's own files in it, including the copies of
 `orphan_fan.v` and `orphan_leds.v`, are also offered under GPL-2.0-or-later), so it can be built together with
 fpganes. Orphan's changes to fpganes are marked "(Orphan: ...)" in its files.
 
+The Game Boy project uses Orphan's own boot ROM (`games/make_gb_bootrom.py`, 40 bytes that only set up the CPU and
+the chips); Nintendo's boot ROM is not used or needed. Changed VerilogBoy files carry a dated "Modified for Orphan
+Games" line.
+
 Games: no ROM files are in this repository. Use free homebrew whose license allows it; put `.nes` files in
-`/opt/orphan-games/roms/nes` on the board.
+`/opt/orphan-games/roms/nes` and `.gb` files in `/opt/orphan-games/roms/gb` on the board.
 
 Orphan is an add-on: it does not change Ardzy's own files, it installs next to them. Ardzy's third-party list
 (`THIRD_PARTY_NOTICES.md` in Ardzy) covers everything inside Ardzy's SD image.

@@ -1,9 +1,9 @@
-# Orphan Games (NES): the ARM side of the FPGA NES. by JMSCNC, makers of RotatoCAM. GPL-2.0-or-later.
+# Orphan Games: the ARM side of the FPGA game consoles (NES, Game Boy). by JMSCNC, makers of RotatoCAM. GPL-2.0-or-later.
 #
 #   Web page + WebSocket on port 8000: game list, the picture, sound, keyboard / gamepad
 #   raw s16le mono sound (47.95 kHz) on TCP 8001 for ffplay
 #   ORPHAN Remote (CYD): set ORPHAN_CYD=<cyd ip> (or /etc/orphan/cyd) and every picture also goes to its screen
-# Games: *.nes in /opt/orphan-games/roms/nes (free homebrew only, see the README).
+# Games: /opt/orphan-games/roms/<nes|gb> (free homebrew only, see the README). The loaded FPGA design says which.
 import base64
 import glob
 import hashlib
@@ -22,14 +22,19 @@ import time
 import numpy as np
 
 from blocks import Bus, require
+import gbrom
 import nesrom
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = 8000
 SLOT = 1
-ROMS = os.environ.get('ORPHAN_ROMS', '/opt/orphan-games/roms/nes')
-FB_WORDS = 12288
-AUDIO_HZ = 100e6 * 10.5 / 48.875 / 448        # 47.95 kHz
+# one profile per console design (the FPGA's ID in slot 1, word 7)
+SYSTEMS = {
+    'NES1': {'name': 'NES', 'dir': 'nes', 'ext': '.nes', 'w': 256, 'h': 240, 'words': 12288, 'stereo': False,
+             'audio_hz': 100e6 * 10.5 / 48.875 / 448},
+    'GB01': {'name': 'Game Boy', 'dir': 'gb', 'ext': '.gb', 'w': 160, 'h': 144, 'words': 1440, 'stereo': True,
+             'audio_hz': 100e6 * 12 / 35.75 / 8 / 87},
+}
 
 try:                                           # every Orphan design assumes a 100 MHz FPGA clock
     sys.path.insert(0, '/opt/ardzy/web')
@@ -39,9 +44,15 @@ except Exception as e:  # noqa: BLE001
     print('fclk: could not set 100 MHz:', e)
 
 bus = Bus()
-require(bus, 'NES1')
 W = lambda i, v: bus.wr(SLOT, i, v)    # noqa: E731
 R = lambda i: bus.rd(SLOT, i)          # noqa: E731
+SYS_ID = R(7).to_bytes(4, 'big').decode('ascii', 'replace')
+if SYS_ID not in SYSTEMS:
+    raise SystemExit('The FPGA holds no Orphan Games console (found %r). Load orphan_nes or orphan_gb first.' % SYS_ID)
+SYS = SYSTEMS[SYS_ID]
+ROMS = os.environ.get('ORPHAN_ROMS', '/opt/orphan-games/roms/' + SYS['dir'])
+FB_WORDS = SYS['words']
+AUDIO_HZ = SYS['audio_hz']
 WBASE = (bus.m._off >> 2) + SLOT * 1024        # word index of the slot in Ardzy's mapped view
 lock = threading.RLock()
 state = {'game': '', 'running': False, 'fps': 0.0, 'error': '', 'cyd': ''}
@@ -62,25 +73,32 @@ def pop(window, n):
 
 # ---------------------------------------------------------------- games
 def game_list():
-    return sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROMS, '*.nes')))
+    return sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROMS, '*' + SYS['ext'])))
 
 
 def load(name):
     path = os.path.join(ROMS, os.path.basename(name))
     try:
-        cart = nesrom.parse(open(path, 'rb').read())
+        if SYS_ID == 'GB01':
+            cart = gbrom.parse(open(path, 'rb').read())
+            reg2, parts = cart['cart'], ((0x00000, cart['rom']),)
+            info = 'mapper %d, ROM %d KB' % (cart['mbc'], cart['kb'])
+        else:
+            cart = nesrom.parse(open(path, 'rb').read())
+            reg2, parts = cart['flags'], ((0x00000, cart['prg']), (0x10000, cart['chr']))
+            info = 'mapper %d, PRG %d KB, CHR %d KB' % (cart['mapper'], cart['prg_kb'], cart['chr_kb'])
     except (OSError, ValueError) as e:
         state.update(error='%s: %s' % (name, e), running=False)
         return False
     with lock:
         W(0, 0)                                # console in reset
-        W(2, cart['flags'])
-        for base, data in ((0x00000, cart['prg']), (0x10000, cart['chr'])):
+        W(2, reg2)
+        for base, data in parts:
             if not data:
                 continue
             W(3, base)
             done = R(3)
-            for w in nesrom.words(data):
+            for w in nesrom.words(data):     # (the same 32-bit packing for both carts)
                 W(512, w)
                 done = (done + 1) & 0xFFFF
                 t = time.time()
@@ -91,7 +109,7 @@ def load(name):
         W(1, 0)
         W(0, 1)                                # run
     state.update(game=name, running=True, error='')
-    print('loaded %s: mapper %d, PRG %d KB, CHR %d KB' % (name, cart['mapper'], cart['prg_kb'], cart['chr_kb']), flush=True)
+    print('loaded %s: %s' % (name, info), flush=True)
     return True
 
 
@@ -117,7 +135,7 @@ def frames():
             W(4, 0)
             fb = pop(512, FB_WORDS)
             W(0, 1)                            # capture again
-        pic = struct.pack('<hh%dI' % FB_WORDS, 1, 0, *fb)
+        pic = struct.pack('<hh%dI' % FB_WORDS, 1, 1 if SYS_ID == 'GB01' else 0, *fb)
         broadcast(pic)
         cyd_frame(fb)
         n += 1
@@ -144,12 +162,12 @@ def sound():
         if not words:
             continue
         pcm = np.array(words, dtype='<u4').view('<i2').tobytes()
-        broadcast(struct.pack('<hh', 2, 0) + pcm)
+        broadcast(struct.pack('<hh', 2, 1 if SYS['stereo'] else 0) + pcm)
         with raw_lock:
             rs = list(raw_clients)
         for c in rs:
             try:
-                c.sendall(pcm)
+                c.sendall(pcm if not SYS['stereo'] else np.frombuffer(pcm, dtype='<i2')[0::2].tobytes())
             except OSError:
                 with raw_lock:
                     raw_clients.discard(c)
@@ -164,6 +182,9 @@ PAL555 = [0x39ce, 0x4464, 0x5400, 0x4c08, 0x3811, 0x0815, 0x0014, 0x002f, 0x00a8
           0x7fff, 0x7f95, 0x7f58, 0x7f3a, 0x7f1f, 0x6f1f, 0x5aff, 0x577f, 0x539f, 0x53fc, 0x5fd5, 0x67f6,
           0x7bf3, 0x6318, 0x0000, 0x0000]
 RGB565 = np.array([((v & 31) << 11) | ((v >> 5 & 31) << 6) | (v >> 10 & 31) for v in PAL555], dtype='<u2')
+# the Game Boy's 4 greens, lightest first, as RGB565
+GB565 = np.array([((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3) for r, g, b in
+                  ((0xE0, 0xF0, 0xC8), (0x88, 0xC0, 0x70), (0x34, 0x68, 0x56), (0x08, 0x18, 0x20))], dtype='<u2')
 cyd_q = queue.Queue(maxsize=1)
 
 
@@ -187,12 +208,16 @@ def cyd_sender():
     while True:
         fb = cyd_q.get()
         w = np.array(fb, dtype=np.uint32)
-        px = np.stack([(w >> (6 * k)) & 63 for k in range(5)], axis=1).reshape(-1)[:256 * 240]
-        data = RGB565[px].tobytes()
+        if SYS_ID == 'GB01':
+            px = np.stack([(w >> (2 * k)) & 3 for k in range(16)], axis=1).reshape(-1)[:160 * 144]
+            data, rect = GB565[px].tobytes(), 'x=80&y=48&w=160&h=144'
+        else:
+            px = np.stack([(w >> (6 * k)) & 63 for k in range(5)], axis=1).reshape(-1)[:256 * 240]
+            data, rect = RGB565[px].tobytes(), 'x=32&y=0&w=256&h=240'
         try:
             with socket.create_connection((state['cyd'], 8091), timeout=2) as s:
-                s.sendall(('POST /rect?x=32&y=0&w=256&h=240&scale=1&hud=0 HTTP/1.1\r\nHost: cyd\r\n'
-                           'Content-Length: %d\r\nConnection: close\r\n\r\n' % len(data)).encode() + data)
+                s.sendall(('POST /rect?%s&scale=1&hud=0 HTTP/1.1\r\nHost: cyd\r\n'
+                           'Content-Length: %d\r\nConnection: close\r\n\r\n' % (rect, len(data))).encode() + data)
                 s.recv(64)
         except OSError:
             time.sleep(1)
@@ -241,7 +266,8 @@ def ws_recv(rf):
 
 
 def status():
-    return json.dumps({'state': state, 'games': game_list(), 'audio_hz': AUDIO_HZ}).encode()
+    return json.dumps({'state': state, 'games': game_list(), 'audio_hz': AUDIO_HZ, 'system': SYS['name'],
+                       'w': SYS['w'], 'h': SYS['h'], 'ext': SYS['ext'], 'roms': ROMS}).encode()
 
 
 def handle(m):
@@ -331,7 +357,7 @@ def raw_audio_server():
 if __name__ == '__main__':
     state['cyd'] = cyd_host()
     games = game_list()
-    print('Orphan Games (NES): %d games in %s%s' % (len(games), ROMS, ', CYD ' + state['cyd'] if state['cyd'] else ''),
+    print('Orphan Games (%s): %d games in %s%s' % (SYS['name'], len(games), ROMS, ', CYD ' + state['cyd'] if state['cyd'] else ''),
           flush=True)
     if games:
         load(games[0])
@@ -339,6 +365,6 @@ if __name__ == '__main__':
         threading.Thread(target=t, daemon=True).start()
     ip = (subprocess.run(['hostname', '-I'], capture_output=True, text=True).stdout.split() or ['<board>'])[0]
     print('Orphan Games: open http://%s:%d in a browser' % (ip, PORT))
-    print('Sound on your PC: ffplay -nodisp -f s16le -ar 47950 -ch_layout mono -fflags nobuffer tcp://%s:8001' % ip,
+    print('Sound on your PC: ffplay -nodisp -f s16le -ar %d -ch_layout mono -fflags nobuffer tcp://%s:8001' % (round(AUDIO_HZ), ip),
           flush=True)
     Server(('', PORT), Handler).serve_forever()

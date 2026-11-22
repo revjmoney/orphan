@@ -18,7 +18,7 @@ if [ -n "${1:-}" ]; then
 	systemctl restart avahi-daemon 2>/dev/null || true
 fi
 for src in "$REPO/radio/orphan_radio" "$REPO/radio-work/orphan_radio" "$REPO/synth/orphan_synth" "$REPO/synth-work/orphan_synth" \
-           "$REPO/games/orphan_nes" "$REPO/games-work/orphan_nes" "$REPO/toys/orphan_toys" "$REPO/toys-work/orphan_toys"; do
+           "$REPO/games/orphan_nes" "$REPO/games-work/orphan_nes" "$REPO/games/orphan_gb" "$REPO/games-work/orphan_gb" "$REPO/toys/orphan_toys" "$REPO/toys-work/orphan_toys"; do
 	[ -d "$src" ] || continue
 	name=$(basename "$src")
 	mkdir -p "$P/$name"
@@ -30,7 +30,7 @@ for f in "$REPO"/orphan/project-meta/*.json; do
 	p=$(basename "$f" .json)
 	[ -d "$P/$p" ] && cp "$f" "$P/$p/project.json"
 done
-mkdir -p /opt/orphan-games/roms/nes
+mkdir -p /opt/orphan-games/roms/nes /opt/orphan-games/roms/gb
 echo
 echo "Orphan is installed. Log in again (or type: orphan) for the menu."
 echo "Projects: $(ls $P | wc -l) in $P. Load one from the menu: F FPGA projects."

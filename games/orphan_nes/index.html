@@ -25,8 +25,8 @@
        padding:6px 8px; cursor:pointer; font:inherit; }
   .g:hover { background:#152230; } .g.on { background:#2a2210; color:var(--amber2); }
   .stage { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:14px; }
-  #screen { image-rendering:pixelated; background:#000; border:1px solid var(--line2); width:min(100%, 768px, calc((100vh - 200px) * 1.0667));
-            aspect-ratio:256/240; }
+  #screen { image-rendering:pixelated; background:#000; border:1px solid var(--line2); width:min(100%, 768px, calc((100vh - 200px) * var(--arn, 1.0667)));
+            aspect-ratio:var(--ar, 256/240); }
   .bar { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
   .key { background:#1a2733; border:1px solid var(--line2); border-radius:3px; color:var(--txt); padding:6px 10px; cursor:pointer; font:600 12px var(--ui); }
   .key:hover { background:#213242; } .key.on { border-color:var(--amber); background:#2a2210; }
@@ -40,7 +40,7 @@
 </head>
 <body>
 <header>
-  <div class="brand">ORPHAN<b>GAMES</b><small>NES in the FPGA · free homebrew</small></div>
+  <div class="brand">ORPHAN<b>GAMES</b><small id="sysname">consoles in the FPGA, free homebrew</small></div>
   <span id="now">No game loaded</span>
   <span class="pill off" id="link">OFFLINE</span>
 </header>
@@ -62,7 +62,7 @@
       A USB gamepad works too: press a button once so the browser sees it.</p>
   </section>
 </main>
-<footer><b>[Rev. J. Money - 2026]</b> Orphan Games, NES core: fpganes by Ludvig Strigeus (GPL-2). by JMSCNC, makers of RotatoCAM</footer>
+<footer><b>[Rev. J. Money - 2026]</b> Orphan Games. NES: fpganes by Ludvig Strigeus (GPL-2). Game Boy: VerilogBoy by Wenting Zhang (OHDL). by JMSCNC, makers of RotatoCAM</footer>
 <script>
 const $ = id => document.getElementById(id);
 // FCEUX palette (RGB555, 0bbbbbgggggrrrrr) -> RGBA
@@ -73,23 +73,32 @@ const P555 = [0x39ce,0x4464,0x5400,0x4c08,0x3811,0x0815,0x0014,0x002f,0x00a8,0x0
 const PAL = new Uint32Array(64);
 P555.forEach((v, i) => { const r = (v & 31) * 255 / 31, g = (v >> 5 & 31) * 255 / 31, b = (v >> 10 & 31) * 255 / 31;
   PAL[i] = (255 << 24) | (b << 16) | (g << 8) | r; });           // little-endian RGBA
-const ctx = $('screen').getContext('2d'), img = ctx.createImageData(256, 240), px = new Uint32Array(img.data.buffer);
-let ws, st = {}, games = [], actx, gainN, playAt = 0, rate = 47950, frames = 0, fpsT = performance.now();
+let ctx = $('screen').getContext('2d'), img = ctx.createImageData(256, 240), px = new Uint32Array(img.data.buffer), scrW = 256, scrH = 240;
+const GBPAL = new Uint32Array([[0xE0,0xF0,0xC8],[0x88,0xC0,0x70],[0x34,0x68,0x56],[0x08,0x18,0x20]].map(([r,g,b]) => (255 << 24) | (b << 16) | (g << 8) | r));
+function setScreen(w, h) { if (w === scrW && h === scrH) return; scrW = w; scrH = h; const c = $('screen'); c.width = w; c.height = h;
+  c.style.setProperty('--ar', w + '/' + h); c.style.setProperty('--arn', (w / h).toFixed(4));
+  ctx = c.getContext('2d'); img = ctx.createImageData(w, h); px = new Uint32Array(img.data.buffer); }
+let sysInfo = {}, ws, st = {}, games = [], actx, gainN, playAt = 0, rate = 47950, frames = 0, fpsT = performance.now();
 function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 
-function drawFrame(words) {
+function drawFrame(words, sys) {
   let p = 0;
-  for (let i = 0; i < words.length && p < 61440; i++) { let w = words[i];
-    for (let k = 0; k < 5; k++) { px[p++] = PAL[w & 63]; w >>>= 6; } }
+  if (sys === 1) { setScreen(160, 144);                                   // Game Boy: 16 pixels of 2 bits per word
+    for (let i = 0; i < words.length && p < 23040; i++) { let w = words[i];
+      for (let k = 0; k < 16; k++) { px[p++] = GBPAL[w & 3]; w >>>= 2; } } }
+  else { setScreen(256, 240);                                             // NES: 5 pixels of 6 bits per word
+    for (let i = 0; i < words.length && p < 61440; i++) { let w = words[i];
+      for (let k = 0; k < 5; k++) { px[p++] = PAL[w & 63]; w >>>= 6; } } }
   ctx.putImageData(img, 0, 0); frames++;
   const now = performance.now(); if (now - fpsT > 1000) { $('fps').textContent = (frames * 1000 / (now - fpsT)).toFixed(0) + ' fps'; frames = 0; fpsT = now; }
 }
-function playSound(s16) {
+function playSound(s16, stereo) {
   if (!actx) return;
-  const n = s16.length, buf = actx.createBuffer(1, n, rate), ch = buf.getChannelData(0);
-  let dc = playSound.dc || 0;
-  for (let i = 0; i < n; i++) { const v = s16[i] / 32768; dc += (v - dc) * 0.002; ch[i] = (v - dc) * 1.6; }
-  playSound.dc = dc;
+  const nch = stereo ? 2 : 1, n = Math.floor(s16.length / nch), buf = actx.createBuffer(nch, n, rate);
+  const dc = playSound.dc || (playSound.dc = [0, 0]);
+  for (let c = 0; c < nch; c++) { const ch = buf.getChannelData(c); let d = dc[c];
+    for (let i = 0; i < n; i++) { const v = s16[i * nch + c] / 32768; d += (v - d) * 0.002; ch[i] = (v - d) * 1.6; }
+    dc[c] = d; }
   const src = actx.createBufferSource(); src.buffer = buf; src.connect(gainN);
   const now = actx.currentTime; if (playAt < now + 0.02 || playAt > now + 0.4) playAt = now + 0.08;
   src.start(playAt); playAt += buf.duration;
@@ -99,9 +108,9 @@ function playSound(s16) {
 function showList() {
   const f = $('filter').value.toLowerCase(), L = $('list'); L.innerHTML = '';
   for (const g of games) { if (f && !g.toLowerCase().includes(f)) continue;
-    const b = document.createElement('button'); b.className = 'g' + (g === st.game ? ' on' : ''); b.textContent = g.replace(/\.nes$/i, '');
+    const b = document.createElement('button'); b.className = 'g' + (g === st.game ? ' on' : ''); b.textContent = g.replace(/\.(nes|gb)$/i, '');
     b.onclick = () => { send({load: g}); $('now').textContent = 'Loading ' + b.textContent + ' ...'; }; L.appendChild(b); }
-  if (!L.children.length) L.textContent = games.length ? 'No match.' : 'No games yet: put .nes files in /opt/orphan-games/roms/nes on the board.';
+  if (!L.children.length) L.textContent = games.length ? 'No match.' : 'No games yet: put ' + (sysInfo.ext || '.nes') + ' files in ' + (sysInfo.roms || '/opt/orphan-games/roms/nes') + ' on the board.';
 }
 $('filter').oninput = showList;
 
@@ -136,12 +145,14 @@ function connect() {
   ws.onmessage = ev => {
     if (typeof ev.data === 'string') { const m = JSON.parse(ev.data);
       if (m.games) games = m.games; if (m.audio_hz) rate = Math.round(m.audio_hz);
-      if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? st.game.replace(/\.nes$/i, '') : 'No game loaded';
+      if (m.system) { sysInfo = m; $('sysname').textContent = m.system + ' in the FPGA, free homebrew'; setScreen(m.w, m.h); }
+      if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? st.game.replace(/\.(nes|gb)$/i, '') : 'No game loaded';
         $('pause').textContent = st.running === false ? 'Resume' : 'Pause'; }
       showList(); return; }
     const type = new DataView(ev.data).getInt16(0, true);
-    if (type === 1) drawFrame(new Uint32Array(ev.data, 4));
-    else if (type === 2) playSound(new Int16Array(ev.data, 4));
+    const sub = new DataView(ev.data).getInt16(2, true);
+    if (type === 1) drawFrame(new Uint32Array(ev.data, 4), sub);
+    else if (type === 2) playSound(new Int16Array(ev.data, 4), sub === 1);
   };
 }
 connect();

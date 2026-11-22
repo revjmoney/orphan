@@ -6,7 +6,7 @@ In Bitcoin, an *orphan block* is one the chain left behind. Orphan is for the co
 behind: the Antminer S9's controller has a Xilinx Zynq XC7Z010 (a dual-core ARM plus an FPGA), 512 MB of RAM,
 Ethernet, 51 free FPGA pins, and costs a few dollars used. Orphan turns it into a hacker's bench computer with a
 BBS-style menu, FPGA projects you load in one keypress, and instruments built inside the FPGA:
-a 4-slice software radio, an 8-voice synthesizer, and a NES game console.
+a 4-slice software radio, an 8-voice synthesizer, and two game consoles (NES and Game Boy).
 
 ![Orphan Radio: four slices on a 5 MHz wide panadapter](docs/screenshots/radio.png)
 
@@ -14,16 +14,16 @@ a 4-slice software radio, an 8-voice synthesizer, and a NES game console.
 |---|---|
 | ![The Orphan menu](docs/screenshots/menu.png) | ![Orphan Synth](docs/screenshots/synth.png) |
 | The login menu (hotkeys spell MY ORPHAN LIFE) | Orphan Synth's web panel |
-| ![Orphan Games](docs/screenshots/games.png) | |
-| Orphan Games: the NES runs in the FPGA, you play in the browser | |
+| ![Orphan Games: NES](docs/screenshots/games.png) | ![Orphan Games: Game Boy](docs/screenshots/gameboy.png) |
+| Orphan Games: the NES runs in the FPGA, you play in the browser | The Game Boy, also in the FPGA |
 
 ## What you get
 
 - **The Orphan menu** at login: file manager, system info, live fan control and rpm, LED toys, board status
   (temperature, voltages, FPGA state), network, and **FPGA projects**: pick one, read what it does and how to wire
   it, press Enter to load it.
-- **29 FPGA projects** with descriptions: Ardzy's 19 examples (LED strips, steppers, VGA, audio, RISC-V, an FM
-  transmitter, a SHA-256 miner, neural networks in the FPGA, ...), 6 starters and tests, and Orphan's own four:
+- **30 FPGA projects** with descriptions: Ardzy's 19 examples (LED strips, steppers, VGA, audio, RISC-V, an FM
+  transmitter, a SHA-256 miner, neural networks in the FPGA, ...), 6 starters and tests, and Orphan's own five:
 - **Orphan Radio (Orphan 7600)**, a software defined receiver in the FPGA, 1 kHz to 49 MHz from one pin:
   - 4 tuners (slices A to D) and a wide panadapter (6.25 MHz down to 390 kHz), click to tune, drag to pan
   - AM, SAM, USB, LSB, CW, NFM; noise blanker and 50/60 Hz hum filter in the FPGA, auto-notch
@@ -37,7 +37,9 @@ a 4-slice software radio, an 8-voice synthesizer, and a NES game console.
   panel, scanner and decoders.
 - **Orphan Games**: a Nintendo Entertainment System rebuilt in the FPGA (fpganes by Ludvig Strigeus): CPU,
   picture and sound chips and cartridge mappers 0 to 4 in hardware. Pick a game in the browser and play with the
-  keyboard or a USB gamepad, picture and sound at 30 frames a second. Bring your own free homebrew `.nes` files.
+  keyboard or a USB gamepad, picture and sound at 30 frames a second. And the **original Game Boy** (VerilogBoy by
+  Wenting Zhang) in the FPGA too, with stereo sound and carts up to 128 KB (no mapper, MBC1, MBC3, MBC5), started by
+  Orphan's own boot ROM. Bring your own free homebrew `.nes` and `.gb` files.
 - **Orphan Graphics Toys**: a raycaster, color waves, XOR patterns and the Game of Life drawn by the FPGA.
 - **ORPHAN Remote** (`cyd-remote/`): firmware that turns a $15 ESP32 "Cheap Yellow Display" into a Wi-Fi touch
   screen for the board: system, radio and synth views, and a screen for Graphics Toys and Games.
@@ -89,9 +91,10 @@ Run `setup-board.sh` again after a `git pull` to update.
   `ffplay -nodisp -f s16le -ar 12207 -ch_layout mono -fflags nobuffer tcp://orphan.local:8001`
 - **Synth**: **F** FPGA projects, **Sound toys**, Orphan Synth. It opens the terminal keyboard right there; the web
   panel is on port 8000.
-- **Games**: copy free homebrew `.nes` files to `/opt/orphan-games/roms/nes` on the board, then **F** FPGA projects,
-  **Games**, Orphan Games. Open `http://orphan.local:8000`, pick a game, press **Sound on**. Arrows move, Z / X are
-  B / A, Enter is Start. Many authors share their NES games freely (for example on nesdev.org and itch.io): check
+- **Games**: copy free homebrew `.nes` files to `/opt/orphan-games/roms/nes` (or `.gb` files to
+  `/opt/orphan-games/roms/gb`) on the board, then **F** FPGA projects, **Games**, and the NES or the Game Boy.
+  Open `http://orphan.local:8000`, pick a game, press **Sound on**. Arrows move, Z / X are
+  B / A, Enter is Start. Many authors share their games freely (NES: nesdev.org, itch.io; Game Boy: Homebrew Hub, gbdev.io): check
   each game's license before you share it further.
 
 **Antenna**: the radio's input is **J8 pin 12**. A plain wire works as a first test (the FPGA biases the pin
