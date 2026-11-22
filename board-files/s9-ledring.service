@@ -1,0 +1,14 @@
+[Unit]
+Description=S9 LED ring: fade wave around D5..D8 (FPGA PWM) and D2/D3 (soft PWM)
+After=ardzy-web.service ardzy-autoload.service s9-quiet-leds.service
+Wants=ardzy-web.service
+
+[Service]
+ExecStartPre=/opt/s9/ledring-setup.sh
+ExecStart=/opt/s9/ledring 2.8
+Nice=5
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

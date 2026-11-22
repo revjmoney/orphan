@@ -1,0 +1,12 @@
+[Unit]
+Description=S9 fan headers: set PWM duty (Orphan), default 0% (off or idle)
+After=ardzy-web.service ardzy-autoload.service
+Wants=ardzy-web.service
+
+[Service]
+Type=oneshot
+# duty in percent: /etc/orphan/fan-duty (0-100). Works with Ardzy pin-control or any Orphan design (orphan_fan block).
+ExecStart=/usr/local/bin/orphan-fan boot
+
+[Install]
+WantedBy=multi-user.target

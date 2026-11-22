@@ -1,0 +1,10 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<!-- Orphan Synth: advertise RTP-MIDI (AppleMIDI) so rtpMIDI / macOS find the board. Copy to /etc/avahi/services/ -->
+<service-group>
+  <name>Orphan Synth</name>
+  <service>
+    <type>_apple-midi._udp</type>
+    <port>5004</port>
+  </service>
+</service-group>

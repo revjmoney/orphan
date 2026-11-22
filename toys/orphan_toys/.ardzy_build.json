@@ -1,0 +1,70 @@
+{
+ "orphan_toys.bit": {
+  "board": "s9",
+  "sha256": "035a54f66ffec1b651db53595f1fbfcb6122d30032b923f9acdc7ce087e53be7",
+  "date": "2026-11-21 18:50",
+  "report": {
+   "board": "s9",
+   "board_name": "Antminer S9",
+   "part": "xc7z010clg400-1",
+   "top": "top",
+   "seconds": 93,
+   "date": "2026-11-21 18:50",
+   "used": {
+    "LUT": 2058,
+    "FF": 1638,
+    "BRAM": 11,
+    "DSP": 2,
+    "LUT_RAM": 128,
+    "SRL": 1,
+    "CARRY": 239,
+    "BUFG": 1,
+    "MMCM_PLL": 0
+   },
+   "max": {
+    "LUT": 17600,
+    "FF": 35200,
+    "BRAM": 60,
+    "DSP": 80,
+    "PINS": 100
+   },
+   "pins": 11,
+   "clocks": {
+    "clk": {
+     "fmax": 101.29,
+     "need": 100.0,
+     "pass": true
+    }
+   },
+   "hold_problems": 0,
+   "timing_ok": true,
+   "paths": [
+    {
+     "clock": "clk",
+     "cross": false,
+     "start": "u_life.next_r[20]",
+     "end": "u_life.next_r[20]",
+     "delay": 9.87,
+     "levels": 18,
+     "logic_ns": 3.54,
+     "route_ns": 6.31,
+     "steps": [
+      {
+       "net": "u_life.next_r[20]",
+       "ns": 0.78,
+       "src": "life.v:53"
+      },
+      {
+       "net": "(logic)",
+       "ns": 0.02,
+       "src": "life.v:120"
+      }
+     ]
+    }
+   ],
+   "debug": null,
+   "seed": 1,
+   "ethernet_added": false
+  }
+ }
+}

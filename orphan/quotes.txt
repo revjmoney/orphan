@@ -1,0 +1,23 @@
+# Orphan login quotes: one per line. The menu shows a new random one every time it refreshes.
+# Lines starting with # are ignored. Edit freely: /usr/local/share/orphan/quotes.txt on the board.
+don't you ever say sha-256 to me again and watch your tone bro!!
+check out rotatocam.com for some badass 4 axis cam software!
+Formerly hashing. Currently thriving.
+I used to guess numbers for a living.
+Orphaned by the chain. Adopted by the bench.
+Proof of Work? Nah. Proof of Fun.
+Twelve terahashes and all I got was this lousy Linux.
+Born to hash. Forced to think.
+Off the blockchain, on the bench.
+Retired at 12 terahashes. Living off my LUTs.
+17,600 LUTs and not one of them is for sale.
+Rescued from a closet. Raised on Debian.
+Hash rate: 0. Vibe rate: maximum.
+Bitmain made me. JMSCNC saved me.
+Who needs a Raspberry Pi when you've got an Orphan?
+One resistor, one capacitor, infinite possibilities.
+Halving? I got cut all the way to zero.
+From hashboards to dashboards.
+Made in a mining farm. Raised in a machine shop.
+Satoshi left. So did my hashboards.
+Powered by spite and a 12 volt rail.

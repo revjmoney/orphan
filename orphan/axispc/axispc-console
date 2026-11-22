@@ -1,0 +1,24 @@
+#!/bin/sh
+# Own the detached terminal for the one AxisPC instance managed by systemd.
+set -eu
+socket=/run/axispc/wfc.sock
+session=wfc
+tmux_cmd() { /usr/bin/tmux -S "$socket" "$@"; }
+stop_console() {
+    # Let AxisPC save callers and state before closing its terminal.
+    tmux_cmd send-keys -t "$session:0.0" C-c 2>/dev/null || :
+    tries=0
+    while tmux_cmd has-session -t "=$session" 2>/dev/null && [ "$tries" -lt 25 ]; do
+        sleep .2
+        tries=$((tries+1))
+    done
+    tmux_cmd kill-server 2>/dev/null || :
+    exit 0
+}
+trap stop_console TERM INT
+tmux_cmd -f /dev/null new-session -d -x 80 -y 25 -s "$session" /usr/bin/axispc --terminal --data /var/lib/axis
+while tmux_cmd has-session -t "=$session" 2>/dev/null; do
+    sleep 1
+done
+echo 'AxisPC terminal exited; see /var/lib/axis/log/axispc.log' >&2
+exit 1

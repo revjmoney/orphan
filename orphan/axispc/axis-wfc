@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+socket=/run/axispc/wfc.sock
+if [ "$(id -u)" -ne 0 ] && [ "$(id -un)" != axis ]; then
+    echo 'Open the console from the root Orphan menu or run sudo axis-wfc.' >&2
+    exit 1
+fi
+if [ ! -t 0 ] || [ ! -t 1 ]; then
+    echo 'The Axis console needs a terminal. From your PC use ssh -t root@BOARD axis-wfc.' >&2
+    exit 1
+fi
+if [ ! -S "$socket" ]; then
+    echo 'Start Axis BBS from Options before opening WFC.' >&2
+    exit 1
+fi
+if [ -n "${TMUX:-}" ]; then
+    echo 'Leave your current tmux session before attaching to Axis WFC.' >&2
+    exit 1
+fi
+exec /usr/bin/tmux -S "$socket" attach-session -t '=wfc'

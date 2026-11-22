@@ -1,0 +1,31 @@
+{
+  "id": "SYN3",
+  "title": "Orphan Synth: 8-voice FPGA synthesizer",
+  "category": "Sound",
+  "level": "easy",
+  "summary": "8 voices with a 6-oscillator mixer, per-voice filter and envelopes, 2 LFOs and a mod matrix, drive and bitcrusher, long delay and looper, arpeggiator, presets and LED light shows. Play it from the web page (port 8000), the terminal keyboard, or MIDI over the network. by JMSCNC, makers of RotatoCAM.",
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "Synth",
+    "14": "LEDs (orphan_leds)",
+    "15": "Fan (orphan_fan)"
+  },
+  "wiring": [
+    [
+      "J3 pins 5, 11, 12, 15",
+      "PCM5102A DAC (MCLK, BCLK, DOUT, LRCLK)",
+      "optional; the browser and ffplay play it too"
+    ]
+  ],
+  "pins": {
+    "mclk": "j3[0]",
+    "bclk": "j3[1]",
+    "dout": "j3[2]",
+    "lrclk": "j3[3]",
+    "leds[0]": "leds[0]",
+    "leds[1]": "leds[1]",
+    "leds[2]": "leds[2]",
+    "leds[3]": "leds[3]"
+  }
+}

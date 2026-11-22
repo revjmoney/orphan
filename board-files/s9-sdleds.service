@@ -1,0 +1,11 @@
+[Unit]
+Description=S9 SD activity lights (D3 green = read, red = write)
+After=ardzy-board.service ardzy-autoload.service
+
+[Service]
+ExecStart=/opt/s9/sdleds mmcblk0
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

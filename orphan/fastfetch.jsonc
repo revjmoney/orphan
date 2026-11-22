@@ -1,0 +1,37 @@
+// Orphan system-wide fastfetch look: the JMSCNC monkey (chafa style 5) + board facts.
+// Installed as /etc/xdg/fastfetch/config.jsonc. A user's own ~/.config/fastfetch/config.jsonc still wins.
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "type": "file-raw",
+    "source": "/usr/local/share/orphan/logo_32.ans",
+    "padding": { "top": 1, "left": 1, "right": 3 }
+  },
+  "display": {
+    "separator": "  ",
+    "color": { "keys": "38;5;214", "title": "38;5;214" }
+  },
+  "modules": [
+    "title",
+    "separator",
+    { "type": "custom", "format": "\u001b[1;97mOrphan\u001b[0m · FPGA Dev Linux for the S9 Control Board" },
+    { "type": "custom", "format": "\u001b[96mby JMSCNC, makers of RotatoCAM\u001b[0m" },
+    "break",
+    { "type": "os", "key": "Base" },
+    { "type": "host", "key": "Board" },
+    "kernel",
+    "uptime",
+    "packages",
+    "shell",
+    "terminal",
+    "cpu",
+    { "type": "command", "key": "Chip temp", "text": "python3 -c \"import glob;d=[x for x in glob.glob('/sys/bus/iio/devices/iio:device*') if open(x+'/name').read().strip()=='xadc'][0];r=lambda f:float(open(d+'/in_temp0_'+f).read());print('%.0f C  (Zynq XADC)'%((r('raw')+r('offset'))*r('scale')/1000))\"" },
+    { "type": "command", "key": "FPGA", "text": "cat /sys/class/fpga_manager/fpga0/state 2>/dev/null; cat /sys/class/fpga_manager/fpga0/name 2>/dev/null | sed 's/^/  /'" },
+    { "type": "command", "key": "Running from", "text": "s=$(findmnt -no SOURCE /); case $s in ubi*) echo 'NAND flash (lean)';; /dev/mmc*) echo 'SD card (full)';; *:*) echo 'netboot (NFS)';; *) echo $s;; esac" },
+    "memory",
+    { "type": "disk", "folders": "/" },
+    "localip",
+    "break",
+    "colors"
+  ]
+}

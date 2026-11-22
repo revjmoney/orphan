@@ -1,0 +1,40 @@
+#!/bin/busybox sh
+# s9flash initramfs: pick the root filesystem.
+#   SD card present (with an ext4 root on partition 2) -> full Ardzy Debian on the card
+#   no card, or a file "flash-root" on the card's FAT partition -> lean Debian in the NAND (UBIFS)
+/bin/busybox --install -s /bin
+mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev
+echo "s9flash: looking for an SD card..."
+
+i=0
+while [ $i -lt 20 ] && [ ! -b /dev/mmcblk0p2 ]; do sleep 0.2; i=$((i+1)); done
+
+want=sd
+if [ -b /dev/mmcblk0p2 ]; then
+	mkdir -p /sd1
+	if mount -t vfat -o ro /dev/mmcblk0p1 /sd1 2>/dev/null; then
+		[ -f /sd1/flash-root ] && want=flash
+		umount /sd1
+	fi
+else
+	want=flash
+fi
+
+mkdir -p /newroot
+if [ "$want" = sd ] && mount -t ext4 -o rw /dev/mmcblk0p2 /newroot; then
+	echo "s9flash: root = SD card (full Ardzy Debian)"
+else
+	echo "s9flash: root = NAND flash (lean Debian)"
+	if ! mount -t ubifs -o rw ubi0:rootfs /newroot; then
+		echo "s9flash: NO ROOT FILESYSTEM FOUND, rebooting in 10 s"
+		sleep 10
+		reboot -f
+	fi
+fi
+
+umount /proc
+umount /sys
+mount --move /dev /newroot/dev 2>/dev/null || umount /dev
+exec switch_root /newroot /sbin/init

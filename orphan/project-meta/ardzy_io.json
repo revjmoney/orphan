@@ -1,0 +1,7 @@
+{
+  "id": "ARIO",
+  "title": "Ardzy I/O: every pin from the web page",
+  "category": "Starters",
+  "level": "easy",
+  "summary": "Ardzy's general I/O design as a project: read and drive the header pins, PWM, and the logic analyzer from the Ardzy web page (http://<board>/). Same idea as pin-control."
+}

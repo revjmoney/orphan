@@ -1,0 +1,15 @@
+[Unit]
+Description=Orphan Radio Network NESDR receiver
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/orphan-nesdr/server.py
+DynamicUser=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,7 @@
+{
+  "id": "BLNK",
+  "title": "Blink: the 4 LEDs count in binary",
+  "category": "Starters",
+  "level": "easy",
+  "summary": "The smallest FPGA design: a counter in the FPGA drives the 4 LEDs (D5..D8) with no help from the ARM. The program only prints the FPGA state. Good first check that loading designs works."
+}

@@ -1,0 +1,7 @@
+{
+  "id": "SELF",
+  "title": "FPGA self-test (clocks, block RAM, DSP)",
+  "category": "Tests",
+  "level": "easy",
+  "summary": "The FPGA measures itself and the ARM tests its block RAM and DSP multipliers. Every line prints ok or FAIL. Run it on a new board or after a scare."
+}

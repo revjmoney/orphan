@@ -1,0 +1,7 @@
+{
+  "id": "LEDP",
+  "title": "LEDs from Python (AXI GPIO)",
+  "category": "Starters",
+  "level": "easy",
+  "summary": "The ARM drives the 4 LEDs through an AXI GPIO block in the FPGA at 0x41200000. Shows how a Python program writes FPGA registers (the LEDs are active low)."
+}

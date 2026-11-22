@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.out
+orphan/boards.local
+orphan/roms.local
+flash-build/mac.local
+# tools/fetch_sources.sh clones these here
+third_party/
+ardzy/
+Astra_S9_FPGA/
+antminer_zynq/
+zynq-io/
+bos-docs/
+zips/

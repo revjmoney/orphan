@@ -1,0 +1,7 @@
+local/
+.deps/
+.pio/
+__pycache__/
+*.pyc
+*.bin
+settings.local.json

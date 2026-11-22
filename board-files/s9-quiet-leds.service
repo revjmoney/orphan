@@ -1,0 +1,12 @@
+[Unit]
+Description=Turn the S9 status LEDs off (too bright)
+After=ardzy-board.service ardzy-autoload.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ardzy led green off
+ExecStart=/usr/local/bin/ardzy led red off
+ExecStart=/usr/local/bin/ardzy led ps off
+
+[Install]
+WantedBy=multi-user.target

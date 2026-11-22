@@ -1,0 +1,7 @@
+{
+  "id": "RAMT",
+  "title": "FPGA block RAM test (every RAM shape)",
+  "category": "Tests",
+  "level": "easy",
+  "summary": "Starts testers for 11 block RAM shapes (4096 x 32 down to 32768 x 1) three times and prints the results. Checks that all of the FPGA's memory works."
+}

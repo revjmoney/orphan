@@ -1,0 +1,7 @@
+{
+  "id": "HELO",
+  "title": "Board hello: status LED, buttons and beeper",
+  "category": "Starters",
+  "level": "easy",
+  "summary": "No FPGA design at all, only the ARM side of the board: the red/green status LED blinks, the IP button (S2) gives a short beep, the Reset button (S1) a long beep and ends the program."
+}

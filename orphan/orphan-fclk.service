@@ -1,0 +1,11 @@
+[Unit]
+Description=Orphan: FPGA clock FCLK0 = 100 MHz (the Bitmain bootloader leaves it at 50 MHz; every design assumes 100)
+Before=ardzy-autoload.service ardzy-web.service
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -c "import sys; sys.path.insert(0, '/opt/ardzy/web'); import hwapi; print('FCLK0', hwapi.set_fclk(0, 100), 'MHz')"
+
+[Install]
+WantedBy=multi-user.target

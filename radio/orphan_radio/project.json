@@ -1,0 +1,31 @@
+{
+  "id": "RAD1",
+  "title": "Orphan Radio: 4-slice SDR receiver, 1 kHz to 49 MHz",
+  "category": "Radio",
+  "level": "advanced",
+  "summary": "A software defined receiver in the FPGA: 4 tuners (slices A..D) and a wide panadapter (6.25 MHz down to 390 kHz) from one pin. AM, SAM, USB, LSB, CW, NFM; noise blanker and hum filter; CW, NAVTEX, WWVB and SSTV decoders on the board; band plan, scanner with auto-program, memories. Web panel on port 8000, audio for ffplay on TCP 8001. by JMSCNC, makers of RotatoCAM.",
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "Radio (tuners A..D, panadapter, FIFOs)",
+    "14": "LEDs (orphan_leds)",
+    "15": "Fan (orphan_fan)"
+  },
+  "wiring": [
+    [
+      "J8 pin 12",
+      "a wire antenna (zero-parts mode) or the R+C sigma-delta input",
+      "RC mode: R from J8 pin 15 to the node, C to ground"
+    ],
+    [
+      "J8 pin 5",
+      "test transmitter output",
+      "keep it on short wires"
+    ],
+    [
+      "J3 pins 5, 11, 12, 15",
+      "PCM5102A DAC (MCLK, BCLK, DOUT, LRCLK)",
+      "optional speaker out"
+    ]
+  ]
+}

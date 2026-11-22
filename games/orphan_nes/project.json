@@ -1,0 +1,17 @@
+{
+  "id": "NES1",
+  "title": "Orphan Games: NES console in the FPGA",
+  "category": "Games",
+  "level": "easy",
+  "summary": "A Nintendo Entertainment System rebuilt in the FPGA (fpganes by Ludvig Strigeus, GPL-2): CPU, picture chip, sound and cartridge mappers 0-4 in hardware. Play free homebrew games from the browser (keyboard or a USB gamepad) or on an ORPHAN Remote (CYD) screen. Carts up to 64 KB program + 32 KB graphics. by JMSCNC, makers of RotatoCAM.",
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "NES console (cart, frame buffer, sound, pads)",
+    "14": "LEDs (orphan_leds)",
+    "15": "Fan (orphan_fan)"
+  },
+  "clocks": {
+    "u_nes.nclk": 22
+  }
+}
