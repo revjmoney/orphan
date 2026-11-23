@@ -430,6 +430,6 @@ if(s.settings){settings=s.settings;const signature=JSON.stringify(settings.walle
 const fee=s.devfee||{};$('feeNote').hidden=!fee.active;
 $('hashes').style.setProperty('--digits',$('hashes').textContent.length);renderLog(s.logs||[]);earnings(s);plot(pipelineActive?rate:0,s.mode==='mine'&&Number.isFinite(m.effective_hashrate)?m.effective_hashrate/1000:null);}catch(e){pipelineActive=false;$('connection').textContent='BOARD OFFLINE';$('connection').classList.add('offline');report(e.message,true);}finally{setTimeout(tick,500);}}tick();
 </script>
-<script>(function(){var s=document.createElement('script');s.src='http://'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
+<script>(function(){var s=document.createElement('script');s.src='//'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
 </body>
 </html>

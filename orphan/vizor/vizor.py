@@ -434,11 +434,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(b)))
         self.send_header('Cache-Control', 'no-store')
         for k, v in extra:
-            self.send_header(k, v)
+            self.send_header(k, str(v).replace('\r', '').replace('\n', ''))
         self.end_headers()
         self.wfile.write(b)
 
     def proxy(self, base, path, method='GET', body=None):
+        # only ever a path on the fixed local service: never let the request pick the host
+        if base not in (APP, ARDZY) or not path.startswith('/') or path.startswith('//'):
+            return self.send(400, {'ok': False, 'out': 'bad path'})
         try:
             req = urllib.request.Request(base + path, data=body, method=method,
                                          headers={'Content-Type': self.headers.get('Content-Type', 'application/json')})

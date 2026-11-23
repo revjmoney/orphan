@@ -448,7 +448,7 @@ document.addEventListener('keydown', ev => {
   await pollSys(); await pollProjects(); pollApp(); pollXApps(); setInterval(pollXApps, 60000);
   const h = location.hash.slice(1);
   const OPEN = { shell: () => terminal(''), kores: () => kores(), board: boardPage, core: () => corePage(), about: about, procs: procs, cooling: cooling, menu: () => terminal('menu'), x: xdesk, pulseview: () => xapp('pulseview'), gtkwave: () => xapp('gtkwave'), xterm: () => xapp('xterm') };
-  h.split(',').forEach(k => OPEN[k] && OPEN[k]());
+  h.split(',').forEach(k => { if (Object.prototype.hasOwnProperty.call(OPEN, k)) OPEN[k](); });
   if (h.split(',').includes('tile')) setTimeout(tile, 100);
   if (projects.length && h.split(',').includes('kores')) { const k = [...wins.values()].find(w => w.key === 'kores'); if (k) { closeWin(k); const p = projects.find(x => x.name === 'orphan_spektor') || projects[0]; kores(p.name); if (h.includes('tile')) setTimeout(tile, 150); } }
 })();

@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: YosysHQ/setup-oss-cad-suite@v3
+      - uses: YosysHQ/setup-oss-cad-suite@aefa8397bbf8fc6670a0a62af9805a89738f3cde  # v3.1.0
       - name: Every FPGA design file parses (Yosys)
         run: |
           fails=0

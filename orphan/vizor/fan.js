@@ -1,6 +1,6 @@
 /* Orphan fan slider: one small control in the header of every Orphan page.
    Served by VIZOR (http://<board>:8080/fan.js) and loaded by each page with:
-     <script>(function(){var s=document.createElement('script');s.src='http://'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
+     <script>(function(){var s=document.createElement('script');s.src='//'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
    It mounts into #orphan-fan, else the header's .tools, else the header, else a small chip at the top right.
    The duty is saved on the board and used at boot (orphan-fan). by JMSCNC, makers of RotatoCAM. [Rev. J. Money - 2026] */
 (function () {

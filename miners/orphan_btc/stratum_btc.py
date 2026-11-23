@@ -145,7 +145,9 @@ class Session:
         self.update(log_message='Connecting to %s as %s' % (self.cfg['pool'], user))
         self.sock = socket.create_connection((u.hostname, u.port), timeout=10)
         if u.scheme == 'stratum+ssl':
-            self.sock = ssl.create_default_context().wrap_socket(self.sock, server_hostname=u.hostname)
+            ctx = ssl.create_default_context()
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+            self.sock = ctx.wrap_socket(self.sock, server_hostname=u.hostname)
         self.sock.settimeout(5)
         self.send('mining.subscribe', ['OrphanBTC/1.0'], 1)
         self.send('mining.authorize', [user, self.cfg.get('password') or 'x'], 2)

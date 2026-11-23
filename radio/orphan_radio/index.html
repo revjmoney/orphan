@@ -469,6 +469,7 @@ function setMode(d) { if (networkSelected) { net.auto = false; remoteTune({mode:
   if (cur === 0) send({set: {auto_mode: 0, demod: d}}); else { st.slices[cur - 1].demod = d; send({slice: {i: cur, demod: d}}); show(); } }
 function setFM(f, d) { if (networkSelected) { net.auto = false; remoteTune({frequency:remoteHz(f), mode:d}); return; }
   if (cur === 0) send({set: {auto_mode: 0, freq: f, demod: d}}); else { Object.assign(st.slices[cur - 1], {freq: f, demod: d}); send({slice: {i: cur, freq: f, demod: d}}); } autopan(f); show(); }
+const esc = v => String(v).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]);
 function mk(parent, html, cls, onclick, data) { const b = document.createElement('button'); b.className = cls || 'key'; b.innerHTML = html;
   if (data) Object.assign(b.dataset, data); b.onclick = onclick; $(parent).appendChild(b); return b; }
 function fitCanvas(c) { const r = c.getBoundingClientRect(), d = Math.min(2, window.devicePixelRatio || 1);
@@ -636,7 +637,7 @@ function sstvMsg(s) {
       im.data[j + 2] = b.charCodeAt(i + 2); im.data[j + 3] = 255; }
     g.putImageData(im, 0, s.row);
     $('sstvstat').textContent = s.mode + ' ' + s.w + 'x' + s.h + ', row ' + (s.row + s.n) + ' of ' + s.h; }
-  if (s.saved) $('sstvstat').innerHTML = 'Saved on the board: <a href="/sstv/' + s.saved + '" target="_blank" style="color:var(--cyan)">' + s.saved + '</a>';
+  if (s.saved) $('sstvstat').innerHTML = 'Saved on the board: <a href="/sstv/' + encodeURIComponent(s.saved) + '" target="_blank" style="color:var(--cyan)">' + esc(s.saved) + '</a>';
 }
 
 // ---- drawer tabs (the last one used is remembered in this browser)
@@ -654,7 +655,7 @@ showTab(tab0);
 let built = false;
 function buildKeys(m) {
   if (built) return; built = true;
-  m.demods.forEach(d => mk('demods', '<i class="led"></i>' + d.toUpperCase(), 'key', () => setMode(d), {demod: d}));
+  m.demods.forEach(d => mk('demods', '<i class="led"></i>' + esc(d.toUpperCase()), 'key', () => setMode(d), {demod: d}));
   mk('demods', '<i class="led"></i>WFM', 'key', () => setMode('wfm'), {demod:'wfm', radio:'network'});
   const a = mk('demods', '<i class="led"></i>Auto', 'key', () => {
     if (networkSelected) { net.auto = !net.auto; if (net.auto) tune(sl(cur).freq); show(); }
@@ -721,9 +722,9 @@ function showMems() {
   if (!mems.channels.length) { L.textContent = 'No memories yet. Run a scan, or press M+ to save this frequency.'; L.style.padding = '6px'; return; }
   L.style.padding = '';
   mems.channels.forEach((m, i) => { const r = document.createElement('div'); r.className = 'mrow';
-    r.innerHTML = `<span style="width:30px;color:#7f92a3">M${i + 1}</span><b style="width:80px;color:#e6ff9a">${m.freq.toFixed(2)}</b>
-      <span style="width:34px;color:${MODECOL[m.mode] || '#ccc'}">${m.mode.toUpperCase()}</span><span style="flex:1">${m.label || ''}${m.kind && m.kind !== m.mode && m.kind !== 'saved' ? ' (' + m.kind + ')' : ''}</span>
-      <span style="width:46px;color:#7f92a3">${m.snr ? m.snr + ' dB' : m.auto ? 'auto' : 'saved'}</span>
+    r.innerHTML = `<span style="width:30px;color:#7f92a3">M${i + 1}</span><b style="width:80px;color:#e6ff9a">${esc(Number(m.freq).toFixed(2))}</b>
+      <span style="width:34px;color:${esc(MODECOL[m.mode] || '#ccc')}">${esc(String(m.mode).toUpperCase())}</span><span style="flex:1">${esc(m.label || '')}${m.kind && m.kind !== m.mode && m.kind !== 'saved' ? ' (' + esc(m.kind) + ')' : ''}</span>
+      <span style="width:46px;color:#7f92a3">${esc(m.snr ? m.snr + ' dB' : m.auto ? 'auto' : 'saved')}</span>
       <button class="key" data-b="1" title="Board noise: never list it again">Birdie</button><button class="key" data-x="1" title="Delete">x</button>`;
     r.onclick = e => { if (e.target.dataset.x) send({mem_del: m.freq}); else if (e.target.dataset.b) send({birdie: m.freq}); else recall(i); };
     L.appendChild(r); }); }
@@ -963,11 +964,11 @@ function drawScope(a, iq) {
 function lowpass(n, fc, fsr) { const h = new Float32Array(n), m = (n - 1) / 2; let s = 0;
   for (let i = 0; i < n; i++) { const t = i - m, w = 0.42 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1)) + 0.08 * Math.cos(4 * Math.PI * i / (n - 1));
     h[i] = (t === 0 ? 2 * fc / fsr : Math.sin(2 * Math.PI * fc / fsr * t) / (Math.PI * t)) * w; s += h[i]; } for (let i = 0; i < n; i++) h[i] /= s; return h; }
-const DM = {taps: {}, hi: new Float32Array(256), hq: new Float32Array(256), hp: 0, ph: 0, w: 0, dc: 0, agc: 0.05, pi: 0, pq: 0, bfo: 0, de: 0};
-function ctaps(mode) { if (DM.taps[mode]) return DM.taps[mode];
+const DM = {taps: new Map(), hi: new Float32Array(256), hq: new Float32Array(256), hp: 0, ph: 0, w: 0, dc: 0, agc: 0.05, pi: 0, pq: 0, bfo: 0, de: 0};
+function ctaps(mode) { if (DM.taps.has(mode)) return DM.taps.get(mode);
   const n = 129, m = (n - 1) / 2, sp = {usb: [1650, 1400], lsb: [-1650, 1400], cw: [0, 250], nfm: [0, 5000], sam: [0, 4500]}[mode];
   const h = lowpass(n, sp[1], fs), re = new Float32Array(n), im = new Float32Array(n);
-  for (let i = 0; i < n; i++) { const a = 2 * Math.PI * sp[0] * (i - m) / fs; re[i] = h[i] * Math.cos(a); im[i] = h[i] * Math.sin(a); } return (DM.taps[mode] = [re, im]); }
+  for (let i = 0; i < n; i++) { const a = 2 * Math.PI * sp[0] * (i - m) / fs; re[i] = h[i] * Math.cos(a); im[i] = h[i] * Math.sin(a); } const t = [re, im]; DM.taps.set(mode, t); return t; }
 function demod(I, Q, mode) {
   const n = I.length, out = new Float32Array(n), [tr, ti] = ctaps(mode), T = tr.length;
   for (let k = 0; k < n; k++) { DM.hi[DM.hp] = I[k] / 32768; DM.hq[DM.hp] = Q[k] / 32768; let yr = 0, yi = 0;
@@ -1301,6 +1302,6 @@ drawKnob(); refreshSourceControls(); show(); connect();
   set(on);
 })();
 </script>
-<script>(function(){var s=document.createElement('script');s.src='http://'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
+<script>(function(){var s=document.createElement('script');s.src='//'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
 </body>
 </html>

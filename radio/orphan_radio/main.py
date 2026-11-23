@@ -264,7 +264,7 @@ def rx_start():
         if not os.path.exists(RXD_BIN) or os.path.getmtime(RXD_BIN) < os.path.getmtime(RXD_SRC):
             subprocess.run(['gcc', '-O2', '-o', RXD_BIN, RXD_SRC, '-lm'], check=True)
         size = RX_SIZE
-        fd = os.open(RX_SHM, os.O_RDWR | os.O_CREAT, 0o644)
+        fd = os.open(RX_SHM, os.O_RDWR | os.O_CREAT, 0o600)
         os.ftruncate(fd, size)
         rx['mm'] = mmap.mmap(fd, size)
         os.close(fd)
@@ -865,7 +865,10 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return
         if self.path.startswith('/sstv/'):
             name = os.path.basename(self.path.split('?')[0])
-            fp = os.path.join(SSTV_DIR, name)
+            fp = os.path.realpath(os.path.join(SSTV_DIR, name))
+            if not fp.startswith(os.path.realpath(SSTV_DIR) + os.sep):
+                self.send_error(404)
+                return
             if name == 'list':
                 files = sorted((f for f in os.listdir(SSTV_DIR) if f.endswith('.png') and f != 'latest.png'),
                                reverse=True) if os.path.isdir(SSTV_DIR) else []

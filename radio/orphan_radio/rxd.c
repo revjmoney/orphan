@@ -620,7 +620,8 @@ int main(int argc, char **argv) {
         if (S->decoder == X_CW) printf("\n[cw speed %.1f wpm]\n", S->cw_wpm);
         if (S->decoder == X_SSTV && S->img_rows > 0) {            /* test: write the picture as a PPM */
             const char *fn = argc > 6 ? argv[6] : "sstv_out.ppm";
-            FILE *o = fopen(fn, "wb");
+            int ofd = open(fn, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            FILE *o = ofd >= 0 ? fdopen(ofd, "wb") : NULL;
             if (o) { fprintf(o, "P6\n%d %d\n255\n", S->img_w, S->img_h);
                 for (int y = 0; y < S->img_h; y++) fwrite(S->img[y], 3, S->img_w, o); fclose(o);
                 printf("[picture %s %dx%d, %d rows -> %s]\n", S->img_mode, S->img_w, S->img_h, S->img_rows, fn); }

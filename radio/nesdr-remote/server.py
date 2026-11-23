@@ -184,6 +184,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def allowed_origin(self):
         origin = self.headers.get('Origin')
         host = self.headers.get('Host', '')
+        if not origin or '\r' in origin or '\n' in origin:
+            return None
         if host and origin in ('http://' + host, 'http://' + urlsplit('//' + host).netloc.rsplit(':', 1)[0] + ':8000'):
             return origin
         return None

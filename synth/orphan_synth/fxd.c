@@ -69,7 +69,8 @@ static int32_t loop_pos(uint32_t t, int half, int rev) {
 }
 
 static void save_wav(const char *fn) {
-    FILE *f = fopen(fn, "wb");
+    int fdw = open(fn, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    FILE *f = fdw >= 0 ? fdopen(fdw, "wb") : NULL;
     if (!f) return;
     uint32_t n = (uint32_t)L * 2, sr = 48828, br = sr * 2;
     fwrite("RIFF", 1, 4, f); uint32_t x = 36 + n; fwrite(&x, 4, 1, f); fwrite("WAVEfmt ", 1, 8, f);

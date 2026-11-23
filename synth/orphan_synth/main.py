@@ -203,7 +203,7 @@ def fx_start():
     try:
         if not os.path.exists(FXD_BIN) or os.path.getmtime(FXD_BIN) < os.path.getmtime(FXD_SRC):
             subprocess.run(['gcc', '-O2', '-o', FXD_BIN, FXD_SRC, '-lm'], check=True)
-        fd = os.open(SHM, os.O_RDWR | os.O_CREAT, 0o644)
+        fd = os.open(SHM, os.O_RDWR | os.O_CREAT, 0o600)
         os.ftruncate(fd, struct.calcsize(SHM_FMT))
         fx['mm'] = mmap.mmap(fd, struct.calcsize(SHM_FMT))
         os.close(fd)

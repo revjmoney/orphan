@@ -103,7 +103,9 @@ class Session:
         try:
             self.publish(log_message='Connecting to '+cfg['pool'])
             self.sock=socket.create_connection((u.hostname,u.port),timeout=8)
-            if u.scheme=='stratum+ssl':self.sock=ssl.create_default_context().wrap_socket(self.sock,server_hostname=u.hostname)
+            if u.scheme=='stratum+ssl':
+                ctx=ssl.create_default_context();ctx.minimum_version=ssl.TLSVersion.TLSv1_2
+                self.sock=ctx.wrap_socket(self.sock,server_hostname=u.hostname)
             self.sock.settimeout(5)
             self.sock.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
             self.send('mining.subscribe',['OrphanKAS/1.0'],1)
