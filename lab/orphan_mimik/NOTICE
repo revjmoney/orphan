@@ -1,0 +1,10 @@
+MIMIK (orphan_mimik) by JMSCNC, makers of RotatoCAM. [Rev. J. Money - 2026] GPL-3.0-or-later.
+
+Third-party code in this project:
+
+i2c_slave.v
+  verilog-i2c by Alex Forencich, https://github.com/alexforencich/verilog-i2c
+  commit a65be4045e898a52e791c6ee71f8f79a7cd2e129 (2025-02-27), file rtl/i2c_slave.v, unmodified.
+  MIT licence (text in the file header and in thirdparty/verilog-i2c.COPYING). MIT is compatible with GPL-3.0.
+
+Ardzy FPGA library (ardzy_bus, ardzy_info, ardzy_i2c) and blocks.py, by chryso, GPL-3.0.

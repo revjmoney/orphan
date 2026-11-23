@@ -1,0 +1,23 @@
+{
+  "id": "MMK1",
+  "title": "MIMIK: the chip emulator",
+  "category": "Test and measurement",
+  "branch": "science",
+  "level": "medium",
+  "summary": "The S9's FPGA answers as a chip: an I2C EEPROM (24C02, 24C16, 24C32, 24C256) or a sensor that reports whatever you set (temperature TMP102 / LM75, IR MLX90614, distance SRF02 / TF-Luna, compass HMC5883L / QMC5883L, motion MPU-6050, light BH1750) emulated live at the chip's own speed, with page writes, write protect and the real write-cycle ACK polling. Put it in place of a dead or missing chip, or fake one to see what a board does with it. The page loads chip models (plugins: a model.json), draws the wiring, logs every bus access live with a hit map, and edits the image in hex. A built-in self-test reads it back through the real pins. by JMSCNC, makers of RotatoCAM.",
+  "quickstart": [
+    "Load orphan_mimik. Its page opens on port 8000.",
+    "KHIPZ: pick a chip (24C02 to start) and press KHECK: the board's own I2C master reads the emulated chip back through the real pins.",
+    "Wiring (3.3 V buses only): the board's I2C bus is on pins 3 (SDA) and 4 (SCL) of J1..J8 per Ardzy's guide, GND on pins 1, 2, 9, 10, 13, 14. Or pick any J1..J9 header pin for SCL / SDA (the target bus then needs its own pull-ups).",
+    "IMAGE: load a .bin dump of the original chip, or edit bytes in hex. What the target writes is kept, like a real EEPROM.",
+    "LIVE: every read and write as it happens, and a hit map of the bytes the target uses. Keys: 1-4 pages."
+  ],
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "MIMIK I2C target engine (24Cxx behaviour, 32 KB image, event log, SCL / SDA on any of 38 pins)",
+    "2": "I2C master on the board's own bus (the self-test)",
+    "15": "Fan (orphan_fan)"
+  },
+  "runs": "fpga + arm"
+}

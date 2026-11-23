@@ -1,0 +1,91 @@
+{
+  "name": "MPU-6050",
+  "bus": "i2c",
+  "engine": "i2c-target",
+  "family": "motion",
+  "description": "InvenSense MPU-6050 accelerometer + gyroscope (GY-521 boards): 16-bit, high byte first, WHO_AM_I 0x68",
+  "config": {
+    "write_cycle_us": 0,
+    "wp": false,
+    "address_bytes": 1,
+    "address": "0x68",
+    "address_mask": "0x7f",
+    "size": 128,
+    "page": 128,
+    "register_width": 1
+  },
+  "fill": 0,
+  "controls": [
+    {
+      "id": "ax",
+      "label": "Accel X",
+      "unit": "g",
+      "min": -2,
+      "max": 2,
+      "step": 0.01,
+      "default": 0
+    },
+    {
+      "id": "ay",
+      "label": "Accel Y",
+      "unit": "g",
+      "min": -2,
+      "max": 2,
+      "step": 0.01,
+      "default": 0
+    },
+    {
+      "id": "az",
+      "label": "Accel Z",
+      "unit": "g",
+      "min": -2,
+      "max": 2,
+      "step": 0.01,
+      "default": 1
+    },
+    {
+      "id": "gx",
+      "label": "Gyro X",
+      "unit": "deg/s",
+      "min": -250,
+      "max": 250,
+      "step": 0.1,
+      "default": 0
+    },
+    {
+      "id": "gy",
+      "label": "Gyro Y",
+      "unit": "deg/s",
+      "min": -250,
+      "max": 250,
+      "step": 0.1,
+      "default": 0
+    },
+    {
+      "id": "gz",
+      "label": "Gyro Z",
+      "unit": "deg/s",
+      "min": -250,
+      "max": 250,
+      "step": 0.1,
+      "default": 0
+    },
+    {
+      "id": "temp",
+      "label": "Chip temperature",
+      "unit": "C",
+      "min": -40,
+      "max": 85,
+      "step": 0.1,
+      "default": 25
+    }
+  ],
+  "pins": {
+    "SCL": "SCL",
+    "SDA": "SDA",
+    "GND": "GND"
+  },
+  "tested": "simulation of the engine; on the board through the real I2C pads with the board's I2C master",
+  "author": "Rev. J. Money / JMSCNC",
+  "licence": "GPL-3.0-or-later"
+}

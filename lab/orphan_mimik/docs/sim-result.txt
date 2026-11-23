@@ -1,0 +1,100 @@
+ok   ID                                               want 4d4d4b31 got 4d4d4b31
+ok   ARM image load: image[000]                       want 00000010 got 00000010
+ok   ARM image load: image[001]                       want 00000011 got 00000011
+ok   ARM image load: image[002]                       want 00000012 got 00000012
+ok   ARM image load: image[003]                       want 00000013 got 00000013
+ok   24C02 random read from 03: write a0 ACK          want 80000100 got 80000100
+ok   24C02 random read from 03: write 03 ACK          want 80000100 got 80000100
+ok   24C02 random read from 03: write a1 ACK          want 80000100 got 80000100
+ok   24C02 random read from 03: read                  want 80000213 got 80000213
+ok   24C02 random read from 03: read                  want 80000214 got 80000214
+ok   24C02 random read from 03: read                  want 80000215 got 80000215
+ok   24C02 random read from 03: read                  want 80000216 got 80000216
+ok   24C02 page write at 06 (wraps to 00): write a0 ACK want 80000100 got 80000100
+ok   24C02 page write at 06 (wraps to 00): write 06 ACK want 80000100 got 80000100
+ok   24C02 page write at 06 (wraps to 00): write a1 ACK want 80000100 got 80000100
+ok   24C02 page write at 06 (wraps to 00): write b2 ACK want 80000100 got 80000100
+ok   24C02 page write at 06 (wraps to 00): write c3 ACK want 80000100 got 80000100
+ok   24C02 page write at 06 (wraps to 00): write d4 ACK want 80000100 got 80000100
+ok   page wrap: image[000]                            want 000000c3 got 000000c3
+ok   page wrap: image[001]                            want 000000d4 got 000000d4
+ok   page wrap: image[002]                            want 00000012 got 00000012
+ok   page wrap: image[003]                            want 00000013 got 00000013
+ok   page wrap: image[004]                            want 00000014 got 00000014
+ok   page wrap: image[005]                            want 00000015 got 00000015
+ok   page wrap: image[006]                            want 000000a1 got 000000a1
+ok   page wrap: image[007]                            want 000000b2 got 000000b2
+ok   24C02 current-address read: write a1 ACK         want 80000100 got 80000100
+ok   24C02 current-address read: read                 want 80000212 got 80000212
+ok   24C02 current-address read: read                 want 80000213 got 80000213
+ok   24C02 sequential read from FD (rolls over): write a0 ACK want 80000100 got 80000100
+ok   24C02 sequential read from FD (rolls over): write fd ACK want 80000100 got 80000100
+ok   24C02 sequential read from FD (rolls over): write a1 ACK want 80000100 got 80000100
+ok   24C02 sequential read from FD (rolls over): read want 80000200 got 80000200
+ok   24C02 sequential read from FD (rolls over): read want 80000200 got 80000200
+ok   24C02 sequential read from FD (rolls over): read want 80000200 got 80000200
+ok   24C02 sequential read from FD (rolls over): read want 800002c3 got 800002c3
+ok   24C02 sequential read from FD (rolls over): read want 800002d4 got 800002d4
+ok   wrong address 51 gets NACK: write a2 NACK        want 80000000 got 80000000
+ok   wrong address 51 gets NACK: write 00 NACK        want 80000000 got 80000000
+ok   wrong address 51 gets NACK: write 55 NACK        want 80000000 got 80000000
+ok   COUNTS                                           want 0004000b got 0004000b
+ok   event 1 addressed 50                             want 90005000 got 90005000
+ok   event 2 pointer set 03                           want a0000303 got a0000303
+ok   WP on: ACKed, not stored: write a0 ACK           want 80000100 got 80000100
+ok   WP on: ACKed, not stored: write 20 ACK           want 80000100 got 80000100
+ok   WP on: ACKed, not stored: write ee ACK           want 80000100 got 80000100
+ok   WP on: ACKed, not stored: write ee ACK           want 80000100 got 80000100
+ok   WP kept the image: image[020]                    want 00000000 got 00000000
+ok   WP kept the image: image[021]                    want 00000000 got 00000000
+ok   TWR write: write a0 ACK                          want 80000100 got 80000100
+ok   TWR write: write 30 ACK                          want 80000100 got 80000100
+ok   TWR write: write 77 ACK                          want 80000100 got 80000100
+ok   during the write cycle: NACK: write a0 NACK      want 80000000 got 80000000
+ok   after the write cycle: ACK: write a0 ACK         want 80000100 got 80000100
+ok   24C16 block 3 write: write a6 ACK                want 80000100 got 80000100
+ok   24C16 block 3 write: write 10 ACK                want 80000100 got 80000100
+ok   24C16 block 3 write: write 9a ACK                want 80000100 got 80000100
+ok   24C16 block 3 write: write 9b ACK                want 80000100 got 80000100
+ok   24C16 block 3 lands at 310: image[310]           want 0000009a got 0000009a
+ok   24C16 block 3 lands at 310: image[311]           want 0000009b got 0000009b
+ok   24C16 block 3 read: write a6 ACK                 want 80000100 got 80000100
+ok   24C16 block 3 read: write 10 ACK                 want 80000100 got 80000100
+ok   24C16 block 3 read: write a7 ACK                 want 80000100 got 80000100
+ok   24C16 block 3 read: read                         want 8000029a got 8000029a
+ok   24C16 block 3 read: read                         want 8000029b got 8000029b
+ok   24C32 two-byte address write: write a0 ACK       want 80000100 got 80000100
+ok   24C32 two-byte address write: write 0a ACK       want 80000100 got 80000100
+ok   24C32 two-byte address write: write bc ACK       want 80000100 got 80000100
+ok   24C32 two-byte address write: write 42 ACK       want 80000100 got 80000100
+ok   24C32 two-byte address write: write 43 ACK       want 80000100 got 80000100
+ok   24C32 lands at ABC: image[abc]                   want 00000042 got 00000042
+ok   24C32 lands at ABC: image[abd]                   want 00000043 got 00000043
+ok   24C32 read: write a0 ACK                         want 80000100 got 80000100
+ok   24C32 read: write 0a ACK                         want 80000100 got 80000100
+ok   24C32 read: write bc ACK                         want 80000100 got 80000100
+ok   24C32 read: write a1 ACK                         want 80000100 got 80000100
+ok   24C32 read: read                                 want 80000242 got 80000242
+ok   24C32 read: read                                 want 80000243 got 80000243
+ok   24C32 read: read                                 want 80000200 got 80000200
+ok   LM75 temp register read wraps in its 2 bytes: write 90 ACK want 80000100 got 80000100
+ok   LM75 temp register read wraps in its 2 bytes: write 00 ACK want 80000100 got 80000100
+ok   LM75 temp register read wraps in its 2 bytes: write 91 ACK want 80000100 got 80000100
+ok   LM75 temp register read wraps in its 2 bytes: read want 80000219 got 80000219
+ok   LM75 temp register read wraps in its 2 bytes: read want 80000280 got 80000280
+ok   LM75 temp register read wraps in its 2 bytes: read want 80000219 got 80000219
+ok   LM75 temp register read wraps in its 2 bytes: read want 80000280 got 80000280
+ok   LM75 write TOS: write 90 ACK                     want 80000100 got 80000100
+ok   LM75 write TOS: write 03 ACK                     want 80000100 got 80000100
+ok   LM75 write TOS: write 55 ACK                     want 80000100 got 80000100
+ok   LM75 write TOS: write 80 ACK                     want 80000100 got 80000100
+ok   pointer stays on TOS: write 91 ACK               want 80000100 got 80000100
+ok   pointer stays on TOS: read                       want 80000255 got 80000255
+ok   pointer stays on TOS: read                       want 80000280 got 80000280
+ok   write to read-only temp: ACKed: write 90 ACK     want 80000100 got 80000100
+ok   write to read-only temp: ACKed: write 00 ACK     want 80000100 got 80000100
+ok   write to read-only temp: ACKed: write 11 ACK     want 80000100 got 80000100
+ok   write to read-only temp: ACKed: write 22 ACK     want 80000100 got 80000100
+ok   read-only temp kept: byte 0                      want 00000019 got 00000019
+ok   read-only temp kept: byte 1                      want 00000080 got 00000080
+script finished: True; 99 checks, 0 failed

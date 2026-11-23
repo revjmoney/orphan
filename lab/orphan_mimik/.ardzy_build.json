@@ -1,0 +1,65 @@
+{
+ "orphan_mimik.bit": {
+  "board": "s9",
+  "sha256": "9e0724cd5534b6598e24d1eef569e7a62c66ca993d88cd6d8bb886b40ec51788",
+  "date": "2026-11-23 02:08",
+  "report": {
+   "board": "s9",
+   "board_name": "Antminer S9",
+   "part": "xc7z010clg400-1",
+   "top": "top",
+   "seconds": 78,
+   "date": "2026-11-23 02:08",
+   "used": {
+    "LUT": 1297,
+    "FF": 1321,
+    "BRAM": 10,
+    "DSP": 1,
+    "LUT_RAM": 12,
+    "SRL": 5,
+    "CARRY": 142,
+    "BUFG": 1,
+    "MMCM_PLL": 0
+   },
+   "max": {
+    "LUT": 17600,
+    "FF": 35200,
+    "BRAM": 60,
+    "DSP": 80,
+    "PINS": 100
+   },
+   "pins": 49,
+   "clocks": {
+    "clk": {
+     "fmax": 166.06,
+     "need": 100.0,
+     "pass": true
+    }
+   },
+   "hold_problems": 0,
+   "timing_ok": true,
+   "paths": [
+    {
+     "clock": "clk",
+     "cross": false,
+     "start": "u_i2c.div[3]",
+     "end": "u_i2c.div[3]",
+     "delay": 6.02,
+     "levels": 6,
+     "logic_ns": 2.24,
+     "route_ns": 3.77,
+     "steps": [
+      {
+       "net": "u_i2c.div[3]",
+       "ns": 1.0,
+       "src": "ardzy_i2c.v:39"
+      }
+     ]
+    }
+   ],
+   "debug": null,
+   "seed": 1,
+   "ethernet_added": false
+  }
+ }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "MLX90614",
+  "bus": "i2c",
+  "engine": "i2c-target",
+  "family": "infrared",
+  "description": "Melexis MLX90614 infrared (non-contact) thermometer: SMBus, 0.02 K per count, every word with its PEC byte",
+  "config": {
+    "write_cycle_us": 0,
+    "wp": false,
+    "address_bytes": 1,
+    "address": "0x5a",
+    "address_mask": "0x7f",
+    "size": 256,
+    "page": 256,
+    "register_width": 4
+  },
+  "fill": 0,
+  "controls": [
+    {
+      "id": "object",
+      "label": "Object (IR) temperature",
+      "unit": "C",
+      "min": -70,
+      "max": 380,
+      "step": 0.02,
+      "default": 36.6
+    },
+    {
+      "id": "ambient",
+      "label": "Ambient (chip) temperature",
+      "unit": "C",
+      "min": -40,
+      "max": 125,
+      "step": 0.02,
+      "default": 23.0
+    }
+  ],
+  "pins": {
+    "SCL": "SCL",
+    "SDA": "SDA",
+    "GND": "GND"
+  },
+  "tested": "simulation of the engine; on the board through the real I2C pads with the board's I2C master",
+  "author": "Rev. J. Money / JMSCNC",
+  "licence": "GPL-3.0-or-later"
+}

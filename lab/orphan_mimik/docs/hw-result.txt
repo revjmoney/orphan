@@ -1,0 +1,53 @@
+ok   TMP102 25.0 C 1900
+ok   TMP102 -10.5 C (negative) f580
+ok   TMP102 a 4-byte read wraps inside the register f580f580
+ok   TMP102 temperature register is read-only 
+ok   TMP102 T LOW is writable (60 C) 
+ok   TMP102 config at power-up 0x60A0 
+ok   LM75 22.5 C 1680
+ok   LM75 -3.0 C fd00
+ok   MLX90614 command 07 = 36.60 C 36.610
+ok   MLX90614 command 07 PEC is right 803c04
+ok   MLX90614 command 06 = 23.00 C 22.990
+ok   MLX90614 command 06 PEC is right d7396e
+ok   MLX90614 object -20 C 
+ok   SRF02 does not answer while ranging (~65 ms) 247 polls, 65 ms
+ok   SRF02 revision 6, range 123 cm 0680007b
+ok   SRF02 in inches: 48 0030
+ok   TF-Luna 257 cm, amp 1500, 31.25 C 0101dc05350c
+ok   HMC5883L ID "H43" 
+ok   HMC5883L heading 30 deg x 236 y 136 z 472 -> 29.95
+ok   HMC5883L 1090 counts / gauss 545.0
+ok   HMC5883L follows the gain the driver sets (230) -20 -54 100
+ok   QMC5883L chip ID 0xFF 
+ok   QMC5883L heading 200 deg, 12000 counts / gauss x -5638 y -2052
+ok   MPU-6050 WHO_AM_I 0x68 
+ok   MPU-6050 accel 0.5 / -0.25 / 1 g [8192, -4096, 16384]
+ok   MPU-6050 temperature 30 C -2220
+ok   MPU-6050 gyro 10 / -20 / 125 deg/s [1310, -2620, 16375]
+ok   MPU-6050 follows ACCEL_CONFIG (+-4 g: 1 g = 8192) 
+ok   BH1750 continuous H-res: 500 lux -> 600 counts [('w', True), ('r', 2), ('r', 88)]
+ok   BH1750 H-res mode 2: 1200 counts (0.5 lux steps) [('w', True), ('r', 4), ('r', 176)]
+
+0 failed
+ok   ARM image write / read back (256 bytes) 
+ok   bus scan finds only the emulated chip at 0x50 ['0x50']
+ok   I2C read of all 256 bytes at 100 kHz (0.03 s)
+ok   I2C read of all 256 bytes at 400 kHz (0.01 s)
+ok   I2C read of all 256 bytes at 1000 kHz (0.01 s)
+ok   page write at 0E wraps to 08 (ACKed) 
+ok   the bus reads back the page write 
+ok   counters: 4 bytes written, 8 read (4 written, 8 read)
+ok   40 random page writes, full compare (image and bus) 
+ok   address 0x51 is not answered 
+ok   WP: write ACKed but not stored 
+ok   write cycle: NACKed while programming, then ACK (42 polls, 5.1 ms)
+ok   event log of a random read: ADDR PTR ADDR READ READ ['ADDR', 'PTR', 'ADDR', 'READ', 'READ']
+ok   24C16 answers 0x50..0x57 
+ok   24C16 block 5 byte 33 lands at image 533 
+ok   24C256 image load 32 KB (0.2 s load + read)
+ok   24C256 bus read at the top (7FF0..7FFF) 
+ok   24C256 page wrap at the top of the chip 
+ok   a new model starts its pointer at 0 (current-address read) [('w', True), ('r', 0)]
+
+0 failed

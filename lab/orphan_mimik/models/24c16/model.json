@@ -1,0 +1,25 @@
+{
+  "name": "24C16",
+  "bus": "i2c",
+  "engine": "i2c-target",
+  "description": "24C16 family: 16 Kbit I2C EEPROM. Takes addresses 0x50..0x57: the low 3 address bits pick the 256-byte block",
+  "config": {
+    "address": "0x50",
+    "address_mask": "0x78",
+    "size": 2048,
+    "page": 16,
+    "address_bytes": 1,
+    "write_cycle_us": 5000,
+    "wp": false
+  },
+  "fill": 255,
+  "pins": {
+    "SCL": "SCL",
+    "SDA": "SDA",
+    "GND": "GND"
+  },
+  "tested": "simulation (Icarus) and the board self-test (Ardzy I2C master on the board bus)",
+  "author": "Rev. J. Money / JMSCNC",
+  "licence": "GPL-3.0-or-later",
+  "family": "memory"
+}

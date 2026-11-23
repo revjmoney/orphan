@@ -1,0 +1,25 @@
+{
+  "name": "24C32",
+  "bus": "i2c",
+  "engine": "i2c-target",
+  "description": "24C32 family: 32 Kbit I2C EEPROM with a two-byte word address",
+  "config": {
+    "address": "0x50",
+    "address_mask": "0x7f",
+    "size": 4096,
+    "page": 32,
+    "address_bytes": 2,
+    "write_cycle_us": 5000,
+    "wp": false
+  },
+  "fill": 255,
+  "pins": {
+    "SCL": "SCL",
+    "SDA": "SDA",
+    "GND": "GND"
+  },
+  "tested": "simulation (Icarus) and the board self-test (Ardzy I2C master on the board bus)",
+  "author": "Rev. J. Money / JMSCNC",
+  "licence": "GPL-3.0-or-later",
+  "family": "memory"
+}

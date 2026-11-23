@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080a0c">
+<title>MIMIK · ORPHAN LOGIC LAB</title>
+<style>
+:root{color-scheme:dark;--ink:#e8efe6;--muted:#a3afa2;--lime:#d2ff51;--cyan:#5ce1ff;--amber:#ffcf5c;--red:#ff6a5c;--line:#364239;--panel:#101613c4;--mono:Consolas,"IBM Plex Mono",monospace;--space:clamp(6px,1.1vh,12px)}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{margin:0;background:#080a0c radial-gradient(ellipse at 70% -10%,#1b2a12 0,#080a0c 60%) fixed;color:var(--ink);font:clamp(12px,1.6vh,14px)/1.4 var(--mono)}
+button,input,select{font:inherit}
+button{cursor:pointer;color:var(--ink);border:1px solid #47584d;border-radius:3px;background:linear-gradient(#242e28,#131914);padding:.35em .7em;white-space:nowrap}
+button:hover,a:hover{color:var(--lime);border-color:var(--lime)}
+button.primary{background:linear-gradient(#e1ff8a,#a5cb37);border-color:var(--lime);color:#131a06;font-weight:700}
+button.stop{border-color:#744744;color:#ffaea3}
+button.on{color:#131a06;background:var(--lime);border-color:var(--lime)}
+a{color:var(--muted);text-decoration:none}
+select,input:not([type=checkbox]){background:#090e0b;border:1px solid #405044;border-radius:2px;padding:.25em .4em;color:var(--ink)}
+input[type=checkbox]{accent-color:var(--lime)}
+main{max-width:1500px;margin:auto;display:flex;flex-direction:column;gap:var(--space);padding:var(--space) clamp(10px,1.6vw,22px)}
+header{display:flex;align-items:center;justify-content:space-between;gap:.6em;flex-wrap:wrap}
+.identity{display:flex;align-items:center;gap:11px}
+.mark{display:grid;place-items:center;width:2.6em;aspect-ratio:1;color:#131a06;background:linear-gradient(140deg,#efffb5,#d2ff51 55%,#7f9e1e 56%,#b9e43c 82%,#f3ffc9);border:1px solid var(--lime);border-radius:3px;font-weight:900}
+h1,h2,h3,p{margin:0}
+h1{font:800 clamp(22px,4.2vh,44px)/.9 "Arial Narrow",Bahnschrift,Impact,sans-serif;letter-spacing:-.03em;white-space:nowrap}
+h1 span{color:var(--lime)} h1 em{font-style:normal;color:var(--muted);font-size:.5em;letter-spacing:.02em}
+h2{font-size:1em;letter-spacing:.12em;color:var(--lime);font-weight:400;margin-bottom:.6em}
+.brand{color:var(--muted);font-size:.8em;letter-spacing:.09em;text-transform:uppercase;margin-top:.4em}
+.tools{display:flex;gap:.45em;align-items:center;flex-wrap:wrap}
+.pill{color:var(--lime);font-size:.82em;border:1px solid #596e3e;background:#152112;padding:.35em .6em;white-space:nowrap}
+.pill.bad{color:#ffaea3;border-color:#744744;background:#211010}
+.bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:3px;padding:.35em .65em;font-weight:700;white-space:nowrap;box-shadow:0 0 14px #ffcc2e55}
+.bmc.small{padding:.05em .45em;box-shadow:none}
+nav.menu{display:flex;flex-wrap:wrap;border:1px solid var(--line);background:#0c120ee0;border-radius:3px;overflow:hidden}
+nav.menu button{border:0;border-right:1px solid var(--line);border-radius:0;background:none;padding:.5em 1em;letter-spacing:.08em}
+nav.menu button b{color:var(--amber);font-weight:400;margin-right:.35em}
+nav.menu button.sel{background:var(--lime);color:#131a06}
+nav.menu button.sel b{color:#3a4a0a}
+.statline{display:flex;gap:1.2em;align-items:center;flex-wrap:wrap;padding:.35em .7em;border-left:2px solid var(--lime);background:#112017cc;color:#d8ead1;font-size:.9em}
+.statline b{color:var(--lime);font-weight:400}
+.statline .k{color:var(--muted)}
+.dot{display:inline-block;width:.7em;height:.7em;border-radius:50%;background:#1d2a1f;border:1px solid #33463a;vertical-align:middle}
+.dot.h{background:var(--lime);box-shadow:0 0 6px var(--lime)}
+.dot.a{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.page{display:none;flex-direction:column;gap:var(--space)}
+.page.on{display:flex;animation:in .3s cubic-bezier(.2,.8,.2,1)}
+@keyframes in{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+.row{display:grid;gap:var(--space);grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.panel{position:relative;min-width:0;border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:calc(var(--space)*1.4);box-shadow:inset 0 1px #e1ffc810,0 10px 24px #0005}
+.panel::before{content:"";position:absolute;top:-1px;left:12px;width:28px;height:1px;background:#b3c3b3}
+.cards{display:grid;gap:.6em;grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+.chip{cursor:pointer;border:1px solid var(--line);border-radius:4px;padding:.7em;background:#0b110d;transition:border-color .2s}
+.chip:hover{border-color:var(--lime)}
+.chip.cur{border-color:var(--lime);box-shadow:0 0 0 1px var(--lime) inset}
+.chip b{color:var(--lime);font-size:1.15em}
+.chip p{color:var(--muted);font-size:.85em;margin-top:.35em}
+.form{display:grid;grid-template-columns:max-content 1fr;gap:.45em .8em;align-items:center}
+.form label{color:var(--muted)}
+.note{color:var(--muted);font-size:.86em}
+.note b{color:var(--amber);font-weight:400}
+table{border-collapse:collapse;width:100%}
+td,th{padding:.25em .5em;border-bottom:1px solid #1f2a22;text-align:left;font-weight:400}
+th{color:var(--muted)}
+.log{height:min(52vh,520px);overflow:auto;font-size:.92em}
+.k-ADDR{color:var(--cyan)} .k-PTR{color:var(--muted)} .k-READ{color:var(--lime)} .k-WRITE{color:var(--amber)} .k-BLOCKED{color:var(--red)}
+.hex{font-size:clamp(11px,1.5vh,14px);overflow:auto}
+.hex table td{padding:.12em .3em;border:0;cursor:pointer;text-align:center}
+.hex table td.addr{color:var(--muted);cursor:default;text-align:right;padding-right:.8em}
+.hex table td.asc{color:#7f8d7e;cursor:default;letter-spacing:.05em;text-align:left;padding-left:.8em;white-space:pre}
+.hex table td.b:hover{background:#26331f;color:var(--lime)}
+.hex table td.r{color:var(--lime)} .hex table td.w{color:var(--amber)}
+.hex table td.ed{background:var(--lime);color:#131a06}
+.ctl{display:grid;grid-template-columns:minmax(9em,max-content) 1fr max-content;gap:.5em .9em;align-items:center;padding:.7em 0;border-bottom:1px solid #1f2a22}
+.ctl .lab{color:var(--ink)} .ctl .lab span{color:var(--muted);font-size:.85em;display:block}
+.ctl .big{font-size:1.6em;color:var(--lime);text-align:right;min-width:6.5em;font-variant-numeric:tabular-nums}
+.ctl input[type=range]{width:100%;accent-color:var(--lime)}
+.ctl .opts{grid-column:2/4;display:flex;gap:.5em;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:.86em}
+.ctl .opts input{width:6em}
+.fam{color:var(--amber);font-size:.75em;letter-spacing:.1em;text-transform:uppercase}
+.hits{display:grid;grid-template-columns:repeat(16,1fr);gap:2px;max-width:560px}
+.hits i{aspect-ratio:1;border-radius:2px;background:#141c16;font-style:normal;font-size:.62em;display:grid;place-items:center;color:#0008}
+svg text{font-family:Consolas,monospace}
+footer{color:var(--muted);font-size:.82em;padding:.6em 0;border-top:1px solid var(--line)}
+footer b{color:var(--lime);font-weight:400}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#152112;border:1px solid var(--lime);color:var(--lime);padding:.5em 1em;border-radius:3px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw}
+#toast.show{opacity:1}
+@media (max-width:640px){h1{white-space:normal}.form{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<header>
+ <div class="identity"><div class="mark">MK</div><div><h1>MIM<span>IK</span> <em>the chip emulator</em></h1>
+  <div class="brand">ORPHAN LOGIC LAB · the S9's FPGA answers as the chip</div></div></div>
+ <div class="tools"><span class="pill" id="temp">FPGA --</span><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a><span id="orphan-fan"></span></div>
+</header>
+<nav class="menu" id="menu">
+ <button data-p="khipz"><b>1</b>KHIPZ</button><button data-p="sokket"><b>2</b>SOKKET</button><button data-p="live"><b>3</b>LIVE</button><button data-p="image"><b>4</b>IMAGE</button><button data-p="sensorz"><b>5</b>SENSORZ</button>
+</nav>
+<div class="statline" id="stat">loading...</div>
+
+<section class="page" id="khipz">
+ <div class="panel"><h2>CHIP MODELS</h2><div class="cards" id="models"></div>
+  <p class="note" style="margin-top:.7em"><label><input type="checkbox" id="keep"> keep the current image when loading a model</label> · otherwise the chip starts blank (0xFF), like a new EEPROM.</p></div>
+ <div class="row">
+  <div class="panel"><h2>SETTINGS</h2>
+   <div class="form">
+    <label>I2C address</label><select id="s-address"></select>
+    <label>SCL pin</label><select id="s-scl"></select>
+    <label>SDA pin</label><select id="s-sda"></select>
+    <label>write cycle</label><span><input id="s-twr" type="number" min="0" max="65535" style="width:7em"> us <span class="note">(0 = none)</span></span>
+    <label>write protect</label><label><input type="checkbox" id="s-wp"> WP (writes are ACKed, not stored)</label>
+    <label>chip on</label><label><input type="checkbox" id="s-en"> answers on the bus</label>
+   </div>
+   <p style="margin-top:.8em"><button class="primary" id="apply">APPLY</button></p>
+  </div>
+  <div class="panel"><h2>SELF-TEST</h2>
+   <p class="note">The board has its own I2C master on its I2C bus. KHECK scans the bus and reads the chip back through the real pins and pull-ups, exactly like an MCU would, then compares with the image.</p>
+   <p style="margin:.8em 0"><button class="primary" id="kheck">KHECK</button></p>
+   <div id="kheck-out" class="note"></div>
+   <h2 style="margin-top:1em">WHAT IT IS</h2>
+   <p class="note" id="model-desc"></p>
+  </div>
+ </div>
+</section>
+
+<section class="page" id="sokket">
+ <div class="row">
+  <div class="panel"><h2>WIRING</h2><div id="wiring"></div></div>
+  <div class="panel"><h2>READ THIS FIRST</h2>
+   <p class="note"><b>3.3 V only.</b> The FPGA pins are not 5 V tolerant. A 5 V bus needs a level shifter (an I2C one, such as a PCA9306 or a BSS138 pair).</p>
+   <p class="note" style="margin-top:.6em">Connect SCL, SDA and GND. Do not connect the S9's 3.3 V to a powered target. The bus needs pull-ups: the S9's own I2C bus has 1 kohm pull-ups on the board; on header pins MIMIK only has the FPGA's weak internal pull-ups, so the target bus must have its own (2.2 to 4.7 kohm to 3.3 V).</p>
+   <p class="note" style="margin-top:.6em">Header pin numbers: the 2 x 9 hashboard connectors J1..J9. Per Ardzy's tested table: <b>GND = pins 1, 2, 9, 10, 13, 14</b>, 3.3 V = pin 16, FPGA pins 5, 11, 12, 15. The board's I2C bus is on <b>pin 3 (SDA) and pin 4 (SCL) of J1..J8</b> (Ardzy's guide; confirm with a meter on your board before the first connection).</p>
+   <p class="note" style="margin-top:.6em">To stand in for a chip on a board: remove (or lift the SCL / SDA legs of) the original chip, or keep it and give MIMIK a different address. Two chips on one address fight.</p>
+  </div>
+ </div>
+</section>
+
+<section class="page" id="live">
+ <div class="row">
+  <div class="panel"><h2>BUS LOG <span class="note" id="evn"></span></h2>
+   <p style="margin-bottom:.6em"><button id="pause">PAUSE</button> <button class="stop" id="clear">CLEAR</button></p>
+   <div class="log"><table><thead><tr><th>time</th><th>what</th><th>address</th><th>data</th></tr></thead><tbody id="evs"></tbody></table></div></div>
+  <div class="panel"><h2>HIT MAP <span class="note">block <select id="hblk"></select></span></h2>
+   <div class="hits" id="hits"></div>
+   <p class="note" style="margin-top:.6em"><span style="color:var(--lime)">&#9632;</span> read by the bus master · <span style="color:var(--amber)">&#9632;</span> written · brighter = more often. Shows which bytes the target board actually uses.</p></div>
+ </div>
+</section>
+
+<section class="page" id="image">
+ <div class="panel">
+  <h2>IMAGE <span class="note" id="isize"></span></h2>
+  <p style="margin-bottom:.7em;display:flex;gap:.45em;flex-wrap:wrap;align-items:center">
+   block <select id="iblk"></select>
+   <button id="iload">LOAD .BIN</button><input type="file" id="ifile" hidden>
+   <a href="/api/image.bin"><button>SAVE .BIN</button></a>
+   <button id="ifill">FILL FF</button><button id="izero">FILL 00</button>
+   <button id="irefresh">REFRESH</button>
+   <span class="note">click a byte to edit it (type hex, Enter)</span></p>
+  <div class="hex" id="hex"></div>
+ </div>
+</section>
+
+<section class="page" id="sensorz">
+ <div class="row">
+  <div class="panel"><h2>SENSORZ <span class="note" id="sz-chip"></span></h2>
+   <div id="sz-none" class="note">This chip has no live values. Pick a sensor on KHIPZ (temperature, infrared, distance, compass, motion, light).</div>
+   <div id="sz"></div></div>
+  <div class="panel"><h2>HOW IT WORKS</h2>
+   <p class="note">The FPGA answers the bus master at the chip's own speed from the chip's registers. Twenty times a second the board turns the values here into the exact register bytes of that chip (its units, byte order, gain settings and checksums) and puts them in between two bus accesses, so a master never reads half of a new value.</p>
+   <p class="note" style="margin-top:.6em"><b>fixed</b> holds the slider value. <b>sine</b>, <b>ramp</b>, <b>square</b> and <b>noise</b> move around it by the amplitude, once per period: a fake temperature drifting, a robot that turns, a distance that jumps.</p>
+   <p class="note" style="margin-top:.6em">Read-only registers (measurements, IDs) keep their value when the target writes to them, like the real chip; LIVE shows such writes as BLOCKED.</p>
+   <p class="note" style="margin-top:.6em" id="sz-readme"></p>
+  </div>
+ </div>
+</section>
+
+<footer><a class="bmc small" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> · <b>[Rev. J. Money - 2026]</b> · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM · GPL-3.0 · I2C engine: Alex Forencich's verilog-i2c (MIT)</footer>
+</main>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s), h=(n,w=2)=>n.toString(16).toUpperCase().padStart(w,'0');
+let st=null, pins=[], page='khipz', seq=0, paused=false, evs=[], hits={reads:[],writes:[]}, img=null, iblk=0, edit=-1;
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2600)}
+async function api(u,b){const r=await fetch(u,b===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
+function show(p){page=p;document.querySelectorAll('.page').forEach(e=>e.classList.toggle('on',e.id==p));document.querySelectorAll('#menu button').forEach(b=>b.classList.toggle('sel',b.dataset.p==p));location.hash=p;if(p=='image')loadImg();if(p=='sokket')drawWiring();if(p=='sensorz')buildSensors()}
+$('#menu').onclick=e=>{const b=e.target.closest('button');if(b)show(b.dataset.p)};
+addEventListener('keydown',e=>{if(e.target.tagName=='INPUT'||e.target.tagName=='SELECT')return;const k='12345'.indexOf(e.key);if(k>=0)show(['khipz','sokket','live','image','sensorz'][k])});
+function blocks(sel,n){const s=st.settings.size,c=Math.max(1,Math.ceil(s/256));if(sel.options.length!=c){sel.innerHTML='';for(let i=0;i<c;i++)sel.add(new Option(h(i*256,4)+'..'+h(Math.min(s,i*256+256)-1,4),i))}}
+async function status(){
+ try{st=await api('/api/status')}catch(e){$('#stat').textContent='no answer from the board';return}
+ pins=st.pins;const s=st.settings,q=st.status,m=st.model||{};
+ $('#temp').textContent='FPGA '+(st.temp==null?'--':st.temp+' C');
+ $('#stat').innerHTML=`<span><span class="k">chip</span> <b>${m.name||'?'}</b></span><span><span class="k">address</span> <b>0x${h(s.address)}</b>${s.address_mask!=127?' (+'+(127-s.address_mask+1)+')':''}</span><span><span class="k">pins</span> SCL <b>${pins[s.scl]}</b> SDA <b>${pins[s.sda]}</b></span><span><span class="dot ${q.addressed?'h':''}"></span> talking</span><span><span class="dot ${q.write_cycle?'a':''}"></span> write cycle</span><span>${s.wp?'<b style="color:var(--red)">WP</b>':''}${s.enable?'':' <b style="color:var(--red)">OFF</b>'}</span><span><span class="k">read</span> <b>${q.reads}</b> <span class="k">written</span> <b>${q.writes}</b></span><span><span class="k">pointer</span> <b>${h(q.pointer,4)}</b></span>`;
+ blocks($('#hblk'),0);blocks($('#iblk'),0);$('#isize').textContent=s.size+' bytes';
+ document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('cur',c.dataset.id==m.id));
+ $('#model-desc').textContent=(m.description||'')+'. Tested: '+(m.tested||'-')+'.';
+}
+function fillSettings(){
+ const s=st.settings,a=$('#s-address');a.innerHTML='';for(let i=8;i<0x78;i++)a.add(new Option('0x'+h(i),i));a.value=s.address;
+ for(const id of ['#s-scl','#s-sda']){const e=$(id);e.innerHTML='';pins.forEach((p,i)=>e.add(new Option(p,i)))}
+ $('#s-scl').value=s.scl;$('#s-sda').value=s.sda;$('#s-twr').value=s.write_cycle_us;$('#s-wp').checked=s.wp;$('#s-en').checked=s.enable;
+}
+async function models(){
+ const ms=await api('/api/models');const order=['memory','temperature','infrared','distance','compass','motion','light'];ms.sort((a,b)=>order.indexOf(a.family)-order.indexOf(b.family)||a.name.localeCompare(b.name));
+ $('#models').innerHTML=ms.map(m=>`<div class="chip" data-id="${m.id}"><div class="fam">${m.family||'chip'}</div><b>${m.name}</b><p>${m.description}</p><p>address 0x${(+m.config.address).toString(16).padStart(2,'0')} · ${m.controls?m.controls.map(c=>c.label).join(', '):m.config.size+' bytes · page '+m.config.page}</p></div>`).join('');
+ document.querySelectorAll('.chip').forEach(c=>c.onclick=async()=>{try{await api('/',{action:'load',model:c.dataset.id,blank:!$('#keep').checked});toast(c.querySelector('b').textContent+' loaded');await status();fillSettings();img=null}catch(e){toast(e.message)}});
+}
+$('#apply').onclick=async()=>{try{await api('/',{action:'settings',settings:{address:+$('#s-address').value,scl:+$('#s-scl').value,sda:+$('#s-sda').value,write_cycle_us:+$('#s-twr').value||0,wp:$('#s-wp').checked,enable:$('#s-en').checked}});toast('applied');await status();drawWiring()}catch(e){toast(e.message)}};
+$('#kheck').onclick=async()=>{$('#kheck-out').textContent='testing...';try{const r=await api('/',{action:'selftest'});$('#kheck-out').innerHTML=(r.ok?'<b style="color:var(--lime)">PASS</b> ':'<b style="color:var(--red)">FAIL</b> ')+r.text}catch(e){$('#kheck-out').textContent=e.message}};
+// ---- wiring drawing: a 2 x 9 connector with the used pins lit (pin numbers per Ardzy's table)
+function drawWiring(){
+ if(!st)return;const s=st.settings,used={};
+ const tag=(i,name)=>{if(i>=36){for(let j=6;j<=8;j++)(used['J'+j]=used['J'+j]||{})[i==36?4:3]=name}else{const p=pins[i].split('.');(used[p[0]]=used[p[0]]||{})[+p[1]]=name}};
+ tag(s.scl,'SCL');tag(s.sda,'SDA');
+ const conns=Object.keys(used).sort((a,b)=>a.slice(1)-b.slice(1)).slice(0,3);
+ const GND=[1,2,9,10,13,14];let out='';
+ for(const c of conns){let g='';for(let p=1;p<=18;p++){const col=(p-1)%2,row=(p-1)>>1,x=40+col*34,y=24+row*30,u=used[c][p];const gnd=GND.includes(p),v33=p==16;
+   const fill=u?'#d2ff51':gnd?'#2e3b31':v33?'#3a2a18':'#141c16';
+   g+=`<rect x="${x}" y="${y}" width="26" height="22" rx="3" fill="${fill}" stroke="#596e3e"/><text x="${x+13}" y="${y+15}" font-size="11" text-anchor="middle" fill="${u?'#131a06':'#a3afa2'}">${p}</text>`;
+   const lx=col?x+34:x-8,anchor=col?'start':'end';const lab=u||(gnd?'GND':v33?'3.3V':'');
+   if(lab)g+=`<text x="${lx}" y="${y+15}" font-size="11" text-anchor="${anchor}" fill="${u?'#d2ff51':gnd?'#a3afa2':'#ffcf5c'}">${lab}</text>`}
+  out+=`<svg viewBox="-30 0 200 300" style="width:min(100%,230px)"><text x="70" y="14" font-size="12" text-anchor="middle" fill="#d2ff51">${c}</text>${g}</svg>`}
+ $('#wiring').innerHTML=`<div style="display:flex;gap:1em;flex-wrap:wrap">${out}</div><p class="note">${s.scl>=36?'The board I2C bus reaches pins 3 / 4 of every J1..J8: any one connector will do (J6..J8 shown: the stock headers).':'Header pins: add pull-ups on the target bus.'} Connect GND too. Target: SCL to <b>SCL</b>, SDA to <b>SDA</b>.</p>`;
+}
+// ---- live log and hit map
+async function poll(){
+ if(page=='live'&&!paused){try{const r=await api('/api/events?since='+seq);seq=r.seq;if(r.events.length){evs=evs.concat(r.events).slice(-600);drawEvs()}}catch(e){}
+  try{hits=await api('/api/hits?at='+(+$('#hblk').value||0)*256+'&n=256');drawHits()}catch(e){}}
+ $('#evn').textContent=seq?'('+seq+' events)':'';
+}
+function drawEvs(){const t0=evs.length?evs[0].t:0;$('#evs').innerHTML=evs.slice(-300).reverse().map(e=>`<tr><td>${(e.t-t0).toFixed(3)}</td><td class="k-${e.kind}">${e.kind}</td><td>${e.kind=='ADDR'?'0x'+h(e.addr)+' (bus)':h(e.addr,4)}</td><td>${e.kind=='ADDR'?'':h(e.data)}</td></tr>`).join('')}
+function drawHits(){let o='';for(let i=0;i<256;i++){const r=hits.reads[i]||0,w=hits.writes[i]||0,a=Math.min(1,(r+w)/8);
+ o+=`<i style="background:${w?`rgba(255,207,92,${.25+.75*Math.min(1,w/8)})`:r?`rgba(210,255,81,${.25+.75*a})`:'#141c16'}" title="${h((+$('#hblk').value||0)*256+i,4)}: ${r} reads, ${w} writes"></i>`}$('#hits').innerHTML=o}
+$('#pause').onclick=()=>{paused=!paused;$('#pause').classList.toggle('on',paused)};
+$('#clear').onclick=async()=>{await api('/',{action:'clear'});evs=[];drawEvs();hits={reads:[],writes:[]};drawHits()};
+// ---- the image hex editor
+async function loadImg(){if(!st)return;iblk=+$('#iblk').value||0;const r=await api('/api/image?at='+iblk*256+'&n='+Math.min(256,st.settings.size-iblk*256));img=r.hex.match(/../g).map(x=>parseInt(x,16));drawHex()}
+function drawHex(){let o='<table><tr><td class="addr"></td>'+[...Array(16).keys()].map(i=>`<td class="addr" style="text-align:center">${h(i,1)}</td>`).join('')+'<td></td></tr>';
+ for(let r=0;r<img.length/16;r++){o+=`<tr><td class="addr">${h(iblk*256+r*16,4)}</td>`;let a='';for(let c=0;c<16;c++){const i=r*16+c,v=img[i];o+=`<td class="b${i==edit?' ed':''}" data-i="${i}">${h(v)}</td>`;a+=v>31&&v<127?String.fromCharCode(v):'.'}
+  o+=`<td class="asc">${a.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</td></tr>`}$('#hex').innerHTML=o+'</table>'}
+$('#hex').onclick=e=>{const t=e.target.closest('td.b');if(!t)return;edit=+t.dataset.i;drawHex();buf=''};
+let buf='';
+addEventListener('keydown',async e=>{if(page!='image'||edit<0)return;if(/^[0-9a-f]$/i.test(e.key)){buf=(buf+e.key).slice(-2);img[edit]=parseInt(buf,16);drawHex()}
+ else if(e.key=='Enter'||e.key=='Tab'){e.preventDefault();try{await api('/',{action:'poke',at:iblk*256+edit,bytes:[img[edit]]})}catch(x){toast(x.message)}edit=Math.min(img.length-1,edit+1);buf='';drawHex()}
+ else if(e.key=='Escape'){edit=-1;loadImg()}});
+$('#iblk').onchange=loadImg;$('#irefresh').onclick=loadImg;
+$('#iload').onclick=()=>$('#ifile').click();
+$('#ifile').onchange=async()=>{const f=$('#ifile').files[0];if(!f)return;if(f.size>st.settings.size&&!confirm(`The file is ${f.size} bytes, the chip ${st.settings.size}. Load the first ${st.settings.size}?`))return;
+ const b=await f.slice(0,Math.min(f.size,st.settings.size)).arrayBuffer();const r=await fetch('/api/image.bin?at=0',{method:'POST',body:b});toast(r.ok?f.name+' loaded':'load failed');$('#ifile').value='';loadImg()};
+$('#ifill').onclick=async()=>{await api('/',{action:'fill',value:255});loadImg()};
+$('#izero').onclick=async()=>{await api('/',{action:'fill',value:0});loadImg()};
+// ---- SENSORZ: the values a sensor chip reports
+let szFor='';
+function buildSensors(){
+ if(!st)return;const m=st.model||{},cs=m.controls||[];$('#sz-none').style.display=cs.length?'none':'';$('#sz-chip').textContent=m.name||'';
+ $('#sz-readme').textContent=m.description?m.name+': '+m.description+'.':'';
+ if(szFor==m.id&&$('#sz').children.length)return;szFor=m.id;
+ $('#sz').innerHTML=cs.map(c=>{const s=(st.controls||{})[c.id]||{value:c.default,mode:'fixed',amp:0,period:10};
+  return `<div class="ctl" data-id="${c.id}"><div class="lab">${c.label}<span>${c.min} .. ${c.max} ${c.unit}</span></div>
+  <input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${s.value}" data-k="value">
+  <div class="big"><span class="now">--</span> <small>${c.unit}</small></div>
+  <div class="opts">set <input type="number" step="${c.step}" value="${s.value}" data-k="valuebox">
+   <select data-k="mode">${['fixed','sine','ramp','square','noise'].map(x=>`<option ${x==s.mode?'selected':''}>${x}</option>`).join('')}</select>
+   amplitude <input type="number" step="${c.step}" value="${s.amp}" data-k="amp"> period <input type="number" step="0.1" min="0.1" value="${s.period}" data-k="period"> s</div></div>`}).join('');
+ document.querySelectorAll('#sz .ctl').forEach(row=>{const id=row.dataset.id,send=b=>api('/',Object.assign({action:'control',id},b)).catch(e=>toast(e.message));
+  const r=row.querySelector('[data-k=value]'),box=row.querySelector('[data-k=valuebox]');
+  r.oninput=()=>{box.value=r.value;send({value:+r.value})};box.onchange=()=>{r.value=box.value;send({value:+box.value})};
+  row.querySelector('[data-k=mode]').onchange=e=>send({mode:e.target.value});
+  row.querySelector('[data-k=amp]').onchange=e=>send({amp:+e.target.value});row.querySelector('[data-k=period]').onchange=e=>send({period:+e.target.value})});
+}
+function showValues(){if(page!='sensorz'||!st)return;buildSensors();const v=st.values||{};document.querySelectorAll('#sz .ctl').forEach(row=>{const c=(st.model.controls||[]).find(x=>x.id==row.dataset.id),x=v[row.dataset.id];
+ row.querySelector('.now').textContent=x==null?'--':(+x).toFixed(Math.max(0,Math.min(3,-Math.floor(Math.log10(c.step||1)))))})}
+(async()=>{await status();await models();await status();fillSettings();show((location.hash||'#khipz').slice(1)||'khipz');let lastS=0;setInterval(async()=>{if(page=='sensorz'||Date.now()-lastS>1000){lastS=Date.now();await status();showValues()}},250);setInterval(poll,300)})();
+</script>
+<script>(function(){var s=document.createElement('script');s.src=location.protocol+'//'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
+</body>
+</html>

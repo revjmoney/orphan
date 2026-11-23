@@ -11,7 +11,7 @@ sitting in drawers. Everything here is open, and **everyone is welcome**: you do
 |---|---|
 | **Report a bug** | something broke, a page looks wrong, a core misbehaves: [open a bug report](../../issues/new?template=bug.yml) |
 | **FPGA modules** | a new core or a block other cores can use (a UART, a video output, a sensor, a soft CPU, a DSP block, a miner): [propose an FPGA module](../../issues/new?template=fpga-module.yml) |
-| **Plugins** | SPEKTOR dekoders, INJEKTOR modules, VIZOR windows, chip models for the coming chip emulator: [propose a plugin](../../issues/new?template=plugin.yml) |
+| **Plugins** | SPEKTOR dekoders, INJEKTOR modules, VIZOR windows, MIMIK chip models (`lab/orphan_mimik/models/`: a model.json, plus a model.py for sensors): [propose a plugin](../../issues/new?template=plugin.yml) |
 | **Anything you want to run** | "could the S9 do X?": [ask for a feature](../../issues/new?template=feature.yml) |
 | **The README and the website** | clearer words, better screenshots, translations, how-tos, wiring photos |
 | **Theming** | the lime / matrix look across the pages, VIZOR, the X desktop, the terminal menu, the boot art |

@@ -1,0 +1,37 @@
+{
+  "name": "BH1750",
+  "bus": "i2c",
+  "engine": "i2c-target",
+  "family": "light",
+  "description": "ROHM BH1750 ambient light sensor: write a mode command, read 2 bytes of lux x 1.2",
+  "config": {
+    "write_cycle_us": 0,
+    "wp": false,
+    "address_bytes": 1,
+    "address": "0x23",
+    "address_mask": "0x7f",
+    "size": 128,
+    "page": 128,
+    "register_width": 2
+  },
+  "fill": 0,
+  "controls": [
+    {
+      "id": "lux",
+      "label": "Light",
+      "unit": "lux",
+      "min": 0,
+      "max": 54612,
+      "step": 1,
+      "default": 350
+    }
+  ],
+  "pins": {
+    "SCL": "SCL",
+    "SDA": "SDA",
+    "GND": "GND"
+  },
+  "tested": "simulation of the engine; on the board through the real I2C pads with the board's I2C master",
+  "author": "Rev. J. Money / JMSCNC",
+  "licence": "GPL-3.0-or-later"
+}

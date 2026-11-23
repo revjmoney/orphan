@@ -36,6 +36,8 @@ for b in $BOARDS; do
 	[ -d "$KD/orphan_kas" ] && tar -C "$KD" $EXCL --exclude=settings.local.json --exclude=devfee.local.json -cf - orphan_kas | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
 	BD=$REPO/lab; [ -d "$BD" ] || BD=$REPO/lab-work
 	tar -C "$BD" $EXCL --exclude=names.local.json --exclude=map.local.json -cf - orphan_spektor | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
+	# MIMIK: the emulated chip's image, settings and slider values stay on the board
+	tar -C "$BD" $EXCL --exclude=image.local.bin --exclude=mimik.local.json --exclude=controls.local.json --exclude=sim -cf - orphan_mimik | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
 	LD=$REPO/lm; [ -d "$LD" ] || LD=$REPO/lm-work
 	# TinyLM: the code from here; its model/ (weights) stays on the board (copy it once: see lm/orphan_tinylm/README.md)
 	[ -n "${SKIP_LM:-}" ] || tar -C "$LD" $EXCL --exclude=model -cf - orphan_tinylm | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'

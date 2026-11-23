@@ -47,6 +47,7 @@ networks ...), 6 starters and tests, and Orphan's own ten:
 | **Orphan BTC** | fpga + arm | A real Stratum v1 SHA-256 miner on Ardzy's SHA-256 core, ARM-checked shares, coin and earnings panel (honest numbers: it is a lottery miner). |
 | **Orphan KAS** | fpga + arm | A Kaspa (kHeavyHash) miner in the FPGA, verified at 575 kH/s on the S9: overlapped nonce stages, Stratum with ARM-checked shares, live forge dashboard, payouts and estimates. Its own repo: [kas-zynq-fpga-miner](https://github.com/revjmoney/kas-zynq-fpga-miner). |
 | **SPEKTOR / INJEKTOR 3000** | fpga + arm | ORPHAN LOGIC LAB: a 16-channel 100 MSa/s logic analyzer on any of the 36 header pins, 4-stage trigger, UART / I2C / SPI dekoders, meetrz, VCD for PulseView, probe builder pages, terminal drawer. INJEKTOR outputs next. |
+| **MIMIK** | fpga + arm | ORPHAN LOGIC LAB chip emulator: the FPGA answers as an I2C chip at the chip's own speed. EEPROMs (24C02 .. 24C256, page writes, WP, write-cycle ACK polling) and sensors that report whatever you set (TMP102, LM75, MLX90614 IR, SRF02, TF-Luna, HMC5883L, QMC5883L, MPU-6050, BH1750): sliders or sine / ramp / noise, live bus log with a hit map, hex editor. Chip models are plugins. |
 | **Orphan Graphics Toys** | fpga + arm | A raycaster, colour waves, XOR fields and the Game of Life drawn by the FPGA. |
 
 **Fan control everywhere**: Orphan's designs and Ardzy's examples 01 to 17 carry Orphan's fan block (bus slot 15),

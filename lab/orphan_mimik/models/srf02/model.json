@@ -1,0 +1,37 @@
+{
+  "name": "SRF02",
+  "bus": "i2c",
+  "engine": "i2c-target",
+  "family": "distance",
+  "description": "Devantech SRF02 ultrasonic range finder: write a command to register 0, wait for the ping, read the range",
+  "config": {
+    "write_cycle_us": 65000,
+    "wp": false,
+    "address_bytes": 1,
+    "address": "0x70",
+    "address_mask": "0x7f",
+    "size": 8,
+    "page": 8,
+    "register_width": 1
+  },
+  "fill": 0,
+  "controls": [
+    {
+      "id": "distance",
+      "label": "Distance",
+      "unit": "cm",
+      "min": 15,
+      "max": 600,
+      "step": 1,
+      "default": 120
+    }
+  ],
+  "pins": {
+    "SCL": "SCL",
+    "SDA": "SDA",
+    "GND": "GND"
+  },
+  "tested": "simulation of the engine; on the board through the real I2C pads with the board's I2C master",
+  "author": "Rev. J. Money / JMSCNC",
+  "licence": "GPL-3.0-or-later"
+}
