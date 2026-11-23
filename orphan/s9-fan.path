@@ -1,0 +1,11 @@
+[Unit]
+Description=S9 fans: reapply the saved duty after every FPGA load (Orphan)
+
+[Path]
+# ardzy writes this file after every bitstream load (ardzy load, the web page, pin-control). A new design starts its
+# fan block at 0 %, so s9-fan.service puts the saved duty (/etc/orphan/fan-duty) back.
+PathChanged=/var/lib/ardzy/fpga_design
+Unit=s9-fan.service
+
+[Install]
+WantedBy=multi-user.target

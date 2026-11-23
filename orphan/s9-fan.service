@@ -1,5 +1,5 @@
 [Unit]
-Description=S9 fan headers: set PWM duty (Orphan), default 0% (off or idle)
+Description=S9 fan headers: set PWM duty (Orphan), default 0% (off or idle); s9-fan.path runs it again after every FPGA load
 After=ardzy-web.service ardzy-autoload.service
 Wants=ardzy-web.service
 

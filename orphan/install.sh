@@ -12,6 +12,7 @@ cp "$HERE/orphan-menu.py" "$HERE/orphan_fan.py" "$HERE/orphan-splash.py" "$HERE/
 cp "$HERE/quotes.txt" "$S/quotes.txt"
 mkdir -p "$ROOT/etc/xdg/fastfetch" && cp "$HERE/fastfetch.jsonc" "$ROOT/etc/xdg/fastfetch/config.jsonc"
 cp "$HERE/s9-fan.service" "$ROOT/etc/systemd/system/s9-fan.service"
+cp "$HERE/s9-fan.path" "$ROOT/etc/systemd/system/s9-fan.path"   # reapply the fan duty after every FPGA load
 cp "$HERE/orphan-fclk.service" "$ROOT/etc/systemd/system/orphan-fclk.service"
 # VIZOR: the Orphan desktop in a browser, port 8080
 mkdir -p "$S/vizor" && cp "$HERE/vizor/vizor.py" "$HERE/vizor/index.html" "$HERE/vizor/logo.png" "$HERE/vizor/fan.js" "$HERE/vizor/vizor-x.sh" "$HERE/vizor/jwmrc" "$HERE/vizor/xapps.py" "$S/vizor/"
@@ -23,9 +24,10 @@ cp "$HERE/vizor/vizor.service" "$HERE/vizor/vizor-x.service" "$ROOT/etc/systemd/
 [ -f "$ROOT/etc/orphan/fan-duty" ] || echo 0 > "$ROOT/etc/orphan/fan-duty"
 mkdir -p "$ROOT/etc/systemd/system/multi-user.target.wants"
 ln -sf /etc/systemd/system/s9-fan.service "$ROOT/etc/systemd/system/multi-user.target.wants/s9-fan.service"
+ln -sf /etc/systemd/system/s9-fan.path "$ROOT/etc/systemd/system/multi-user.target.wants/s9-fan.path"
 ln -sf /etc/systemd/system/orphan-fclk.service "$ROOT/etc/systemd/system/multi-user.target.wants/orphan-fclk.service"
 ln -sf /etc/systemd/system/vizor.service "$ROOT/etc/systemd/system/multi-user.target.wants/vizor.service"
-[ -n "$ROOT" ] || { systemctl daemon-reload 2>/dev/null; systemctl restart vizor 2>/dev/null || true; }
+[ -n "$ROOT" ] || { systemctl daemon-reload 2>/dev/null; systemctl restart vizor 2>/dev/null || true; systemctl restart s9-fan.path 2>/dev/null || true; }
 # lean flash system: apt's package lists don't fit in the flash, keep them in RAM (re-run `apt update` after boot)
 if grep -q "^ubi0:rootfs" "$ROOT/etc/fstab" 2>/dev/null && ! grep -q "/var/lib/apt/lists" "$ROOT/etc/fstab"; then
 	printf 'tmpfs\t/var/lib/apt/lists\ttmpfs\tdefaults,size=160m\t0\t0\ntmpfs\t/var/cache/apt\ttmpfs\tdefaults,size=200m\t0\t0\n' >> "$ROOT/etc/fstab"
