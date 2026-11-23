@@ -1,3 +1,4 @@
+# shellcheck shell=sh
 # /etc/profile.d/orphan.sh: Orphan splash + menu as the login "home".
 # The menu stays up: Shell opens a subshell (`exit` returns to the menu), programs return to it,
 # only "Log out" ends the session. If the menu ever crashes you land at a normal shell.
