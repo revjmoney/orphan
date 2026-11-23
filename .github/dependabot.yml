@@ -1,0 +1,7 @@
+# Keep the GitHub Actions in the workflows up to date (security fixes and new versions), checked weekly.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

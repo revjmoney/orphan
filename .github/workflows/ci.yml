@@ -1,0 +1,61 @@
+# Orphan CI: runs on every push and pull request. Fast checks that catch broken files before they reach a board.
+# by JMSCNC, makers of RotatoCAM. [Rev. J. Money - 2026]
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python files compile
+        run: python -m compileall -q .
+      - name: JSON files are valid
+        run: git ls-files '*.json' | while read -r f; do python -m json.tool "$f" > /dev/null || { echo "bad JSON: $f"; exit 1; }; done
+      - name: Shell scripts (shellcheck, errors only)
+        run: |
+          sudo apt-get install -y -qq shellcheck > /dev/null
+          git ls-files '*.sh' orphan/orphan-update | xargs shellcheck -S error
+      - name: Page scripts parse
+        run: |
+          python - <<'EOF'
+          import pathlib, re, subprocess, sys, tempfile
+          bad = 0
+          for p in subprocess.run(['git', 'ls-files', '*.html'], capture_output=True, text=True).stdout.split():
+              html = pathlib.Path(p).read_text(encoding='utf-8', errors='replace')
+              for i, js in enumerate(re.findall(r'<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>', html, re.S)):
+                  with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf-8') as f:
+                      f.write(js)
+                  r = subprocess.run(['node', '--check', f.name], capture_output=True, text=True)
+                  if r.returncode:
+                      bad += 1
+                      print('::error file=%s::script %d: %s' % (p, i, r.stderr.strip().splitlines()[-1] if r.stderr else 'syntax error'))
+          sys.exit(1 if bad else 0)
+          EOF
+      - name: No private data (home IPs, personal email, tokens, secret stash)
+        run: |
+          if git grep -n -I -E '192\.168\.[0-9]+\.[0-9]+|myemail937|CodexStorage|ghp_[A-Za-z0-9]{20}|github_pat_|BEGIN [A-Z ]*PRIVATE KEY|rose.?engine|guilloche|gen-rose' -- . ':!*.png' ':!.github/workflows/ci.yml'; then
+            echo "::error::private data found (see above)"; exit 1
+          fi
+
+  verilog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: YosysHQ/setup-oss-cad-suite@v3
+      - name: Every FPGA design file parses (Yosys)
+        run: |
+          fails=0
+          for f in $(git ls-files '*.v' | grep -v '/sim/'); do
+            yosys -q -p "read_verilog -I$(dirname "$f") $f" > /dev/null 2>&1 || { echo "::error file=$f::Yosys could not read it"; fails=$((fails + 1)); }
+          done
+          echo "$(git ls-files '*.v' | grep -vc '/sim/') files, $fails failed"
+          exit $fails

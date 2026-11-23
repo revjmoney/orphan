@@ -1,0 +1,63 @@
+# The Orphan SD card image, built in the cloud.
+#   - publishing a GitHub release (tag v1.2, v1.3, ...): builds Orphan-<tag>-sdcard.img.xz and attaches it to the release
+#   - "Run workflow" by hand: builds it and keeps it as a downloadable artifact for 7 days (test builds)
+# Base: Ardzy 0.3's SD image (checksum-verified), Ardzy's examples from its repo, then everything Orphan.
+# by JMSCNC, makers of RotatoCAM. [Rev. J. Money - 2026]
+name: SD image
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version name for a test image'
+        default: 'test'
+permissions:
+  contents: write
+concurrency:
+  group: sdimage-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  ARDZY_URL: https://github.com/chrysovalantischryso/ardzy/releases/download/v0.3-beta/Ardzy-0.3-sdcard.img.xz
+  ARDZY_SHA256: 4b000b503cbf7f8b704fa36deef58e82c2bd40b80eddbdb0462ee67657c3590e
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-user-static binfmt-support xz-utils parted > /dev/null
+          ls /proc/sys/fs/binfmt_misc/ | grep -q arm || sudo update-binfmts --enable qemu-arm
+      - name: Ardzy 0.3 base image
+        run: |
+          curl -fsSL -o ardzy.img.xz "$ARDZY_URL"
+          echo "$ARDZY_SHA256  ardzy.img.xz" | sha256sum -c -
+          xz -d -T0 ardzy.img.xz
+      - name: Version
+        id: v
+        run: |
+          if [ "${{ github.event_name }}" = release ]; then v="${{ github.event.release.tag_name }}"; else v="${{ inputs.version }}"; fi
+          echo "version=${v#v}" >> "$GITHUB_OUTPUT"
+      - name: Build the Orphan image
+        run: |
+          mkdir -p "$RUNNER_TEMP/tree"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/tree"
+          sudo ORPHAN_VERSION="${{ steps.v.outputs.version }}" bash tools/make-sdimage.sh "$RUNNER_TEMP/tree" ardzy.img "Orphan-${{ steps.v.outputs.version }}-sdcard.img"
+          rm -f ardzy.img "Orphan-${{ steps.v.outputs.version }}-sdcard.img"
+          ls -la Orphan-*
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" Orphan-*-sdcard.img.xz Orphan-*-sdcard.img.sha256 --clobber
+      - name: Keep as a test artifact
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Orphan-${{ steps.v.outputs.version }}-sdcard
+          path: Orphan-*-sdcard.img*
+          retention-days: 7
+          compression-level: 0
