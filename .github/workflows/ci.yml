@@ -19,7 +19,8 @@ jobs:
       - name: Python files compile
         run: python -m compileall -q .
       - name: JSON files are valid
-        run: git ls-files '*.json' | while read -r f; do python -m json.tool "$f" > /dev/null || { echo "bad JSON: $f"; exit 1; }; done
+        run: |
+          git ls-files '*.json' | while read -r f; do python -m json.tool "$f" > /dev/null || { echo "bad JSON in $f"; exit 1; }; done
       - name: Shell scripts (shellcheck, errors only)
         run: |
           sudo apt-get install -y -qq shellcheck > /dev/null
