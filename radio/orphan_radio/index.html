@@ -661,7 +661,7 @@ function buildKeys(m) {
     if (networkSelected) { net.auto = !net.auto; if (net.auto) tune(sl(cur).freq); show(); }
     else send({set: {auto_mode: st.auto_mode ? 0 : 1}});
   }); a.id = 'automode';
-  (m.decoders || []).forEach(d => mk('deckeys', '<i class="led"></i>' + (d === 'off' ? 'Off' : d.toUpperCase()), 'key', () => setv('decoder', d), {dec: d}));
+  (m.decoders || []).forEach(d => mk('deckeys', '<i class="led"></i>' + (d === 'off' ? 'Off' : esc(String(d).toUpperCase())), 'key', () => setv('decoder', d), {dec: d}));
   if (m.dec_text && !networkSelected) addDecText(m.dec_text);
   BANDKEYS.forEach(([n, f]) => mk('bands', n, 'key', () => { tune(f); span = f < 100 ? 20 : 2000; markKeys(); }, {radio:'native'}));
   remoteBands.forEach(([name, freq, mode]) => mk('bands', name, 'key', () => setFM(freq, mode), {radio:'network', freq}));
