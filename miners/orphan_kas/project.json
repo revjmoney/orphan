@@ -1,0 +1,5 @@
+{
+ "id":"KAS1", "title":"Orphan KAS: kHeavyHash laboratory", "category":"Compute",
+ "level":"advanced", "summary":"FPGA kHeavyHash nonce search, verified against a CPU reference. Self-test, benchmark, custom jobs, live status and fan controls. by JMSCNC, makers of RotatoCAM.",
+ "web":8000,"slots":{"0":"Info","1":"KAS engine","15":"Fan control"},"wiring":[]
+}

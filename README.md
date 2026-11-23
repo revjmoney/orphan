@@ -33,8 +33,8 @@ it runs: `{fpga core}`, `{arm linux}` or `{fpga + arm}`. Every project has a des
 translucent cards). Click a project for its quick start and wiring; **Load** starts it and opens its own page in a new
 tab. Ardzy's upload, program output and register tools are still there ("Ardzy inside").
 
-**33 FPGA projects**: Ardzy's 19 examples (LED strips, steppers, VGA, audio, RISC-V, an FM transmitter, neural
-networks ...), 6 starters and tests, and Orphan's own eight:
+**35 FPGA projects**: Ardzy's 19 examples (LED strips, steppers, VGA, audio, RISC-V, an FM transmitter, neural
+networks ...), 6 starters and tests, and Orphan's own ten:
 
 | Project | Runs | What |
 |---|---|---|
@@ -45,6 +45,8 @@ networks ...), 6 starters and tests, and Orphan's own eight:
 | **Orphan Games: Master System + Game Gear** | fpga core | MiSTer's SMS core turned into Verilog with GHDL, T80 Z80, VDP, jt89 sound; `.gg` switches to Game Gear mode. Own test cart included. |
 | **Orphan TinyLM** | fpga + arm | Karpathy's stories15M / stories42M Llama models with every matrix product in the FPGA: 64 lanes, 4 stories per weight pass. Modes: Write, 4 Stories, **Adventure** (4 takes per chapter, you pick), model selector, FPGA vs ARM race. |
 | **Orphan BTC** | fpga + arm | A real Stratum v1 SHA-256 miner on Ardzy's SHA-256 core, ARM-checked shares, coin and earnings panel (honest numbers: it is a lottery miner). |
+| **Orphan KAS** | fpga + arm | A Kaspa (kHeavyHash) miner in the FPGA, verified at 575 kH/s on the S9: overlapped nonce stages, Stratum with ARM-checked shares, live forge dashboard, payouts and estimates. Its own repo: [kas-zynq-fpga-miner](https://github.com/revjmoney/kas-zynq-fpga-miner). |
+| **SPEKTOR / INJEKTOR 3000** | fpga + arm | ORPHAN LOGIC LAB: a 16-channel 100 MSa/s logic analyzer on any of the 36 header pins, 4-stage trigger, UART / I2C / SPI dekoders, meetrz, VCD for PulseView, probe builder pages, terminal drawer. INJEKTOR outputs next. |
 | **Orphan Graphics Toys** | fpga + arm | A raycaster, colour waves, XOR fields and the Game of Life drawn by the FPGA. |
 
 **Fan control everywhere**: Orphan's designs and Ardzy's examples 01 to 17 carry Orphan's fan block (bus slot 15),
@@ -53,9 +55,10 @@ so the S9's fans keep working whatever design is loaded (`orphan/add-fan.py` reb
 **ORPHAN Remote** (`cyd-remote/`): firmware that turns a $15 ESP32 "Cheap Yellow Display" into a Wi-Fi touch screen
 for the board: system, radio and synth views, and a screen for Graphics Toys and Games.
 
-Orphan is an add-on for [Ardzy](https://github.com/chrysovalantischryso/ardzy), chryso's Debian 13 system and
-FPGA toolchain for this board. Ardzy brings the kernel, the `ardzy` command, the web app and the example projects;
-Orphan installs next to it.
+Orphan is one complete firmware for the board: download it, flash a card, boot. Inside it, as components, are
+Debian 13 and [Ardzy](https://github.com/chrysovalantischryso/ardzy) by chryso (the open bootloader and kernel, the
+`ardzy` command, the FPGA project loader and its example designs), credited in [NOTICE.md](NOTICE.md). You do not
+install anything else first.
 
 ## Getting started
 
@@ -67,30 +70,35 @@ Orphan installs next to it.
 - An **Ethernet cable** to your router, and a PC on the same network
 - Recommended: a fan on one of the board's fan headers, or a heatsink on the Zynq
 
-### 1. Put Ardzy on the SD card
+### 1. Flash the Orphan card
 
-1. Download `Ardzy-0.3-sdcard.img.xz` from [Ardzy's releases](https://github.com/chrysovalantischryso/ardzy/releases).
-2. Write it to the card with balenaEtcher (or the Ardzy Windows app: **SD card**, choose the image, Write).
-3. Set the boot jumpers to SD card: **JP2 = 1, JP4 = 1**.
-4. Put the card in, plug in Ethernet, then power.
-5. After about 2 minutes the board answers as **ardzy.local**:
+1. Download `Orphan-<version>-sdcard.img.xz` from this repo's [Releases](https://github.com/revjmoney/orphan/releases).
+2. Write it to the card with [balenaEtcher](https://etcher.balena.io) or Raspberry Pi Imager (no need to unpack it).
+3. Optional, on the PC: the card's boot partition has `ardzy.txt` (hostname, root password, network, timezone, SSH)
+   and `ORPHAN-README.txt`. Edit `ardzy.txt` before the first boot if you want.
 
-```sh
-ssh root@ardzy.local          # password: root
-passwd                        # change it now
-```
+### 2. Liberate the board
 
-### 2. Install Orphan on the board
+1. Set the boot jumpers to SD card: **JP2 = 1, JP4 = 1**.
+2. Put the card in, plug in Ethernet, then power.
+3. The first start takes a few minutes: the card grows to its full size, the board makes its own SSH keys, and if
+   it is online it pulls the newest Orphan from GitHub by itself (offline is fine: the card already has everything).
+4. Then it answers as **orphan.local**:
 
-```sh
-apt update && apt install -y git
-git clone https://github.com/revjmoney/orphan
-cd orphan
-sh orphan/setup-board.sh orphan     # "orphan" = the new hostname
-```
+| | |
+|---|---|
+| **http://orphan.local:8080** | **VIZOR**, the Orphan desktop: menus, windows, a shell, every FPGA project, real X apps |
+| **http://orphan.local** | the board page: the project tree, logs, the hardware tools |
+| `ssh root@orphan.local` | password `root`: change it with `passwd`. The Orphan menu opens at login |
 
-Log out and back in (`ssh root@orphan.local`): the Orphan menu opens. `orphan` opens it any time.
-Run `setup-board.sh` again after a `git pull` to update. Open **http://orphan.local** for the board page.
+Update any time with `orphan-update` (or let the first start do it). Several boards: give each its own hostname in
+`ardzy.txt`, or keep them identical from a PC with `bash orphan/sync-boards.sh <board ip> ...`.
+
+Build the image yourself on a Linux PC: `sudo bash tools/make-sdimage.sh <orphan tree> Ardzy-0.3-sdcard.img`
+(it starts from Ardzy 0.3's open image and adds Orphan; see the script's header).
+
+Already running Ardzy on a card? `git clone https://github.com/revjmoney/orphan && sh orphan/orphan/setup-board.sh orphan`
+turns it into Orphan in place.
 
 ### 3. Try things
 
@@ -116,6 +124,8 @@ R from J8 pin 15 to the input node, C from the node to ground (see the radio's p
 |---|---|
 | [docs/hardware.md](docs/hardware.md) | the board, jumpers, headers, LEDs, fans |
 | [docs/pinmap.md](docs/pinmap.md) | every FPGA pin on the headers |
+| [docs/headers.md](docs/headers.md) | J1..J9: which project uses which pins, VGA / HDMI / DAC / antenna attachments |
+| [orphan/vizor/README.md](orphan/vizor/README.md) | VIZOR, the Orphan desktop in a browser (port 8080), and the BLITTR / HDMI plan |
 | [docs/projects.md](docs/projects.md) | build and change the FPGA designs (Yosys + nextpnr, no Vivado), project.json keys |
 | [docs/netboot.md](docs/netboot.md) | run a second board from a Linux PC over the network (no SD card) |
 | [docs/flash.md](docs/flash.md) | advanced: boot Orphan from the board's own NAND flash |
@@ -123,9 +133,17 @@ R from J8 pin 15 to the input node, C from the node to ground (see the radio's p
 Keep several boards identical from a PC: `bash orphan/sync-boards.sh <board ip> ...` installs the menu and the
 same project set on each.
 
+## Join in
+
+Orphan is open and **everyone is welcome**: bug fixes, new FPGA cores and modules, SPEKTOR dekoders, INJEKTOR
+modules, VIZOR windows, chip models for the coming chip emulator, theming, the README and the website, translations,
+wiring photos, testing on other board revisions. If you want the S9 to run something, ask. See
+[CONTRIBUTING.md](CONTRIBUTING.md) and the [issues](https://github.com/revjmoney/orphan/issues) (start with
+**good first issue**).
+
 ## Safety
 
-- **Your network**: the web pages and Ardzy's API have no login, and Ardzy's API can upload and run programs. Use
+- **Your network**: the web pages, VIZOR and the board API have no login, and the board API can upload and run programs. Use
   Orphan on a network you trust, never expose the board to the internet, and change the root password.
 - **Radio transmitting**: Orphan Radio has a test transmitter on J8 pin 5, and Ardzy's FM transmitter project
   drives a pin with RF. Keep them on short wires or into a dummy load or a resistor plus attenuator into an SDR.

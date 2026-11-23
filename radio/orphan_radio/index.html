@@ -257,7 +257,7 @@
     <div class="readout"><span class="sl">A</span><span id="freq">-</span>
       <div class="chips"><span class="chip" id="i_mode">AM</span><span class="chip" id="i_band">-</span></div></div>
     <div class="meterbox"><canvas id="smeter" width="520" height="68"></canvas><span id="sig_db">S -</span></div>
-   </header>
+   <span id="orphan-fan"></span></header>
    <div class="ovw"><canvas id="bdial" width="1100" height="52"></canvas><span id="spans" title="Band map width"></span></div>
    <div class="slices" id="slices"></div>
    <div class="panbar"><span class="g" id="pzoom" title="Panadapter width"></span><span class="sp"></span>
@@ -1301,5 +1301,6 @@ drawKnob(); refreshSourceControls(); show(); connect();
   set(on);
 })();
 </script>
+<script>(function(){var s=document.createElement('script');s.src='http://'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
 </body>
 </html>

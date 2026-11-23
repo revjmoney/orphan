@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080a0c">
+<title>VIZOR · ORPHAN</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css">
+<style>
+:root{color-scheme:dark;--ink:#e8efe6;--muted:#a3afa2;--lime:#d2ff51;--amber:#ffcf5c;--cyan:#5ce1ff;--red:#ff6a5c;--line:#364239;--panel:#0e1511e6;--mono:Consolas,"IBM Plex Mono",monospace}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden}
+body{background:#060809;color:var(--ink);font:13px/1.35 var(--mono);user-select:none}
+button,input,select{font:inherit;color:var(--ink)}
+button{cursor:pointer;border:1px solid #47584d;border-radius:3px;background:linear-gradient(#242e28,#131914);padding:.3em .65em;white-space:nowrap}
+button:hover{color:var(--lime);border-color:var(--lime)}
+button.primary{background:linear-gradient(#e1ff8a,#a5cb37);border-color:var(--lime);color:#131a06;font-weight:700}
+a{color:var(--lime);text-decoration:none}
+#rain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+#wall{position:fixed;inset:34px 0 40px 0;display:grid;place-items:center;pointer-events:none;opacity:.14}
+#wall img{width:min(34vw,420px);filter:drop-shadow(0 0 40px #d2ff5155)}
+/* menubar */
+#bar{position:fixed;top:0;left:0;right:0;height:34px;display:flex;align-items:stretch;background:#0a100cf2;border-bottom:1px solid var(--lime);z-index:9000;box-shadow:0 4px 20px #000a}
+.mb{position:relative}
+.mb>button{height:100%;border:0;border-radius:0;background:none;padding:0 .95em;letter-spacing:.1em}
+.mb>button.logo{color:#131a06;background:var(--lime);font-weight:900;letter-spacing:.06em}
+.mb.open>button{background:var(--lime);color:#131a06}
+.menu{display:none;position:absolute;top:100%;left:0;min-width:250px;background:#0b110df8;border:1px solid var(--lime);box-shadow:0 14px 30px #000c;padding:4px 0;z-index:9001}
+.mb.open>.menu{display:block}
+.mi{display:flex;justify-content:space-between;gap:1.5em;padding:.38em .9em;cursor:pointer;white-space:nowrap;position:relative}
+.mi:hover{background:var(--lime);color:#131a06}
+.mi .k{color:var(--muted)} .mi:hover .k{color:#3a4a0a}
+.mi.sub>.menu{top:-5px;left:100%}
+.mi.sub:hover>.menu{display:block;color:var(--ink)}
+.mi.sub::after{content:"▸";color:var(--muted)}
+.sep{height:1px;background:var(--line);margin:4px 0}
+.mh{padding:.3em .9em;color:var(--amber);font-size:.85em;letter-spacing:.1em}
+#tray{margin-left:auto;display:flex;align-items:center;gap:1.1em;padding:0 .9em;white-space:nowrap;color:var(--muted);font-size:.92em}
+#tray b{color:var(--ink);font-weight:400}
+#tray .core b{color:var(--lime)}
+.dot{display:inline-block;width:.6em;height:.6em;border-radius:50%;background:#555;margin-right:.35em}
+.dot.on{background:var(--lime);box-shadow:0 0 6px var(--lime)}
+/* desktop icons */
+#icons{position:fixed;top:48px;left:14px;display:grid;gap:10px;z-index:1}
+.ico{width:86px;text-align:center;padding:8px 4px;border:1px solid transparent;border-radius:4px;cursor:pointer;color:var(--ink);font-size:.86em}
+.ico:hover{border-color:#5b7a24;background:#d2ff5112}
+.ico i{display:grid;place-items:center;margin:0 auto 6px;width:44px;height:44px;border:1px solid #5b7a24;border-radius:4px;background:#0b120dcc;color:var(--lime);font-style:normal;font-size:1.2em;font-weight:700}
+/* windows */
+.win{position:fixed;display:flex;flex-direction:column;min-width:260px;min-height:140px;background:var(--panel);border:1px solid #4c6438;border-radius:5px;box-shadow:0 18px 44px #000b,inset 0 1px #e1ffc810;resize:both;overflow:hidden;backdrop-filter:blur(3px)}
+.win.focus{border-color:var(--lime);box-shadow:0 18px 50px #000d,0 0 0 1px #d2ff5140}
+.win.max{left:0!important;top:34px!important;width:100vw!important;height:calc(100vh - 74px)!important;border-radius:0;resize:none}
+.win.min{display:none}
+.tb{display:flex;align-items:center;gap:.5em;height:28px;padding:0 4px 0 10px;background:linear-gradient(#18221b,#0f1612);border-bottom:1px solid var(--line);cursor:move;flex:none}
+.win.focus .tb{background:linear-gradient(#2b3b17,#18240f)}
+.tb .t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.06em}
+.win.focus .tb .t{color:var(--lime)}
+.tb button{padding:0 .5em;height:20px;line-height:1;border-radius:2px}
+.wb{position:relative;flex:1;min-height:0;overflow:auto;user-select:text}
+.wb iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:#080a0c}
+.shield{position:absolute;inset:28px 0 0 0;display:none}
+body.dragging .shield{display:block}
+.pad{padding:10px 12px}
+.term{position:absolute;inset:0;padding:4px;background:#050806}
+/* taskbar */
+#task{position:fixed;left:0;right:0;bottom:0;height:40px;display:flex;align-items:center;gap:6px;padding:0 8px;background:#0a100cf2;border-top:1px solid var(--line);z-index:9000}
+#task .tw{max-width:200px;overflow:hidden;text-overflow:ellipsis}
+#task .tw.on{border-color:var(--lime);color:var(--lime)}
+#task .sp{flex:1}
+.bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:3px;padding:.25em .6em;font-weight:700;white-space:nowrap}
+#task .brand{color:var(--muted);font-size:.85em}
+/* kores window */
+.kores{display:grid;grid-template-columns:minmax(200px,1fr) minmax(240px,1.4fr);height:100%}
+.tree{overflow:auto;border-right:1px solid var(--line);padding:6px 0}
+.tree .o{color:var(--amber);padding:.3em .8em;letter-spacing:.1em}
+.tree .b{color:var(--muted);padding:.2em .8em .2em 1.4em;cursor:pointer}
+.tree .b::before{content:"▸ "}
+.tree .b.open::before{content:"▾ "}
+.tree .p{padding:.2em .8em .2em 2.6em;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tree .p:hover,.tree .p.sel{background:#d2ff5122;color:var(--lime)}
+.tree .p.cur::after{content:"  ●";color:var(--lime)}
+.info{overflow:auto;padding:10px 14px}
+.info h2{margin:.1em 0 .4em;color:var(--lime);font-size:1.1em;letter-spacing:.05em}
+.info ol{padding-left:1.3em;color:var(--ink)} .info li{margin:.25em 0}
+.info .row{display:flex;gap:.5em;flex-wrap:wrap;margin:.7em 0}
+.muted{color:var(--muted)}
+pre.out{white-space:pre-wrap;overflow-wrap:anywhere;color:#b9e88f;margin:0;font:inherit}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:.2em .5em;border-bottom:1px solid #1f2a22;text-align:left;white-space:nowrap}
+th{color:var(--muted);font-weight:400;position:sticky;top:0;background:#0e1511}
+td.n{text-align:right}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:.3em 1em;margin:0}
+dl.kv dt{color:var(--muted)} dl.kv dd{margin:0}
+input[type=range]{accent-color:var(--lime);width:100%}
+.toast{position:fixed;right:14px;bottom:52px;z-index:9500;background:#0b110df8;border:1px solid var(--lime);padding:.6em .9em;max-width:420px;box-shadow:0 10px 30px #000c}
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+<div id="wall"><img src="/logo.png" alt=""></div>
+
+<div id="bar">
+ <div class="mb" data-m="orphan"><button class="logo" type="button">◉ ORPHAN</button><div class="menu" id="m-orphan"></div></div>
+ <div class="mb" data-m="kores"><button type="button">KORES</button><div class="menu" id="m-kores"></div></div>
+ <div class="mb" data-m="toolz"><button type="button">TOOLZ</button><div class="menu" id="m-toolz"></div></div>
+ <div class="mb" data-m="system"><button type="button">SYSTEM</button><div class="menu" id="m-system"></div></div>
+ <div class="mb" data-m="windowz"><button type="button">WINDOWZ</button><div class="menu" id="m-windowz"></div></div>
+ <div id="tray">
+  <span class="core"><span class="dot" id="tDot"></span><b id="tCore">-</b></span>
+  <span id="tHash" hidden>HASH <b id="tHashV">-</b></span>
+  <span>CPU <b id="tCpu">-</b></span><span>DIE <b id="tTemp">-</b></span><span>MEM <b id="tMem">-</b></span>
+  <span>NET <b id="tNet">-</b></span><b id="tClock">--:--</b>
+ </div>
+</div>
+
+<div id="icons"></div>
+<div id="task">
+ <button type="button" id="startBtn" class="primary">◉</button>
+ <span id="tasks" style="display:flex;gap:6px;overflow:hidden"></span>
+ <span class="sp"></span>
+ <span class="brand">VIZOR · Orphan FPGA dev Linux · <b>[Rev. J. Money - 2026]</b> · by JMSCNC, makers of RotatoCAM</span>
+ <a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a>
+ <button type="button" id="fx">FX on</button>
+</div>
+
+<script src="/fan.js" async></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const NL = String.fromCharCode(10);
+const HOST = location.hostname;
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+const BRANCHES = ['games', 'mining', 'science', 'radio & sound', 'lab toys', 'starters & tests', 'etc.'];
+const BRANCH_BY_CAT = { games: 'games', mining: 'mining', compute: 'mining', ai: 'science', computing: 'science', radio: 'radio & sound', sound: 'radio & sound',
+  starters: 'starters & tests', tests: 'starters & tests', 'lights and display': 'lab toys', 'test and measurement': 'lab toys', 'motors and motion': 'lab toys',
+  communication: 'lab toys', sensors: 'lab toys', graphics: 'lab toys' };
+const branchOf = p => p.branch || ({ '13_sha256': 'mining', orphan_toys: 'lab toys' })[p.name] || BRANCH_BY_CAT[String(p.category || '').toLowerCase()] || 'etc.';
+let sys = {}, projects = [], appStat = {};
+
+async function getJ(u) { const r = await fetch(u, { cache: 'no-store' }); return r.json(); }
+async function postJ(u, body) { const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }); return r.json(); }
+function toast(msg, ms) { const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms || 4000); }
+
+// ================================================================ windows
+let zTop = 10, nextId = 1, cascade = 0;
+const wins = new Map();
+function openWin(o) {
+  if (o.key) { for (const w of wins.values()) if (w.key === o.key) { w.el.classList.remove('min'); focusWin(w); return w; } }
+  const el = document.createElement('div'); el.className = 'win';
+  const W = Math.min(o.w || 760, innerWidth - 40), H = Math.min(o.h || 480, innerHeight - 110);
+  const x = o.x != null ? o.x : Math.max(110, Math.min(innerWidth - W - 10, 130 + (cascade % 8) * 28)), y = o.y != null ? o.y : 50 + (cascade % 8) * 26; cascade++;
+  Object.assign(el.style, { left: x + 'px', top: y + 'px', width: W + 'px', height: H + 'px' });
+  el.innerHTML = '<div class="tb"><span class="t">' + esc(o.title) + '</span>' + (o.url ? '<button type="button" data-a="pop" title="open in a new browser tab">↗</button>' : '') +
+    '<button type="button" data-a="min" title="minimize">_</button><button type="button" data-a="max" title="maximize">□</button><button type="button" data-a="close" title="close">×</button></div><div class="wb"></div><div class="shield"></div>';
+  document.body.appendChild(el);
+  const w = { id: nextId++, key: o.key, title: o.title, el, body: el.querySelector('.wb'), url: o.url, onclose: null, onresize: null };
+  wins.set(w.id, w);
+  if (o.url) w.body.innerHTML = '<iframe src="' + esc(o.url) + '" allow="clipboard-read; clipboard-write; autoplay; midi"></iframe>';
+  if (o.html) w.body.innerHTML = o.html;
+  el.addEventListener('pointerdown', () => focusWin(w));
+  el.querySelector('.tb').addEventListener('dblclick', ev => { if (!ev.target.closest('button')) toggleMax(w); });
+  el.querySelector('.tb').addEventListener('click', ev => { const a = ev.target.dataset.a; if (!a) return;
+    if (a === 'close') closeWin(w); if (a === 'max') toggleMax(w); if (a === 'min') { el.classList.add('min'); renderTasks(); } if (a === 'pop') window.open(w.url, '_blank', 'noopener'); });
+  dragify(w);
+  new ResizeObserver(() => w.onresize && w.onresize()).observe(el);
+  focusWin(w); renderTasks(); if (o.init) o.init(w);
+  return w;
+}
+function focusWin(w) { for (const v of wins.values()) v.el.classList.toggle('focus', v === w); w.el.style.zIndex = ++zTop; w.el.classList.remove('min'); renderTasks(); }
+function closeWin(w) { if (w.onclose) w.onclose(); w.el.remove(); wins.delete(w.id); renderTasks(); }
+function toggleMax(w) { w.el.classList.toggle('max'); setTimeout(() => w.onresize && w.onresize(), 50); }
+function dragify(w) {
+  const tb = w.el.querySelector('.tb'); let sx, sy, ox, oy, on = false;
+  tb.addEventListener('pointerdown', ev => { if (ev.target.closest('button') || w.el.classList.contains('max')) return; on = true; sx = ev.clientX; sy = ev.clientY; ox = w.el.offsetLeft; oy = w.el.offsetTop; tb.setPointerCapture(ev.pointerId); document.body.classList.add('dragging'); });
+  tb.addEventListener('pointermove', ev => { if (!on) return; w.el.style.left = Math.max(-w.el.offsetWidth + 80, Math.min(innerWidth - 80, ox + ev.clientX - sx)) + 'px'; w.el.style.top = Math.max(34, Math.min(innerHeight - 70, oy + ev.clientY - sy)) + 'px'; });
+  tb.addEventListener('pointerup', () => { on = false; document.body.classList.remove('dragging'); });
+  // resizing with the corner grip also needs the iframe shield
+  w.el.addEventListener('pointerdown', ev => { const r = w.el.getBoundingClientRect(); if (ev.clientX > r.right - 18 && ev.clientY > r.bottom - 18) { document.body.classList.add('dragging'); window.addEventListener('pointerup', () => document.body.classList.remove('dragging'), { once: true }); } });
+}
+function renderTasks() { const t = $('tasks'); t.innerHTML = '';
+  for (const w of wins.values()) { const b = document.createElement('button'); b.type = 'button'; b.className = 'tw' + (w.el.classList.contains('focus') && !w.el.classList.contains('min') ? ' on' : ''); b.textContent = w.title;
+    b.onclick = () => { if (w.el.classList.contains('focus') && !w.el.classList.contains('min')) { w.el.classList.add('min'); renderTasks(); } else focusWin(w); }; t.appendChild(b); } }
+function tile() { const list = [...wins.values()].filter(w => !w.el.classList.contains('min')); if (!list.length) return;
+  const n = list.length, cols = Math.ceil(Math.sqrt(n)), rows = Math.ceil(n / cols), W = innerWidth / cols, H = (innerHeight - 74) / rows;
+  list.forEach((w, i) => { w.el.classList.remove('max'); Object.assign(w.el.style, { left: (i % cols) * W + 'px', top: 34 + Math.floor(i / cols) * H + 'px', width: W - 4 + 'px', height: H - 4 + 'px' }); }); }
+function cascadeAll() { cascade = 0; for (const w of wins.values()) { w.el.classList.remove('max', 'min'); Object.assign(w.el.style, { left: 130 + cascade * 28 + 'px', top: 50 + cascade * 26 + 'px' }); cascade++; focusWin(w); } }
+
+// ================================================================ terminal windows (xterm.js over /ws/shell)
+const RUN_TITLES = { '': 'SHELL', menu: 'ORPHAN MENU', htop: 'HTOP', mc: 'MIDNIGHT COMMANDER', info: 'SYSTEM INFO', net: 'NETWORK', fan: 'COOLING', logs: 'KORE LOG' };
+function terminal(run) {
+  run = run || '';
+  return openWin({ title: RUN_TITLES[run] || 'SHELL', w: 820, h: 500, init: w => {
+    if (!sys.shell) { w.body.innerHTML = '<div class="pad muted">The VIZOR shell is switched off on this board (/etc/orphan/vizor.json).</div>'; return; }
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/shell' + (run ? '?run=' + encodeURIComponent(run) : ''));
+    ws.binaryType = 'arraybuffer';
+    if (window.Terminal) {
+      const box = document.createElement('div'); box.className = 'term'; w.body.appendChild(box);
+      const term = new Terminal({ fontFamily: 'Consolas, "IBM Plex Mono", monospace', fontSize: 14, cursorBlink: true, scrollback: 5000, allowProposedApi: true,
+        theme: { background: '#050806', foreground: '#d8ead1', cursor: '#d2ff51', selectionBackground: '#d2ff5155', green: '#a5d63a', brightGreen: '#d2ff51', yellow: '#ffcf5c', cyan: '#5ce1ff' } });
+      const fit = window.FitAddon ? new FitAddon.FitAddon() : null; if (fit) term.loadAddon(fit);
+      term.open(box);
+      const sendSize = () => { try { if (fit) fit.fit(); if (ws.readyState === 1) ws.send(JSON.stringify({ r: [term.cols, term.rows] })); } catch (e) {} };
+      ws.onopen = () => { sendSize(); term.focus(); };
+      ws.onmessage = ev => term.write(new Uint8Array(ev.data));
+      ws.onclose = () => term.write(NL + '\x1b[38;5;214m[session closed]\x1b[0m' + NL);
+      term.onData(d => { if (ws.readyState === 1) ws.send(new TextEncoder().encode(d)); });
+      w.onresize = () => setTimeout(sendSize, 30);
+      w.el.addEventListener('pointerdown', () => term.focus());
+      w.onclose = () => { try { ws.close(); } catch (e) {} term.dispose(); };
+    } else {                                  // no internet for xterm.js: a plain line terminal
+      w.body.innerHTML = '<pre class="out pad" style="position:absolute;inset:0 0 30px 0;overflow:auto"></pre><input style="position:absolute;left:0;right:0;bottom:0;height:30px;background:#050806;border:0;border-top:1px solid #364239;padding:0 8px" placeholder="type a command, Enter">';
+      const out = w.body.querySelector('pre'), inp = w.body.querySelector('input'), strip = s => s.replace(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07|\r/g, '');
+      ws.onmessage = ev => { out.textContent += strip(new TextDecoder().decode(ev.data)); out.scrollTop = out.scrollHeight; };
+      ws.onclose = () => { out.textContent += NL + '[session closed]'; };
+      inp.onkeydown = ev => { if (ev.key === 'Enter') { ws.send(new TextEncoder().encode(inp.value + '\r')); inp.value = ''; } };
+      w.onclose = () => { try { ws.close(); } catch (e) {} };
+      setTimeout(() => inp.focus(), 50);
+    }
+  } });
+}
+
+// ================================================================ apps
+function appUrl() { return 'http://' + HOST + ':8000/'; }
+function boardPage() { return openWin({ key: 'board', title: 'BOARD PAGE (ARDZY INSIDE)', url: 'http://' + HOST + '/', w: 1100, h: 640 }); }
+function corePage(p) { const name = p || sys.core || 'core';
+  return openWin({ key: 'app', title: (name || '').toUpperCase() + ' · PORT 8000', url: appUrl(), w: Math.min(1280, innerWidth - 160), h: Math.min(800, innerHeight - 110) }); }
+function kores(sel) {
+  return openWin({ key: 'kores', title: 'KORES · FPGA PROJECTS', w: 900, h: 560, init: w => {
+    w.body.innerHTML = '<div class="kores"><div class="tree"></div><div class="info"><p class="muted">Pick a kore on the left.</p></div></div>';
+    const tree = w.body.querySelector('.tree'), info = w.body.querySelector('.info'), open = new Set(['orphan:' + BRANCHES[0]]);
+    function draw() { let h = '';
+      for (const own of ['orphan', 'ardzy']) { h += '<div class="o">[' + own + ']</div>';
+        for (const b of BRANCHES) { const ps = projects.filter(p => p.owner === own && branchOf(p) === b); if (!ps.length) continue; const k = own + ':' + b;
+          h += '<div class="b' + (open.has(k) ? ' open' : '') + '" data-k="' + esc(k) + '">' + esc(b) + ' <span class="muted">(' + ps.length + ')</span></div>';
+          if (open.has(k)) ps.forEach(p => { h += '<div class="p' + (p.name === sys.core ? ' cur' : '') + (p.name === sel ? ' sel' : '') + '" data-p="' + esc(p.name) + '" title="' + esc(p.title) + '">' + esc(p.title) + '</div>'; }); } }
+      tree.innerHTML = h; }
+    function show(name) { sel = name; const p = projects.find(x => x.name === name); if (!p) return; draw();
+      const loaded = p.name === sys.core;
+      info.innerHTML = '<h2>' + esc(p.title) + '</h2><p class="muted">[' + p.owner + '] ' + esc(branchOf(p)) + (p.runs ? ' · runs on ' + esc(p.runs) : '') + (p.web ? ' · web page on port ' + p.web : '') + (loaded ? ' · <span style="color:var(--lime)">LOADED</span>' : '') + '</p>' +
+        '<p>' + esc(p.summary) + '</p>' + (p.quickstart && p.quickstart.length ? '<h3 style="color:var(--amber);font-size:.95em;letter-spacing:.08em">QUICK START</h3><ol>' + p.quickstart.map(q => '<li>' + esc(q) + '</li>').join('') + '</ol>' : '') +
+        '<div class="row"><button type="button" class="primary" data-a="load">' + (loaded ? 'RELOAD' : 'LOAD') + '</button>' + (p.web && loaded ? '<button type="button" data-a="open">OPEN ITS PAGE</button>' : '') +
+        (loaded ? '<button type="button" data-a="stop">STOP</button>' : '') + '<button type="button" data-a="log">KORE LOG</button></div><pre class="out" id="kout-' + w.id + '"></pre>'; }
+    tree.addEventListener('click', ev => { const b = ev.target.closest('.b'), p = ev.target.closest('.p');
+      if (b) { const k = b.dataset.k; open.has(k) ? open.delete(k) : open.add(k); draw(); } if (p) show(p.dataset.p); });
+    info.addEventListener('click', async ev => { const a = ev.target.dataset.a; if (!a || !sel) return; const out = $('kout-' + w.id), p = projects.find(x => x.name === sel);
+      if (a === 'open') corePage(sel);
+      if (a === 'log') terminal('logs');
+      if (a === 'stop') { out.textContent = 'stopping...'; const r = await postJ('/ardzy/api/stop'); out.textContent = r.out || JSON.stringify(r); await pollSys(); show(sel); }
+      if (a === 'load') { out.textContent = 'loading ' + sel + ' into the FPGA...'; ev.target.disabled = true;
+        try { const r = await postJ('/ardzy/api/load?p=' + encodeURIComponent(sel)); out.textContent = (r.out || JSON.stringify(r)).trim(); } catch (e) { out.textContent = 'failed: ' + e.message; }
+        await pollSys(); show(sel); if (p && p.web && sys.core === sel) setTimeout(() => { const old = [...wins.values()].find(x => x.key === 'app'); if (old) closeWin(old); corePage(sel); }, 2500); } });
+    w.refresh = () => { draw(); if (sel) show(sel); };
+    if (sel) { const p = projects.find(x => x.name === sel); if (p) open.add(p.owner + ':' + branchOf(p)); show(sel); } else draw();
+  } });
+}
+function procs() {
+  return openWin({ key: 'procs', title: 'PROCESSES', w: 820, h: 480, init: w => {
+    const load = async () => { try { const r = await getJ('/ardzy/api/sys/procs');
+      w.body.innerHTML = '<table><thead><tr><th>PID</th><th>USER</th><th>CPU %</th><th>MEM %</th><th>RSS</th><th>NAME</th><th>COMMAND</th></tr></thead><tbody>' +
+        (r.procs || []).map(p => '<tr><td class="n">' + p.pid + '</td><td>' + esc(p.user) + '</td><td class="n">' + p.cpu + '</td><td class="n">' + p.mem + '</td><td class="n">' + Math.round(p.rss_kb / 1024) + ' MB</td><td style="color:var(--lime)">' + esc(p.name) + '</td><td class="muted">' + esc(String(p.cmd).slice(0, 120)) + '</td></tr>').join('') + '</tbody></table>';
+    } catch (e) { w.body.innerHTML = '<div class="pad">not reachable</div>'; } };
+    load(); const t = setInterval(load, 3000); w.onclose = () => clearInterval(t); } });
+}
+// ================================================================ X DESKTOP: real X11 apps (Xvfb :1) as changed tiles
+const KS = { Enter: 0xff0d, Backspace: 0xff08, Tab: 0xff09, Escape: 0xff1b, Delete: 0xffff, Home: 0xff50, End: 0xff57, PageUp: 0xff55, PageDown: 0xff56,
+  ArrowLeft: 0xff51, ArrowUp: 0xff52, ArrowRight: 0xff53, ArrowDown: 0xff54, Insert: 0xff63, Shift: 0xffe1, Control: 0xffe3, Alt: 0xffe9, Meta: 0xffeb,
+  CapsLock: 0xffe5, ContextMenu: 0xff67 };
+for (let i = 1; i <= 12; i++) KS['F' + i] = 0xffbd + i;
+function keysym(ev) { if (KS[ev.key]) return KS[ev.key]; if ([...ev.key].length === 1) { const c = ev.key.codePointAt(0); return c < 0x100 ? c : 0x1000000 + c; } return 0; }
+const RGB = (() => { const l = new Uint32Array(65536); for (let v = 0; v < 65536; v++) { const r = (v >> 11) & 31, g = (v >> 5) & 63, b = v & 31;
+  l[v] = 0xff000000 | (((b * 527 + 23) >> 6) << 16) | (((g * 259 + 33) >> 6) << 8) | ((r * 527 + 23) >> 6); } return l; })();
+let XSECT = [];
+async function pollXApps() { try { const r = await getJ('/api/x/apps'), g = new Map();
+  (r.apps || []).forEach(a => { if (!g.has(a.section)) g.set(a.section, []); g.get(a.section).push(a); }); XSECT = [...g.entries()]; } catch (e) {} }
+function xsettings() {
+  return openWin({ key: 'xset', title: 'X SETTINGS', w: 470, h: 360, init: async w => {
+    const s = await getJ('/api/x/settings');
+    w.body.innerHTML = '<div class="pad"><dl class="kv"><dt>Screen</dt><dd><select data-k="size">' + s.sizes.map(z => '<option' + (z === s.size ? ' selected' : '') + '>' + z + '</option>').join('') + '</select></dd>' +
+      '<dt>DPI</dt><dd><input data-k="dpi" value="' + esc(s.dpi) + '" style="width:5em"> <span class="muted">96 normal, 120 bigger text</span></dd>' +
+      '<dt>Keyboard</dt><dd><input data-k="kbd" value="' + esc(s.kbd) + '" placeholder="us" style="width:5em"> <span class="muted">us, gb, de, fr...</span></dd>' +
+      '<dt>Background</dt><dd><input type="color" data-k="bg" value="' + esc(s.bg) + '"></dd></dl>' +
+      '<p class="muted" style="margin-top:1em">Saving restarts the X screen: programs open on it close. The X screen is ' + (s.running ? 'running' : 'stopped') + '.</p>' +
+      '<p><button type="button" class="primary" data-a="save">SAVE + RESTART X</button></p><pre class="out"></pre></div>';
+    w.body.querySelector('[data-a=save]').onclick = async () => { const v = {}; w.body.querySelectorAll('[data-k]').forEach(i => v[i.dataset.k] = i.value);
+      w.body.querySelector('.out').textContent = 'saving...'; const r = await postJ('/api/x/settings', v);
+      w.body.querySelector('.out').textContent = r.ok ? 'saved: ' + r.size + ', ' + r.dpi + ' dpi' + (r.kbd ? ', ' + r.kbd : '') : 'failed: ' + r.out;
+      const xw = [...wins.values()].find(x => x.key === 'x'); if (xw) { closeWin(xw); setTimeout(xdesk, 2500); } };
+  } });
+}
+async function xapp(app) { const r = await postJ('/api/x/run', { app }); if (!r.ok) { toast('X: ' + (r.out || 'failed')); return; } toast('starting ' + app + ' on the X desktop', 2500); xdesk(); }
+function xdesk() {
+  return openWin({ key: 'x', title: 'X DESKTOP · DISPLAY :1', w: Math.min(1100, innerWidth - 150), h: Math.min(700, innerHeight - 100), init: w => {
+    if (!sys.shell) { w.body.innerHTML = '<div class="pad muted">The X desktop is switched off with the shell (/etc/orphan/vizor.json).</div>'; return; }
+    w.body.innerHTML = '<canvas tabindex="0" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#060809;outline:none"></canvas>' +
+      '<div style="position:absolute;right:8px;bottom:5px;font-size:11px;color:#a3afa2;pointer-events:none;text-shadow:0 0 3px #000"></div>';
+    const cv = w.body.querySelector('canvas'), st = w.body.querySelector('div');
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/screen'); ws.binaryType = 'arraybuffer';
+    let W = 0, H = 0, T = 16, ctx = null, img = null, px = null, queue = Promise.resolve(), frames = 0, bytes = 0, tiles = 0, tm = performance.now();
+    st.textContent = 'starting the X screen...';
+    async function frame(data) {
+      const buf = new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer());
+      const n = buf[0] | (buf[1] << 8), pix = new Uint16Array(buf.buffer, buf.byteOffset + 2 + 2 * n, n * T * T);
+      let x0 = 1e9, y0 = 1e9, x1 = -1, y1 = -1;
+      for (let k = 0; k < n; k++) { const tx = buf[2 + 2 * k], ty = buf[3 + 2 * k], o = k * T * T;
+        for (let r = 0; r < T; r++) { const base = (ty * T + r) * W + tx * T, so = o + r * T; for (let c = 0; c < T; c++) px[base + c] = RGB[pix[so + c]]; }
+        if (tx < x0) x0 = tx; if (ty < y0) y0 = ty; if (tx > x1) x1 = tx; if (ty > y1) y1 = ty; }
+      if (n) ctx.putImageData(img, 0, 0, x0 * T, y0 * T, (x1 - x0 + 1) * T, (y1 - y0 + 1) * T);
+      frames++; tiles += n;
+    }
+    ws.onmessage = ev => {
+      if (typeof ev.data === 'string') { const m = JSON.parse(ev.data);
+        if (m.error) st.textContent = m.error;
+        if (m.w) { W = m.w; H = m.h; T = m.tile; cv.width = W; cv.height = H; ctx = cv.getContext('2d'); img = ctx.createImageData(W, H); px = new Uint32Array(img.data.buffer); st.textContent = W + ' x ' + H; }
+        return; }
+      bytes += ev.data.byteLength; const d = ev.data; queue = queue.then(() => frame(d)).catch(() => {});
+    };
+    ws.onclose = () => { st.textContent = 'X screen disconnected'; };
+    const stat = setInterval(() => { const s = (performance.now() - tm) / 1000; tm = performance.now();
+      if (W) st.textContent = W + ' x ' + H + ' · ' + (frames / s).toFixed(1) + ' updates/s · ' + Math.round(tiles / s) + ' tiles/s · ' + Math.round(bytes / s / 1024) + ' KB/s';
+      frames = tiles = bytes = 0; }, 2000);
+    const send = m => { if (ws.readyState === 1) ws.send(JSON.stringify(m)); };
+    const at = ev => { const r = cv.getBoundingClientRect(), k = Math.min(r.width / W, r.height / H), ox = (r.width - W * k) / 2, oy = (r.height - H * k) / 2;
+      return [Math.max(0, Math.min(W - 1, Math.round((ev.clientX - r.left - ox) / k))), Math.max(0, Math.min(H - 1, Math.round((ev.clientY - r.top - oy) / k)))]; };
+    let pend = null;
+    cv.addEventListener('pointermove', ev => { if (!W) return; const first = !pend; pend = at(ev); if (first) requestAnimationFrame(() => { send({ m: pend }); pend = null; }); });
+    cv.addEventListener('pointerdown', ev => { cv.focus(); cv.setPointerCapture(ev.pointerId); send({ m: at(ev) }); send({ b: [[1, 2, 3][ev.button] || 1, 1] }); ev.preventDefault(); });
+    cv.addEventListener('pointerup', ev => { send({ m: at(ev) }); send({ b: [[1, 2, 3][ev.button] || 1, 0] }); });
+    cv.addEventListener('wheel', ev => { ev.preventDefault(); const b = ev.deltaY < 0 ? 4 : 5; send({ b: [b, 1] }); send({ b: [b, 0] }); }, { passive: false });
+    cv.addEventListener('contextmenu', ev => ev.preventDefault());
+    const key = down => ev => { const k = keysym(ev); if (!k) return; ev.preventDefault(); ev.stopPropagation(); send({ k: [k, down] }); };
+    cv.addEventListener('keydown', key(1)); cv.addEventListener('keyup', key(0));
+    w.onclose = () => { clearInterval(stat); try { ws.close(); } catch (e) {} };
+    setTimeout(() => cv.focus(), 100);
+  } });
+}
+
+function cooling() {
+  return openWin({ key: 'fan', title: 'COOLING', w: 460, h: 300, init: w => {
+    w.body.innerHTML = '<div class="pad"><dl class="kv"><dt>Control</dt><dd id="fv-' + w.id + '">-</dd><dt>Duty</dt><dd id="fd-' + w.id + '">-</dd><dt>RPM</dt><dd id="fr-' + w.id + '">-</dd></dl>' +
+      '<p style="margin-top:1em"><input type="range" min="0" max="100" step="5" id="fs-' + w.id + '"></p><p class="muted">Saved on the board and used at boot. Works with any core that carries the orphan_fan block.</p></div>';
+    const upd = () => { const f = sys.fan || {}; $('fv-' + w.id).textContent = f.error || f.via || '-'; $('fd-' + w.id).textContent = f.duty != null ? f.duty + ' %' : '-';
+      $('fr-' + w.id).textContent = f.rpm ? f.rpm.join('  ') : '-'; const s = $('fs-' + w.id); if (f.duty != null && document.activeElement !== s) s.value = f.duty; };
+    upd(); const t = setInterval(upd, 1000); w.onclose = () => clearInterval(t);
+    $('fs-' + w.id).onchange = async ev => { const r = await postJ('/api/fan', { duty: +ev.target.value }); toast(r.ok ? 'fans at ' + r.duty + ' %' : 'fan: ' + r.out); };
+  } });
+}
+function about() {
+  return openWin({ key: 'about', title: 'ABOUT ORPHAN', w: 640, h: 470, init: w => {
+    const s = sys, up = s.uptime || 0;
+    w.body.innerHTML = '<div class="pad" style="display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:start"><img src="/logo.png" alt="" style="width:150px">' +
+      '<div><h2 style="margin:0;color:var(--lime);font:800 30px/1 \'Arial Narrow\',Bahnschrift,Impact,sans-serif">ORPHAN</h2><p class="muted" style="margin:.3em 0 1em">FPGA dev Linux for the Antminer S9 control board · ARDZY inside</p>' +
+      '<dl class="kv"><dt>Board</dt><dd>' + esc(s.host) + ' · ' + esc((s.ips || []).join(' ')) + '</dd><dt>Chip</dt><dd>Zynq XC7Z010 (2 x Cortex-A9 + Artix-7 fabric)</dd><dt>OS</dt><dd>' + esc(s.os) + '</dd><dt>Kernel</dt><dd>' + esc(s.kernel) + '</dd>' +
+      '<dt>Uptime</dt><dd>' + Math.floor(up / 3600) + ' h ' + Math.floor(up % 3600 / 60) + ' min</dd><dt>FPGA</dt><dd>' + esc(s.fpga) + ' · ' + esc(s.core || 'nothing loaded') + '</dd><dt>VIZOR</dt><dd>' + esc(s.vizor) + '</dd></dl>' +
+      '<p style="margin-top:1.2em">by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM · <b>[Rev. J. Money - 2026]</b></p>' +
+      '<p><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> &nbsp; <a href="https://github.com/revjmoney/orphan" target="_blank" rel="noopener">github.com/revjmoney/orphan</a></p>' +
+      '<p class="muted">Built on Ardzy by chryso (GPL-3.0). Orphan is GPL-3.0.</p></div></div>'; } });
+}
+async function power(action) {
+  if (!confirm(action === 'reboot' ? 'Reboot the board now?' : 'Power the board off now? (start it again by cycling its power)')) return;
+  const r = await postJ('/ardzy/api/system?action=' + action); toast(r.out || JSON.stringify(r), 8000);
+}
+
+// ================================================================ menus
+const M = {
+  orphan: () => [['About Orphan', about], ['About this board', () => terminal('info'), 'fastfetch'], '-', ['Buy me a coffee', () => window.open('https://buymeacoffee.com/revjmoney', '_blank', 'noopener')],
+    ['Orphan on GitHub', () => window.open('https://github.com/revjmoney/orphan', '_blank', 'noopener')], '-', ['Orphan menu (terminal)', () => terminal('menu'), 'orphan']],
+  kores: () => { const items = [['All kores...', () => kores()], ['Open the loaded kore\'s page', () => corePage(), sys.core || '-'], ['Stop the kore', async () => { const r = await postJ('/ardzy/api/stop'); toast(r.out || 'stopped'); pollSys(); }], '-'];
+    for (const own of ['orphan', 'ardzy']) { items.push({ head: '[' + own + ']' });
+      for (const b of BRANCHES) { const ps = projects.filter(p => p.owner === own && branchOf(p) === b); if (ps.length) items.push({ sub: b, items: ps.map(p => [p.title, () => kores(p.name), p.name === sys.core ? '●' : '']) }); } }
+    return items; },
+  toolz: () => [{ head: 'X APPZ (real Linux apps)' }, ['X desktop', xdesk, ':1'],
+    ...XSECT.map(([sec, list]) => ({ sub: sec, items: list.map(a => [a.name, () => xapp(a.id), '']) })), ['X settings', xsettings], '-',
+    ['Shell', () => terminal(''), '`'], ['Midnight Commander', () => terminal('mc'), 'files'], ['htop', () => terminal('htop')], ['Processes', procs], ['Network', () => terminal('net')],
+    ['Cooling', cooling], '-', ['Board page (Ardzy inside)', boardPage], ['Kore log', () => terminal('logs')]],
+  system: () => [['Orphan menu: options and settings', () => terminal('menu')], ['Restart the kore program', async () => { const r = await postJ('/ardzy/api/restart'); toast(r.out || 'restarted'); }], '-',
+    ['Reboot', () => power('reboot')], ['Power off', () => power('poweroff')]],
+  windowz: () => [['Tile', tile], ['Cascade', cascadeAll], ['Minimize all', () => { for (const w of wins.values()) w.el.classList.add('min'); renderTasks(); }],
+    ['Close all', () => { for (const w of [...wins.values()]) closeWin(w); }], '-', ...[...wins.values()].map(w => [w.title, () => focusWin(w)])]
+};
+function buildMenu(items) { const box = document.createElement('div');
+  for (const it of items) {
+    if (it === '-') { const s = document.createElement('div'); s.className = 'sep'; box.appendChild(s); continue; }
+    if (it.head) { const h = document.createElement('div'); h.className = 'mh'; h.textContent = it.head; box.appendChild(h); continue; }
+    const d = document.createElement('div'); d.className = 'mi' + (it.sub ? ' sub' : '');
+    if (it.sub) { d.innerHTML = '<span>' + esc(it.sub) + '</span>'; const m = document.createElement('div'); m.className = 'menu'; m.appendChild(buildMenu(it.items)); d.appendChild(m); }
+    else { d.innerHTML = '<span>' + esc(it[0]) + '</span><span class="k">' + esc(it[2] || '') + '</span>'; d.onclick = ev => { ev.stopPropagation(); closeMenus(); it[1](); }; }
+    box.appendChild(d); }
+  return box; }
+function closeMenus() { document.querySelectorAll('.mb.open').forEach(m => m.classList.remove('open')); }
+document.querySelectorAll('.mb').forEach(mb => {
+  const btn = mb.querySelector('button'), menu = mb.querySelector('.menu');
+  btn.onclick = ev => { ev.stopPropagation(); const was = mb.classList.contains('open'); closeMenus(); if (!was) { menu.innerHTML = ''; menu.appendChild(buildMenu(M[mb.dataset.m]())); mb.classList.add('open'); } };
+  btn.onmouseenter = () => { if (document.querySelector('.mb.open') && !mb.classList.contains('open')) btn.click(); };
+});
+document.addEventListener('click', ev => { if (!ev.target.closest('.mb')) closeMenus(); });
+$('startBtn').onclick = ev => { ev.stopPropagation(); document.querySelector('.mb[data-m="orphan"] button').click(); };
+
+// ================================================================ desktop icons
+const ICONS = [['>_', 'SHELL', () => terminal('')], ['◈', 'KORES', () => kores()], ['X', 'X DESKTOP', xdesk], ['▣', 'KORE PAGE', () => corePage()], ['⌂', 'BOARD', boardPage],
+  ['≡', 'FILES', () => terminal('mc')], ['▤', 'HTOP', () => terminal('htop')], ['❄', 'COOLING', cooling], ['◉', 'ABOUT', about]];
+$('icons').innerHTML = ICONS.map((c, i) => '<div class="ico" data-i="' + i + '"><i>' + c[0] + '</i>' + c[1] + '</div>').join('');
+$('icons').addEventListener('dblclick', ev => { const d = ev.target.closest('.ico'); if (d) ICONS[+d.dataset.i][2](); });
+$('icons').addEventListener('click', ev => { const d = ev.target.closest('.ico'); if (d && matchMedia('(pointer:coarse)').matches) ICONS[+d.dataset.i][2](); });
+
+// ================================================================ tray
+const fmtB = b => b > 1e6 ? (b / 1e6).toFixed(1) + 'M' : b > 1e3 ? Math.round(b / 1e3) + 'k' : Math.round(b) + '';
+async function pollSys() {
+  try { sys = await getJ('/api/sys');
+    $('tCore').textContent = sys.core || 'no kore'; $('tDot').className = 'dot' + (sys.core_running ? ' on' : '');
+    $('tCpu').textContent = Math.round(sys.cpu) + '%'; $('tTemp').textContent = sys.temp != null ? sys.temp + '°C' : '-';
+    $('tMem').textContent = sys.mem_used + '/' + sys.mem_total + 'M'; $('tNet').textContent = '↓' + fmtB(sys.rx) + ' ↑' + fmtB(sys.tx);
+  } catch (e) { $('tCore').textContent = 'OFFLINE'; $('tDot').className = 'dot'; }
+}
+async function pollApp() {
+  try { appStat = sys.core ? await getJ('/api/app') : {}; const r = appStat.rate;
+    if (r != null && /btc|kas|sha|miner/i.test(sys.core || '')) { $('tHash').hidden = false; $('tHashV').textContent = r > 1e6 ? (r / 1e6).toFixed(2) + ' MH/s' : r > 1e3 ? (r / 1e3).toFixed(1) + ' kH/s' : r + ' H/s'; }
+    else $('tHash').hidden = true;
+  } catch (e) { $('tHash').hidden = true; }
+}
+async function pollProjects() { try { projects = (await getJ('/api/projects')).projects || []; for (const w of wins.values()) if (w.refresh) w.refresh(); } catch (e) {} }
+setInterval(() => { const d = new Date(); $('tClock').textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }, 1000);
+setInterval(pollSys, 1500); setInterval(pollApp, 3000); setInterval(pollProjects, 30000);
+
+// keys: ` = new shell, Esc = close menus
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape') closeMenus();
+  if (ev.key === '`' && ev.altKey) { ev.preventDefault(); terminal(''); }
+});
+
+// ================================================================ the falling 0/1 rain (FX on/off is remembered in this browser)
+(() => {
+  const rc = $('rain'), btn = $('fx'); let on = true, frame = 0, last = 0;
+  try { on = localStorage.getItem('orphan-fx') !== 'off'; } catch (e) {}
+  function paint(t) { const w = rc.clientWidth, h = rc.clientHeight; if (rc.width !== w || rc.height !== h) { rc.width = w; rc.height = h; }
+    const x = rc.getContext('2d'); x.clearRect(0, 0, w, h); x.font = '12px Consolas';
+    for (let l = 0; l < w / 22; l++) { const st = Math.floor(t / (82 + l % 6 * 16)), y = ((st * 14 + l * 89) % (h + 154)) - 12;
+      for (let i = 0; i < 8; i++) { x.fillStyle = i === 0 ? '#d2ff5160' : 'rgba(170,230,70,' + (8 - i) * .016 + ')';
+        x.fillText((st + i * 13 + l * 29) % 7 < 3 ? '0' : '1', l * 22 + 4, y - i * 14); } } }
+  function anim(t) { if (!on) return; if (t - last >= 60) { last = t; paint(t); } frame = requestAnimationFrame(anim); }
+  function setFx(v) { on = v; btn.textContent = v ? 'FX on' : 'FX off'; rc.hidden = !v; if (!v) { cancelAnimationFrame(frame); frame = 0; } else if (!frame) frame = requestAnimationFrame(anim); }
+  btn.onclick = () => { setFx(!on); try { localStorage.setItem('orphan-fx', on ? 'on' : 'off'); } catch (e) {} };
+  setFx(on);
+})();
+
+// ================================================================ boot: hash links open windows (#shell #kores #board #core #about)
+(async () => {
+  await pollSys(); await pollProjects(); pollApp(); pollXApps(); setInterval(pollXApps, 60000);
+  const h = location.hash.slice(1);
+  const OPEN = { shell: () => terminal(''), kores: () => kores(), board: boardPage, core: () => corePage(), about: about, procs: procs, cooling: cooling, menu: () => terminal('menu'), x: xdesk, pulseview: () => xapp('pulseview'), gtkwave: () => xapp('gtkwave'), xterm: () => xapp('xterm') };
+  h.split(',').forEach(k => OPEN[k] && OPEN[k]());
+  if (h.split(',').includes('tile')) setTimeout(tile, 100);
+  if (projects.length && h.split(',').includes('kores')) { const k = [...wins.values()].find(w => w.key === 'kores'); if (k) { closeWin(k); const p = projects.find(x => x.name === 'orphan_spektor') || projects[0]; kores(p.name); if (h.includes('tile')) setTimeout(tile, 150); } }
+})();
+</script>
+</body>
+</html>

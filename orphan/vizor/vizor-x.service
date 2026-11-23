@@ -1,0 +1,7 @@
+[Unit]
+Description=Orphan VIZOR X desktop (Xvfb :1 + JWM, started on demand by VIZOR)
+
+[Service]
+ExecStart=/bin/sh /usr/local/share/orphan/vizor/vizor-x.sh
+Restart=on-failure
+RestartSec=2

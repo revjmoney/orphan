@@ -1,0 +1,22 @@
+name: Feature or idea
+description: Something you want the S9 to run or do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What should it do, and why would it be great on this board?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [FPGA core, Linux side / ARM, VIZOR desktop, web pages, menu, SD image / install, docs / website, theming, hardware / attachments, other]
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Can you help build it?
+      options:
+        - label: I'd like to work on this

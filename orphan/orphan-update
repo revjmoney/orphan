@@ -1,0 +1,52 @@
+#!/bin/sh
+# orphan-update: bring this board up to the newest Orphan on GitHub (https://github.com/revjmoney/orphan).
+#   orphan-update             update now (only if GitHub has something newer than this board)
+#   orphan-update --force     reinstall the newest even if it is not newer
+#   orphan-update --firstboot what the SD image runs once at its first start (waits for the network, then
+#                             disables itself; offline is fine: the image already has a complete Orphan)
+# Your settings, miner configs, dev-fee ledgers, ROMs and model files are kept. Log: /var/log/orphan-update.log
+# by JMSCNC, makers of RotatoCAM. [Rev. J. Money - 2026] GPL-3.0-or-later.
+REPO_URL=${ORPHAN_REPO:-https://github.com/revjmoney/orphan}
+SRC=/opt/orphan-src
+STAMP=/etc/orphan/build-time
+LOG=/var/log/orphan-update.log
+MODE=${1:-}
+say() { echo "[orphan-update] $*"; echo "$(date '+%F %T') $*" >> "$LOG"; }
+
+online() { curl -fsI --max-time 8 https://github.com >/dev/null 2>&1; }
+if [ "$MODE" = --firstboot ]; then
+	i=0
+	while ! online && [ $i -lt 24 ]; do sleep 5; i=$((i + 1)); done
+fi
+if ! online; then
+	say "no internet: keeping this board's Orphan ($(cat /etc/orphan/version 2>/dev/null || echo unknown))"
+	[ "$MODE" = --firstboot ] && systemctl disable orphan-firstboot.service >/dev/null 2>&1
+	exit 0
+fi
+NEW=$SRC.new
+rm -rf "$NEW"
+say "fetching $REPO_URL"
+if ! git clone -q --depth 1 "$REPO_URL" "$NEW"; then
+	say "download failed: nothing changed"
+	exit 1
+fi
+NEWT=$(git -C "$NEW" log -1 --format=%ct)
+OLDT=$(cat "$STAMP" 2>/dev/null || echo 0)
+if [ "$MODE" != --force ] && [ "$NEWT" -le "$OLDT" ]; then
+	say "already up to date (GitHub $(git -C "$NEW" log -1 --format=%cs), this board $(date -d @"$OLDT" +%F 2>/dev/null))"
+	rm -rf "$NEW"
+else
+	say "installing Orphan from GitHub $(git -C "$NEW" log -1 --format='%h %cs')"
+	if sh "$NEW/orphan/setup-board.sh" >> "$LOG" 2>&1; then
+		rm -rf "$SRC" && mv "$NEW" "$SRC"
+		echo "$NEWT" > "$STAMP"
+		git -C "$SRC" log -1 --format='%cs-%h' > /etc/orphan/version
+		say "done: Orphan $(cat /etc/orphan/version)"
+	else
+		say "the install step failed (see $LOG): the previous Orphan stays"
+		rm -rf "$NEW"
+		exit 1
+	fi
+fi
+[ "$MODE" = --firstboot ] && systemctl disable orphan-firstboot.service >/dev/null 2>&1
+exit 0

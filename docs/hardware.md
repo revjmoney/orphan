@@ -17,8 +17,8 @@ and nine 18-pin hashboard connectors that go straight to FPGA pins.
 
 ## Headers
 
-- **J1 .. J9** (2 x 9): pins 5, 11, 12, 15 are FPGA I/O (3.3 V, 4.7k pull-ups, **not 5 V tolerant**),
-  pin 16 = 3.3 V, pin 18 = EN (from the ARM side), the rest GND. Full table: [pinmap.md](pinmap.md).
+- **J1 .. J9** (2 x 9): pins 5, 11, 12, 15 are FPGA I/O (3.3 V, no board pull-ups, **not 5 V tolerant**),
+  pin 16 = 3.3 V, pin 18 = EN (from the ARM side), GND on 1, 2, 9, 10, 13, 14. Full table: [pinmap.md](pinmap.md); who uses which header and the attachments: [headers.md](headers.md).
   - Orphan Radio: **J8 pin 12** RF input, J8 pin 15 RC feedback, J8 pin 5 test transmitter.
   - I2S DAC (PCM5102A) for the radio and the synth: **J3** pins 5 (MCLK), 11 (BCLK), 12 (DOUT), 15 (LRCLK).
 - **Fans 1 .. 6**: one PWM for all (FPGA pin J18, 25 kHz in Orphan's designs) and six tach inputs.

@@ -1,0 +1,30 @@
+name: FPGA module or core
+description: Propose a new FPGA core or a reusable block
+labels: [fpga, enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What the module does
+    validations:
+      required: true
+  - type: textarea
+    id: resources
+    attributes:
+      label: Size and speed
+      description: Rough LUTs / BRAM / DSP, clock, whether it fits the XC7Z010 next to the fan block
+  - type: input
+    id: pins
+    attributes:
+      label: Header pins it needs
+      placeholder: "none (network only), or e.g. J6 pins 5, 11"
+  - type: input
+    id: source
+    attributes:
+      label: Existing open-source code to start from (and its licence)
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Can you help build it?
+      options:
+        - label: I'd like to work on this

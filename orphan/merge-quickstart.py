@@ -6,7 +6,7 @@ import json
 import os
 import sys
 
-P = '/opt/ardzy/projects'
+P = os.environ.get('ORPHAN_PROJECTS', '/opt/ardzy/projects')
 n = 0
 for f in sys.argv[1:]:
     for name, add in json.load(open(f, encoding='utf-8')).items():

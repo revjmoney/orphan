@@ -1,0 +1,22 @@
+{
+  "id": "SPK1",
+  "title": "ORPHAN LOGIC LAB: SPEKTOR / INJEKTOR 3000",
+  "category": "Test and measurement",
+  "branch": "science",
+  "level": "medium",
+  "summary": "A 16-channel logic analyzer in the S9 control board's FPGA: 100 MSa/s, 32K samples raw or long RLE kaptures, a 4-stage trigger sequencer with level and rise/fall per channel and repeat counts, sample-exact trigger position. The web page has a zoomable SKOPE with cursors, UART / I2C / SPI dekoders, channel meetrz, kapture history, VCD/CSV export for PulseView, probe builder pages with pinouts and a terminal drawer. INJEKTOR (signal output, replay, protocol drive) comes with the next core. by JMSCNC, makers of RotatoCAM.",
+  "quickstart": [
+    "Load orphan_spektor. Its page opens on port 8000.",
+    "First run: tick TEST SIGNAL and press ARM to see the built-in pattern.",
+    "Real signals: 3.3 V only. Default CH0-15 = J6, J7, J8, J9 (pins 5, 11, 12, 15 of each); any J1-J9 pin can be any channel: PROBEZ card 1 (kanal map).",
+    "Set a trigger on TRIGGR (or a preset), pick RATE and MODE, ARM. Keys: 1-7 pages, A arm, F force, S stop, T trigger, ` terminal.",
+    "Add UART / I2C / SPI on DEKODE; save VCD for PulseView."
+  ],
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "SPEKTOR capture core (16 ch from any of 36 header pins, 16384 x 32-bit ring, 4-stage trigger)",
+    "15": "Fan (orphan_fan)"
+  },
+  "runs": "fpga + arm"
+}

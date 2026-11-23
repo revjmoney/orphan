@@ -1,0 +1,11 @@
+[Unit]
+Description=Orphan VIZOR desktop (http://<board>:8080)
+After=network.target ardzy-web.service
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/share/orphan/vizor/vizor.py
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

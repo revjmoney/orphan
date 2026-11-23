@@ -32,6 +32,10 @@ for b in $BOARDS; do
 	tar -C "$TD" $EXCL -cf - orphan_toys | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
 	MD=$REPO/miners; [ -d "$MD" ] || MD=$REPO/miners-work
 	tar -C "$MD" $EXCL --exclude=settings.local.json --exclude=devfee.local.json -cf - orphan_btc | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
+	KD=$REPO/miners; [ -d "$KD/orphan_kas" ] || KD=$REPO/kas-work/repo
+	[ -d "$KD/orphan_kas" ] && tar -C "$KD" $EXCL --exclude=settings.local.json --exclude=devfee.local.json -cf - orphan_kas | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
+	BD=$REPO/lab; [ -d "$BD" ] || BD=$REPO/lab-work
+	tar -C "$BD" $EXCL --exclude=names.local.json --exclude=map.local.json -cf - orphan_spektor | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
 	LD=$REPO/lm; [ -d "$LD" ] || LD=$REPO/lm-work
 	# TinyLM: the code from here; its model/ (weights) stays on the board (copy it once: see lm/orphan_tinylm/README.md)
 	[ -n "${SKIP_LM:-}" ] || tar -C "$LD" $EXCL --exclude=model -cf - orphan_tinylm | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'

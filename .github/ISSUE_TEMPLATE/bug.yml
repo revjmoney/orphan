@@ -1,0 +1,31 @@
+name: Bug report
+description: Something broke, looks wrong, or behaves oddly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen
+      placeholder: "1. Load orphan_spektor  2. ARM with ...  3. ..."
+  - type: input
+    id: version
+    attributes:
+      label: Orphan version
+      description: "cat /etc/orphan/version on the board (or the image name)"
+  - type: input
+    id: part
+    attributes:
+      label: Which part
+      placeholder: "VIZOR, SPEKTOR, radio, synth, a game core, the menu, the SD image, ..."
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: "journalctl -u ardzy-app -n 100, journalctl -u vizor, /var/log/orphan-update.log"
+      render: text

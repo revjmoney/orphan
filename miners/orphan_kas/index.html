@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080a0c">
+<title>ORPHAN KAS · JMSCNC</title>
+<style>
+:root{color-scheme:dark;--ink:#e8efe6;--muted:#a3afa2;--lime:#d2ff51;--line:#364239;--panel:#101613b8;--mono:Consolas,"IBM Plex Mono",monospace;--space:clamp(7px,1.3vh,15px)}
+*{box-sizing:border-box}
+body{margin:0;background:#080a0c;color:var(--ink);font:clamp(11px,1.7vh,15px)/1.35 var(--mono)}
+button,input,select{font:inherit}
+button{cursor:pointer;color:var(--ink);border:1px solid #47584d;border-radius:3px;background:linear-gradient(#242e28,#131914);padding:.53em .7em;white-space:nowrap}
+button:hover,a:hover{color:var(--lime);border-color:var(--lime)}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+button.primary{background:linear-gradient(#e1ff8a,#a5cb37);border-color:var(--lime);color:#131a06;font-weight:700}
+button.stop{border-color:#744744;color:#ffaea3}
+a{color:var(--muted);text-decoration:none}
+#rain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+main{position:relative;height:100dvh;max-width:1850px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto;gap:var(--space);padding:var(--space) clamp(9px,2vw,28px)}
+header,footer,.panel-head,.actions,.log-tools,.status{display:flex;align-items:center;gap:.6em}
+header{justify-content:space-between;border-bottom:1px solid #71827170;padding:0 0 var(--space)}
+.identity{display:flex;align-items:center;gap:11px}
+.mark{display:grid;place-items:center;width:2.7em;aspect-ratio:1;color:#142000;background:linear-gradient(140deg,#eaffac,#bddf47 55%,#667e25 56%,#aed438 82%,#edfaba);border:1px solid #d2ff51;border-radius:3px;font-weight:bold;font-size:1.15em}
+h1,h2,p{margin:0}
+h1{font:800 clamp(24px,5vh,54px)/.87 "Arial Narrow",Bahnschrift,Impact,sans-serif;letter-spacing:-.035em;white-space:nowrap}
+h1 span{color:var(--lime)}
+.brand,.label,label,.sub,.panel-head span,footer{color:var(--muted)}
+.brand,.label,.panel-head span,footer{font-size:.84em;letter-spacing:.09em;text-transform:uppercase}
+.brand{margin-top:.44em}
+.pill{color:var(--lime);font-size:.83em;border:1px solid #596e3e;background:#152112;padding:.45em .7em;white-space:nowrap}
+.pill.offline{color:#ffaea3;border-color:#744744}
+#motion{font-size:.85em}
+.header-tools{display:flex;gap:.5em;align-items:center}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--space)}
+.metric,.panel{position:relative;min-width:0;border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:var(--space);box-shadow:inset 0 1px #e1ffc810,0 10px 24px #0005}
+.metric::before,.panel::before{content:"";position:absolute;top:-1px;left:12px;width:28px;height:1px;background:#b3c3b3}
+.metric{container-type:inline-size}
+.metric strong{display:block;font-size:clamp(17px,4.9vh,49px);line-height:1.1;font-weight:500;letter-spacing:-.06em;white-space:nowrap}
+.metric #hashes{font-size:min(clamp(17px,4.9vh,49px),calc(186cqw / var(--digits, 1)))}
+.metric:first-child strong{color:var(--lime);text-shadow:0 0 22px #cfff5140}
+.metric small{font-size:.43em;letter-spacing:0;color:var(--muted)}
+.workspace{display:grid;min-height:0;grid-template-columns:minmax(192px,.92fr) minmax(280px,1.68fr) minmax(212px,1fr);gap:var(--space)}
+.rail,.telemetry{display:grid;min-width:0;min-height:0;gap:var(--space)}
+.rail{grid-template-rows:auto minmax(0,1fr)}
+.telemetry{grid-template-rows:minmax(0,1fr) minmax(0,.82fr) auto}
+.panel-head{justify-content:space-between;margin-bottom:.55em;flex-wrap:wrap}
+h2{font-size:1em;color:var(--lime);text-transform:uppercase;letter-spacing:.11em}
+.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5em}
+label{display:block;margin-bottom:.2em;font-size:.88em}
+.field{margin-bottom:.48em;min-width:0}
+select,input:not([type=checkbox]){width:100%;min-width:0;background:#090e0b;border:1px solid #405044;border-radius:2px;padding:.38em .48em;color:var(--ink)}
+input[type=range]{padding:0;border:0;accent-color:var(--lime)}
+input[type=checkbox]{accent-color:var(--lime)}
+.actions{flex-wrap:wrap}
+.console{display:flex;flex-direction:column;min-height:0}
+.log-tools{gap:.3em;flex-wrap:wrap}
+.log-tools button{padding:.25em .45em;font-size:.86em}
+.log-tools label{margin:0}
+.logwindow{flex:1;min-height:0;overflow:auto;scrollbar-width:thin;margin:.6em 0 0;background:#080e0a;border:1px solid #2d3b31;padding:.5em;white-space:pre-wrap;overflow-wrap:anywhere;color:#b2c7a6;font:inherit;font-size:.86em;line-height:1.5}
+.hash{overflow-wrap:anywhere;color:#d9e8d7;font-variant-numeric:tabular-nums}
+dl{margin:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.18fr);gap:.42em .6em}
+dt{color:var(--muted);font-size:.88em}
+dd{margin:0;text-align:right}
+#testResult,#earningsSource{font-size:.83em;margin-top:.62em;color:var(--muted)}
+#testResult{color:#c5d3af}
+.earnings .actions{margin-top:.55em}
+.pipeline,.throughput{display:flex;flex-direction:column;min-height:0}
+.pipeline{background:radial-gradient(ellipse at 50% 55%,#213126af,#10161342 72%),var(--panel)}
+#pipeline,#chart{display:block;width:100%;flex:1;min-height:0}
+.pipeline-key{display:grid;grid-template-columns:repeat(4,1fr);gap:.3em;text-align:center;margin-top:.28em;color:#a4b69d;font-size:.8em}
+.pipeline-key span:first-child,.pipeline-key span:last-child{color:var(--lime)}
+.chart-caption{display:flex;justify-content:space-between;align-items:center;gap:.35em;color:var(--muted);font-size:.78em;margin-top:.3em}
+.trace-key{display:flex;gap:.75em;color:var(--ink);white-space:nowrap}
+.trace-key span::before{content:"";display:inline-block;width:.85em;height:2px;margin-right:.32em;vertical-align:middle;background:var(--lime)}
+.trace-key span+span::before{background:#6ecfc1}
+.status{min-height:2.65em;max-height:3.1em;padding:.48em .65em;border-left:2px solid var(--lime);background:#112017;color:#d8ead1;overflow:hidden}
+#message{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.error{color:#ffaea3}
+footer{justify-content:space-between;gap:6px;white-space:nowrap}
+dialog{width:min(95vw,535px);max-height:calc(100dvh - 16px);overflow:auto;color:var(--ink);background:#111914;border:1px solid #587053;border-radius:4px;padding:16px;box-shadow:0 15px 65px #000}
+dialog::backdrop{background:#030705cb}
+dialog .panel-head{margin-bottom:12px}
+dialog .field{margin-bottom:9px}
+@media(min-width:760px) and (max-height:640px){:root{--space:7px}.log-tools{gap:.15em}.workspace dl{gap:.24em .45em}.field{margin-bottom:.34em}}
+@media(max-width:930px) and (min-width:760px){.workspace{grid-template-columns:minmax(164px,.9fr) minmax(220px,1.28fr) minmax(164px,.92fr)}}
+@media(min-width:760px) and (max-height:575px){
+ :root{--space:5px}
+ header{padding-bottom:5px}.metric{padding:5px 7px}
+ .rail:first-child #settingsForm>.field{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:5px}
+ #settingsForm button,.earnings button{padding:.3em .45em}
+ .earnings dl{gap:.18em .35em}.earnings .actions{margin-top:.35em}
+}
+@media(max-width:759px){
+body{font-size:13px}main{height:auto;min-height:100dvh;padding:9px 10px}h1{font-size:clamp(20px,6.2vw,36px)}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric strong{font-size:clamp(21px,7vw,36px)}.metric #hashes{font-size:min(clamp(21px,7vw,36px),calc(186cqw / var(--digits, 1)))}
+.workspace{grid-template-columns:minmax(0,1fr)}.telemetry{grid-row:1;grid-template-rows:160px 128px auto}.rail{grid-template-rows:auto auto}
+.logwindow{height:185px;flex:auto}.brand{font-size:8px}footer{white-space:normal;flex-wrap:wrap}
+}
+@media(max-width:380px){.mark{display:none}.header-tools{gap:.24em}.pill,#motion{font-size:.76em}}
+.coffee{display:inline-block;color:#1a1200;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:3px;padding:.4em .7em;font-weight:700;white-space:nowrap;box-shadow:0 0 14px #ffcc2e55}
+.coffee:hover{color:#000;border-color:#fff3b0;box-shadow:0 0 20px #ffcc2e99}
+.coffee.small{padding:.1em .5em;font-size:.95em;box-shadow:none}
+label.devfee{display:flex;gap:.5em;align-items:flex-start;margin:.2em 0 .6em;font-size:.82em;line-height:1.35}
+label.devfee input{margin-top:.15em}
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+<main>
+<header>
+ <div class="identity"><div class="mark" aria-hidden="true">K</div><div><h1>ORPHAN <span>KAS</span></h1><div class="brand">JMSCNC · S9 FPGA · kHeavyHash</div></div></div>
+ <div class="header-tools"><a class="coffee" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">☕ Buy me a coffee</a><span id="orphan-fan"></span><span class="pill" id="feeNote" hidden>DEV FEE SLICE</span><button id="motion" type="button" aria-pressed="true">FX on</button><div class="pill" id="connection">CONNECTING</div></div>
+</header>
+<div class="metrics">
+ <div class="metric"><div class="label">FPGA throughput</div><strong><span id="rate">0.0</span> <small>kH/s</small></strong></div>
+ <div class="metric"><div class="label">Hashes / current run</div><strong id="hashes">0</strong></div>
+ <div class="metric"><div class="label">Accepted / rejected</div><strong id="shares">0 / 0</strong></div>
+ <div class="metric"><div class="label">Die temperature</div><strong><span id="temp">—</span> <small>°C</small></strong></div>
+</div>
+<div class="workspace">
+ <div class="rail">
+  <section class="panel">
+   <div class="panel-head"><h2>Wallet &amp; pool</h2></div>
+   <form id="settingsForm">
+    <div class="field"><label for="saved">Saved wallets</label><select id="saved"><option value="">Choose a saved wallet</option></select></div>
+    <div class="field"><label for="wallet">Active wallet</label><input id="wallet" placeholder="kaspa:…" autocomplete="off"></div>
+    <div class="field"><label for="pool">Pool / Stratum</label><input id="pool" placeholder="stratum+tcp://host:5555"></div>
+    <div class="row"><div class="field"><label for="worker">Worker</label><input id="worker" value="orphan-s9"></div><div class="field"><label for="password">Pool password</label><input type="password" id="password" placeholder="Keep saved"></div></div>
+    <label class="devfee"><input type="checkbox" id="devfee" checked> 3 % dev fee: 3 of every 100 minutes mine to the Orphan developer's wallet (same pool). Untick to opt out.</label>
+    <div class="actions"><button type="button" class="primary" id="mine">Start mining</button><button type="button" class="stop" id="stop">Stop</button><button type="submit">Save</button></div>
+   </form>
+  </section>
+  <section class="panel earnings">
+   <div class="panel-head"><h2>Earnings &amp; payouts</h2></div>
+   <dl><dt>Revenue / day</dt><dd class="hash" id="revenue">—</dd><dt>Wall-clock rate</dt><dd class="hash" id="effectiveRate">—</dd><dt>Balance / minimum</dt><dd class="hash" id="poolBalance">—</dd><dt>Paid in last 7 days</dt><dd class="hash" id="poolPaid">—</dd></dl>
+   <p id="earningsSource">Waiting for market and pool data.</p>
+   <div class="actions"><button type="button" data-dialog="powerDialog">Electricity cost</button></div>
+  </section>
+ </div>
+ <div class="telemetry">
+  <section class="panel pipeline">
+   <div class="panel-head"><h2>Hash pipeline</h2><span>Illustration · 100 MHz</span></div>
+   <canvas id="pipeline" aria-hidden="true"></canvas>
+   <div class="pipeline-key"><span>NONCE IN</span><span>KECCAK</span><span>MATRIX</span><span>TARGET</span></div>
+  </section>
+  <section class="panel throughput">
+   <div class="panel-head"><h2>Hashrate trace</h2><span id="chartScale">kH/s</span></div>
+   <canvas id="chart" aria-label="Rolling 45-second FPGA hashrate"></canvas>
+   <div class="chart-caption"><span>−45 s</span><div class="trace-key"><span>FPGA</span><span>Wall clock</span></div><span>NOW</span></div>
+  </section>
+  <div class="status" role="status"><strong id="mode">IDLE</strong><span id="message" title="Waiting for the board">Waiting for the board.</span></div>
+ </div>
+ <div class="rail">
+  <section class="panel">
+   <div class="panel-head"><h2>Engine diagnostics</h2><button type="button" data-dialog="engineDialog">Details</button></div>
+   <dl><dt>FPGA job state</dt><dd class="hash" id="flags">idle</dd><dt>Job / difficulty</dt><dd class="hash"><span id="jobId">—</span> / <span id="difficulty">—</span></dd><dt>Fan tachometers</dt><dd class="hash" id="rpm">—</dd></dl>
+   <p id="testResult">Self-test has not run in this session.</p>
+  </section>
+  <section class="panel console">
+   <div class="panel-head"><h2>Live miner log</h2><span id="logCount"></span></div>
+   <div class="log-tools"><button id="pauseLog">Pause</button><button id="copyLog">Copy</button><button id="clearLog">Clear window</button><label><input type="checkbox" id="scrollLog" checked> Follow</label></div>
+   <pre class="logwindow" id="logWindow" role="log" aria-live="off" tabindex="0">Waiting for miner events...</pre>
+  </section>
+ </div>
+</div>
+<footer><span><a class="coffee small" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">☕ Buy me a coffee</a> · 3 % opt-out dev fee supports Orphan · © 2026 Rev. J. Money · <a href="https://jmscnc.com">JMSCNC</a> / <a href="https://rotatocam.com">RotatoCAM</a></span><span>Orphan FPGA Dev Linux</span></footer>
+</main>
+<dialog id="powerDialog" aria-labelledby="powerTitle">
+ <div class="panel-head"><h2 id="powerTitle">Electricity cost</h2><form method="dialog"><button>Close</button></form></div>
+ <div class="row"><div class="field"><label for="wallPower">Measured wall power (W)</label><input id="wallPower" type="number" min="0" step="any" inputmode="decimal"></div><div class="field"><label for="powerPrice">Electricity ($/kWh)</label><input id="powerPrice" type="number" min="0" step="any" inputmode="decimal"></div></div>
+ <dl><dt>Estimated net / day</dt><dd class="hash" id="netRevenue">—</dd></dl>
+</dialog>
+<dialog id="engineDialog" aria-labelledby="engineTitle">
+ <div class="panel-head"><h2 id="engineTitle">Engine diagnostics</h2><form method="dialog"><button>Close</button></form></div>
+ <div class="actions"><button id="test">Run self-test</button><button id="benchmark">Benchmark 1M nonces</button></div>
+ <div class="field"><label>Last nonce</label><div id="nonce" class="hash">0</div></div>
+ <div class="field"><label>Last serialized hash (little-endian)</label><div class="hash" id="hash">—</div></div>
+ <div class="field"><label for="fan">Fan PWM · <span id="dutyLabel">0</span>%</label><input type="range" min="0" max="100" id="fan" value="0"><button id="applyFan">Apply fan duty</button></div>
+ <details><summary>Custom nonce range / target</summary>
+ <form id="jobForm"><div class="field"><label for="seed">Pre-PoW hash (32 hex bytes)</label><input id="seed" value="2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a"></div>
+ <div class="field"><label for="timestamp">Timestamp (u64 ms)</label><input id="timestamp" value="5435345234"></div>
+ <div class="row"><div class="field"><label for="start">First nonce</label><input id="start" value="0"></div><div class="field"><label for="end">Last nonce (inclusive)</label><input id="end" value="999999"></div></div>
+ <div class="field"><label for="target">Numeric target (big-endian hex)</label><input id="target" value="0000000000000000000000000000000000000000000000000000000000000000"></div><button type="submit">Run custom job</button></form></details>
+</dialog>
+<script>
+const $=id=>document.getElementById(id);
+let settings=null,history=[],ready=false,logPaused=false,logFloor=0,currentLogs=[];
+let pipelineRate=0, pipelineActive=false, feedbackUntil=0;
+for(const button of document.querySelectorAll('[data-dialog]'))button.onclick=()=>$(button.dataset.dialog).showModal();
+function report(message,error=false){$('message').textContent=message;$('message').title=message;$('message').classList.toggle('error',error);}
+async function command(data){
+  try{
+    const r=await fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const result=await r.json();if(!r.ok)throw Error(result.error);
+    if(data.action==='settings')$('password').value='';
+    feedbackUntil=performance.now()+1700;report('Command accepted');
+  }catch(e){feedbackUntil=performance.now()+4000;report(e.message,true);}
+}
+$('settingsForm').onsubmit=e=>{e.preventDefault();command({action:'settings',settings:{wallet:$('wallet').value.trim(),wallets:[...(settings?.wallets||[]),$('wallet').value.trim()],worker:$('worker').value.trim(),pool:$('pool').value.trim(),password:$('password').value,devfee:$('devfee').checked}});};
+$('saved').onchange=()=>{$('wallet').value=$('saved').value;};
+$('mine').onclick=()=>command({action:'mine'});$('stop').onclick=()=>command({action:'stop'});$('test').onclick=()=>command({action:'selftest'});$('benchmark').onclick=()=>command({action:'benchmark'});
+$('jobForm').onsubmit=e=>{e.preventDefault();const data={action:'job'};for(const id of ['seed','timestamp','start','end','target'])data[id]=$(id).value.trim();command(data);};
+$('fan').oninput=()=>{$('dutyLabel').textContent=$('fan').value;};$('applyFan').onclick=()=>command({action:'fan',duty:Number($('fan').value)});
+
+function renderLog(logs){currentLogs=logs;if(logPaused)return;const visible=logs.filter(l=>l.seq>logFloor);$('logWindow').textContent=visible.map(l=>'['+new Date(l.time*1000).toLocaleTimeString()+'] '+l.level.toUpperCase()+' '+l.message).join('\n')||'Waiting for new miner events...';$('logCount').textContent=visible.length+' events';if($('scrollLog').checked)$('logWindow').scrollTop=$('logWindow').scrollHeight;}
+$('pauseLog').onclick=()=>{logPaused=!logPaused;$('pauseLog').textContent=logPaused?'Resume':'Pause';if(!logPaused)renderLog(currentLogs);};
+$('clearLog').onclick=()=>{logFloor=Math.max(0,...currentLogs.map(l=>l.seq));renderLog(currentLogs);};
+$('copyLog').onclick=async()=>{const text=$('logWindow').textContent;try{await navigator.clipboard.writeText(text);}catch(e){const t=document.createElement('textarea');t.value=text;document.body.append(t);t.select();document.execCommand('copy');t.remove();}};
+
+function surface(id, ratio=2){
+  const canvas=$(id), w=canvas.clientWidth, h=canvas.clientHeight, d=Math.min(ratio,devicePixelRatio||1);
+  const pixels=[Math.round(w*d),Math.round(h*d)];
+  if(canvas.width!==pixels[0]||canvas.height!==pixels[1]){canvas.width=pixels[0];canvas.height=pixels[1];}
+  const ctx=canvas.getContext('2d');
+  ctx.setTransform(d,0,0,d,0,0);
+  return {ctx,w,h};
+}
+function plot(rate,effective){
+  const now=performance.now();
+  history.push({time:now,rate,effective});history=history.filter(p=>now-p.time<=45000);
+  const {ctx,w,h}=surface('chart');
+  if(!w||!h)return;
+  const rates=history.flatMap(p=>Number.isFinite(p.effective)?[p.rate,p.effective]:[p.rate]);
+  const high=Math.max(...rates),low=Math.min(...rates),pad=Math.max(1,high*.008);
+  const step=[1,2,5,10,20,50,100,200,500].find(n=>n>=(high-low+pad*2)/4)||1000;
+  const min=Math.max(0,Math.floor((low-pad)/step)*step), max=Math.max(min+step, Math.ceil((high+pad)/step)*step);
+  $('chartScale').textContent=min.toLocaleString()+'–'+max.toLocaleString()+' kH/s';
+  ctx.clearRect(0,0,w,h);
+  const left=31, top=8, bottom=h-7, right=w-6, span=right-left;
+  const yOf=v=>bottom-(bottom-top)*(v-min)/(max-min);
+  ctx.font='9px Consolas';ctx.textAlign='right';ctx.textBaseline='middle';ctx.lineWidth=1;
+  for(let v=min;v<=max;v+=step){
+    const y=yOf(v);ctx.strokeStyle='#314132';ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();
+    ctx.fillStyle='#a3afa2';ctx.fillText(String(v),left-5,y);
+  }
+  const gridPeriod=5000;
+  ctx.strokeStyle='#2a3b2d';ctx.beginPath();
+  for(let offset=now%gridPeriod;offset<=45000;offset+=gridPeriod){
+    const x=right-span*offset/45000;ctx.moveTo(x,top);ctx.lineTo(x,bottom);
+  }
+  ctx.stroke();
+  for(const [field,color] of [['effective','#6ecfc1'],['rate','#d2ff51']]){
+    const points=history.map(p=>[right-span*(now-p.time)/45000,p[field]]).filter(([,v])=>Number.isFinite(v));
+    if(!points.length)continue;
+    const last=points.at(-1), trace=()=>{
+      ctx.beginPath();points.forEach(([x,v],i)=>i?ctx.lineTo(x,yOf(v)):ctx.moveTo(x,yOf(v)));
+    };
+    if(field==='rate'&&points.length>1){
+      const fill=ctx.createLinearGradient(0,top,0,bottom);
+      fill.addColorStop(0,'#d2ff5147');fill.addColorStop(1,'#80bb0d0a');
+      trace();ctx.lineTo(last[0],bottom);ctx.lineTo(points[0][0],bottom);ctx.closePath();ctx.fillStyle=fill;ctx.fill();
+    }
+    trace();ctx.strokeStyle=color;ctx.lineWidth=field==='rate'?1.7:1.2;
+    ctx.setLineDash(field==='effective'?[4,3]:[]);ctx.shadowBlur=6;ctx.shadowColor=color;ctx.stroke();
+    ctx.setLineDash([]);ctx.beginPath();ctx.arc(last[0],yOf(last[1]),2.4,0,Math.PI*2);
+    ctx.fillStyle=color;ctx.fill();ctx.shadowBlur=0;
+  }
+}
+
+const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+let motion=!reduced.matches, frame=0, lastFrame=0, bitPosition=0;
+try{motion=motion&&localStorage.getItem('orphan-fx')!=='off';}catch(e){}
+function setMotion(on){
+  motion=on;$('motion').textContent=on?'FX on':'FX off';$('motion').setAttribute('aria-pressed',on);
+  $('rain').hidden=!on;
+  if(!on){cancelAnimationFrame(frame);frame=0;drawPipeline(0);}
+  else if(!frame)frame=requestAnimationFrame(animate);
+}
+$('motion').onclick=()=>{setMotion(!motion);try{localStorage.setItem('orphan-fx',motion?'on':'off');}catch(e){}};
+reduced.addEventListener('change',event=>setMotion(!event.matches));
+
+function drawRain(time){
+  const {ctx,w,h}=surface('rain',1);ctx.clearRect(0,0,w,h);
+  ctx.font='12px Consolas';
+  for(let lane=0;lane<w/22;lane++){
+    const step=Math.floor(time/(82+lane%6*16)), y=((step*14+lane*89)%(h+154))-12;
+    for(let i=0;i<8;i++){
+      ctx.fillStyle=i===0?'#bfef6650':'rgba(139,208,57,'+(8-i)*.014+')';
+      ctx.fillText((step+i*13+lane*29)%7<3?'0':'1',lane*22+4,y-i*14);
+    }
+  }
+}
+
+function pipelineChrome(ctx,y,size){
+  const gradient=ctx.createLinearGradient(0,y-size,0,y+size);
+  for(const [stop,color] of [[0,'#1b2427'],[.15,'#748486'],[.28,'#edf7ec'],[.39,'#667278'],[.51,'#283338'],[.73,'#11191a'],[.91,'#9aa9a3'],[1,'#344148']])
+    gradient.addColorStop(stop,color);
+  return gradient;
+}
+function pipePath(ctx,points){
+  ctx.beginPath();
+  ctx.moveTo(...points[0]);
+  for(let i=1;i<points.length-1;i++){
+    const [x,y]=points[i], [px,py]=points[i-1], [nx,ny]=points[i+1];
+    ctx.lineTo(x+(px-x)*.21,y+(py-y)*.21);
+    ctx.quadraticCurveTo(x,y,x+(nx-x)*.21,y+(ny-y)*.21);
+  }
+  ctx.lineTo(...points.at(-1));
+}
+function drawWires(ctx,w,y,size,live){
+  for(let n=0;n<7;n++){
+    const side=n<4?-1:1, lane=n%4;
+    const start=(n<4?.27:.43)*w, end=(n<4?.66:.83)*w;
+    const height=side*size*(1.28+lane*.31), dy=side*size*.33;
+    const points=[[start,y+dy],[start+w*.08,y+height],[end-w*.08,y+height],[end,y+dy]];
+    pipePath(ctx,points);ctx.lineWidth=Math.max(2,size*.18);ctx.strokeStyle='#040906';ctx.stroke();
+    ctx.lineWidth=Math.max(.8,size*.072);ctx.strokeStyle=n%2?'#799695':'#405854';ctx.stroke();
+    if(live){
+      ctx.lineDashOffset=-bitPosition*w+n*12;ctx.setLineDash([w*.031,w*.16]);
+      ctx.strokeStyle=n%3?'#99db45':'#deff9c';ctx.shadowBlur=7;ctx.shadowColor='#b4ff44';ctx.stroke();
+      ctx.setLineDash([]);ctx.shadowBlur=0;
+    }
+  }
+}
+function drawForge(ctx,x,y,scale,live){
+  const phase=(bitPosition*2)%1, impact=.43;
+  const stroke=live?Math.exp(-(((phase-impact)/.105)**2)):0;
+  const burst=live&&phase>=impact?(phase-impact)/(1-impact):1;
+  const square=(a,b,c,d,fill)=>{ctx.fillStyle=fill;ctx.fillRect(a,b,c,d);};
+  const chrome=(a,b,c,d)=>square(a,b,c,d,pipelineChrome(ctx,b+d/2,d/2));
+  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
+  const halo=ctx.createRadialGradient(0,12,1,0,12,38);
+  halo.addColorStop(0,live?'#cfff517a':'#7e9b342e');halo.addColorStop(1,'#99ff0000');
+  square(-38,-26,76,76,halo);
+  chrome(-30,18,60,9);chrome(-23,27,46,7);
+  chrome(-31,-31,6,50);chrome(25,-31,6,50);chrome(-30,-36,60,9);
+  chrome(-9,-29,18,21+stroke*12);
+  const jaw=-13+stroke*16;
+  chrome(-22,jaw,44,8);
+  square(-18,jaw+7,36,2,'#91a09b');
+  const hot=ctx.createLinearGradient(0,9,0,17);
+  hot.addColorStop(0,live?'#f7ffbf':'#536b33');hot.addColorStop(.5,live?'#caff51':'#465b2e');hot.addColorStop(1,'#698524');
+  ctx.shadowColor='#cfff51';ctx.shadowBlur=live?6+stroke*15:0;
+  ctx.beginPath();ctx.ellipse(0,11+stroke,14,5-stroke*1.5,0,0,Math.PI*2);ctx.fillStyle=hot;ctx.fill();
+  ctx.shadowBlur=0;
+  if(burst<1)for(let i=0;i<38;i++){
+    const delay=(i%7)*.035, p=(burst-delay)/(1-delay);
+    if(p<0)continue;
+    const side=i%3===0?-1:1, velocity=17+(i*29%42), rise=15+(i*19%43);
+    const dx=side*(4+p*velocity), dy=12-rise*p+29*p*p;
+    const alpha=(1-p)**1.55, chromeChip=i%4===0;
+    ctx.globalAlpha=alpha;
+    ctx.strokeStyle=chromeChip?'#e0ece3':'#b9ff55';ctx.lineWidth=chromeChip?1.2:.85;
+    ctx.beginPath();ctx.moveTo(dx-side*(3+5*p),dy+(2-p*4));ctx.lineTo(dx,dy);ctx.stroke();
+    if(chromeChip){
+      ctx.save();ctx.translate(dx,dy);ctx.rotate(i+p*9);
+      square(-2,-1,4,2,pipelineChrome(ctx,0,1));ctx.restore();
+    }else{
+      ctx.shadowColor='#caff51';ctx.shadowBlur=4;square(dx,dy,1.5,1.2,'#eaffae');ctx.shadowBlur=0;
+    }
+  }
+  ctx.restore();
+}
+function drawPipeline(time){
+  const {ctx,w,h}=surface('pipeline');
+  if(w<20||h<12)return;
+  ctx.clearRect(0,0,w,h);
+  const y=h*.54, size=Math.min(h*.215,w*.067), tube=Math.max(3,size*.31);
+  const chipW=Math.min(w*.18,size*2.75), chipH=size*1.68;
+  const live=pipelineActive&&pipelineRate>0&&motion;
+  ctx.fillStyle='#0008';ctx.beginPath();ctx.ellipse(w/2,y+size*1.25,w*.47,size*.65,0,0,Math.PI*2);ctx.fill();
+  ctx.lineCap='round';
+  drawWires(ctx,w,y,size,live);
+  for(const [lane,yy] of [y,y-size*.65,y+size*.65].entries()){
+    const points=[[w*.038,yy+size*(lane-1)*.55],[w*.117,yy+size*(lane-1)*.55],[w*.19,yy],[w*.82,yy],[w*.928,yy-size*(lane-1)*.45],[w*.958,yy-size*(lane-1)*.45]];
+    pipePath(ctx,points);ctx.strokeStyle='#050908';ctx.lineWidth=tube*2+3;ctx.stroke();
+    ctx.strokeStyle=pipelineChrome(ctx,yy,tube*1.85);ctx.lineWidth=tube*2;ctx.stroke();
+    ctx.strokeStyle='#dcf5e382';ctx.lineWidth=.55;ctx.stroke();
+    for(const clamp of [.17,.27,.48,.71,.94]){
+      const x=w*clamp;
+      const sy=clamp>.928?yy-size*(lane-1)*.45:yy;
+      ctx.fillStyle=pipelineChrome(ctx,sy,tube*1.25);ctx.fillRect(x-1.5,sy-tube-1,3,tube*2+2);
+    }
+  }
+  ctx.strokeStyle='#17281b';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(w*.034,y);ctx.lineTo(w*.966,y);ctx.stroke();
+  ctx.font=Math.max(7,Math.min(12,tube*2))+'px Consolas';ctx.textAlign='center';
+  if(live)for(let i=0;i<14;i++){
+    const fraction=(bitPosition+i/14)%1, x=w*(.04+.92*fraction);
+    const lane=i%3-1, yy=y+lane*size*.65;
+    ctx.fillStyle=fraction>.76?'#efffb4':'#cffc50';ctx.shadowBlur=8;ctx.shadowColor='#d2ff51';
+    ctx.fillText((i+Math.floor(bitPosition*88))%2?'1':'0',x,yy+tube*.8);
+  }
+  ctx.shadowBlur=0;
+  for(const [index,position] of [.375,.625].entries()){
+    const x=w*position,left=x-chipW/2,top=y-chipH/2, slant=chipH*.19;
+    ctx.fillStyle='#060a08';ctx.fillRect(left-2,top+2,chipW+4,chipH+3);
+    for(let pin=1;pin<8;pin++){
+      const xp=left+pin*chipW/8;
+      ctx.strokeStyle=pin%2?'#6c857c':'#afbab3';ctx.lineWidth=Math.max(1,chipW*.028);
+      ctx.beginPath();ctx.moveTo(xp,top-chipH*.22);ctx.lineTo(xp+slant*.35,top+chipH*.14);ctx.moveTo(xp,y+chipH*.37);ctx.lineTo(xp-slant*.35,y+chipH*.72);ctx.stroke();
+    }
+    ctx.fillStyle=pipelineChrome(ctx,y,chipH*.5);ctx.beginPath();
+    ctx.moveTo(left,top+slant);ctx.lineTo(left+slant,top);ctx.lineTo(left+chipW,top);ctx.lineTo(left+chipW,top+chipH-slant);ctx.lineTo(left+chipW-slant,top+chipH);ctx.lineTo(left,top+chipH);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#101b16';ctx.fillRect(left+chipW*.13,top+chipH*.24,chipW*.74,chipH*.55);
+    for(let k=0;k<5;k++){
+      const flash=live&&(bitPosition*4+index*.72+k*.2)%1<.43;
+      ctx.fillStyle=flash?'#deff76':pipelineActive?'#719934':'#2c4435';
+      ctx.fillRect(left+chipW*(.2+k*.135),y-chipH*.12,Math.max(1,chipW*.062),chipH*.25);
+    }
+  }
+  drawForge(ctx,w*.855,y,Math.min(size/22,w*.00255),live);
+}
+function animate(time){
+  if(!motion)return;
+  if(time-lastFrame>=48){
+    if(pipelineActive)bitPosition=(bitPosition+Math.min(time-lastFrame,120)*Math.min(.00085,.00014+pipelineRate/2200000))%1;
+    lastFrame=time;drawRain(time);drawPipeline(time);
+  }
+  frame=requestAnimationFrame(animate);
+}
+setMotion(motion);
+function formatAmount(value,places){return Number.isFinite(value)?value.toLocaleString(undefined,{maximumFractionDigits:places}):'—';}
+function earnings(s){
+ const e=s.earnings||{},a=e.market||{},p=e.pool||{},effective=s.mining?.effective_hashrate;
+ const usd=a.usd_per_day_after_pool_fee??a.usd_per_day;
+ $('revenue').textContent=Number.isFinite(usd)?`${formatAmount(a.kas_per_day_after_pool_fee??a.kas_per_day,9)} KAS · $${formatAmount(usd,10)}`:'—';
+ $('effectiveRate').textContent=s.mode==='mine'&&Number.isFinite(effective)?`${formatAmount(effective/1000,1)} kH/s`:'—';
+ $('poolBalance').textContent=`${formatAmount(p.balance_kas,8)} / ${formatAmount(p.minimum_kas,8)} KAS`;
+ $('poolPaid').textContent=`${formatAmount(p.paid_week_kas,8)} KAS`;
+ const market=a.updated_at?`KAS $${formatAmount(a.usd_per_kas,6)}${e.market_stale?' · stale':''}`:'Market data pending';
+ const pool=`${p.name||'Pool payouts'}${p.mode?' · '+p.mode.toUpperCase():''}${Number.isFinite(p.fee_percent)?' · '+p.fee_percent+'% fee':''}`;
+ $('earningsSource').textContent=market+' · '+pool;
+ $('earningsSource').title=`${a.rate_source||'Rate pending'} · ${a.updated_at?new Date(a.updated_at*1000).toLocaleTimeString():'Waiting for market data'} · ${p.status||'Pool data pending'}. Daily revenue assumes continuous operation before electricity.`;
+ const watts=$('wallPower'),price=$('powerPrice');
+ $('netRevenue').textContent=watts.value&&price.value&&watts.validity.valid&&price.validity.valid&&Number.isFinite(usd)?`$${formatAmount(usd-watts.valueAsNumber/1000*24*price.valueAsNumber,10)}`:'—';
+}
+for(const id of ['wallPower','powerPrice']){try{$(id).value=localStorage.getItem(id)||'';}catch(e){}$(id).oninput=()=>{try{localStorage.setItem(id,$(id).value);}catch(e){}};}
+async function tick(){try{const r=await fetch('/api/status');if(!r.ok)throw Error('Status unavailable');const s=await r.json(),h=s.hardware||{},m=s.mining||{};$('connection').textContent='BOARD ONLINE';$('connection').classList.remove('offline');$('mode').textContent=s.mode.toUpperCase();if(performance.now()>feedbackUntil)report(s.error||s.message,!!s.error);const rate=Number(h.hashrate||0)/1000;pipelineRate=rate;pipelineActive=s.mode==='mine'||!!h.busy;if(!motion)drawPipeline(0);$('rate').textContent=rate.toFixed(1);$('hashes').textContent=Number(h.hashes||0).toLocaleString();$('shares').textContent=(m.accepted||0)+' / '+(m.rejected||0);$('temp').textContent=h.temperature==null?'—':Number(h.temperature).toFixed(1);$('nonce').textContent=h.nonce||'0';$('hash').textContent=h.hash||'—';$('jobId').textContent=m.job_id||'—';$('difficulty').textContent=m.difficulty||'—';$('flags').textContent=['busy','found','exhausted','stopped'].filter(k=>h[k]).join(' · ')||'idle';$('rpm').textContent=(h.rpm||[]).map((v,i)=>`${i+1}: ${v} rpm`).join(' / ');if(s.test)$('testResult').textContent=`${s.test.result}: ${s.test.passed} hash vectors and ${s.test.range_tests} nonce ranges`;
+if(s.settings){settings=s.settings;const signature=JSON.stringify(settings.wallets);if($('saved').dataset.signature!==signature){$('saved').replaceChildren(new Option('Choose a saved wallet',''),...settings.wallets.map(w=>new Option(w,w)));$('saved').dataset.signature=signature;}if(!ready){for(const id of ['wallet','pool','worker'])$(id).value=settings[id]||'';$('devfee').checked=settings.devfee!==false;ready=true;}}
+const fee=s.devfee||{};$('feeNote').hidden=!fee.active;
+$('hashes').style.setProperty('--digits',$('hashes').textContent.length);renderLog(s.logs||[]);earnings(s);plot(pipelineActive?rate:0,s.mode==='mine'&&Number.isFinite(m.effective_hashrate)?m.effective_hashrate/1000:null);}catch(e){pipelineActive=false;$('connection').textContent='BOARD OFFLINE';$('connection').classList.add('offline');report(e.message,true);}finally{setTimeout(tick,500);}}tick();
+</script>
+<script>(function(){var s=document.createElement('script');s.src='http://'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
+</body>
+</html>

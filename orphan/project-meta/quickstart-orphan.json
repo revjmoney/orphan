@@ -62,6 +62,16 @@
     ],
     "web": 8000
   },
+  "orphan_kas": {
+    "summary": "A kHeavyHash (Kaspa) mining lab in the FPGA: the nonce search runs in hardware and is checked against a CPU reference. Self-test, benchmark, custom jobs, live hashrate, earnings estimate and fan control in one page.",
+    "quickstart": [
+      "Load orphan_kas. Its page opens on port 8000.",
+      "Open Engine diagnostics, Details, and run the self-test first.",
+      "To mine, enter your own wallet address and a pool, Save, then Start mining.",
+      "Watch the hashrate trace and the miner log; Stop when you are done."
+    ],
+    "web": 8000
+  },
   "orphan_btc": {
     "summary": "A real Bitcoin (SHA-256) miner in the FPGA: 4 double-SHA-256 units at about 1.1 MH/s driven by a Stratum v1 client on the ARM, every result re-checked against the pool's exact share target. Built on Ardzy's 13_sha256 lab. A lottery miner for solo or low-difficulty pools, with a live coin and earnings panel and a 3 % opt-out dev fee.",
     "quickstart": [
@@ -82,5 +92,15 @@
       "Race compares 1 story, 4 at once, and the ARM alone."
     ],
     "web": 8000
+  },
+  "orphan_spektor": {
+    "summary": "A 16-channel logic analyzer in the S9 control board's FPGA: 100 MSa/s, 32K samples raw or long RLE kaptures, a 4-stage trigger sequencer with level and rise/fall per channel and repeat counts, sample-exact trigger position. The web page has a zoomable SKOPE with cursors, UART / I2C / SPI dekoders, channel meetrz, kapture history, VCD/CSV export for PulseView, probe builder pages with pinouts and a terminal drawer. INJEKTOR (signal output, replay, protocol drive) comes with the next core. by JMSCNC, makers of RotatoCAM.",
+    "quickstart": [
+      "Load orphan_spektor. Its page opens on port 8000.",
+      "First run: tick TEST SIGNAL and press ARM to see the built-in pattern.",
+      "Real signals: 3.3 V only. Default CH0-15 = J6, J7, J8, J9 (pins 5, 11, 12, 15 of each); any J1-J9 pin can be any channel: PROBEZ card 1 (kanal map).",
+      "Set a trigger on TRIGGR (or a preset), pick RATE and MODE, ARM. Keys: 1-7 pages, A arm, F force, S stop, T trigger, ` terminal.",
+      "Add UART / I2C / SPI on DEKODE; save VCD for PulseView."
+    ]
   }
 }

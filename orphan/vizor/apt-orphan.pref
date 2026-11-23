@@ -1,0 +1,5 @@
+Explanation: Orphan: full desktop environments are far too big for the S9 board (512 MB RAM, no GPU).
+Explanation: VIZOR (port 8080) with its X desktop is Orphan's desktop. Remove this file to allow them anyway.
+Package: task-desktop task-gnome-desktop task-kde-desktop task-cinnamon-desktop task-mate-desktop task-xfce-desktop task-lxqt-desktop task-lxde-desktop task-gnome-flashback-desktop gnome-shell gnome-core plasma-workspace plasma-desktop kde-standard cinnamon cinnamon-core mate-desktop-environment-core
+Pin: version *
+Pin-Priority: -1

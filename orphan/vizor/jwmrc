@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<!-- JWM for VIZOR's X desktop, in the Orphan lime look. by JMSCNC, makers of RotatoCAM. [Rev. J. Money - 2026] -->
+<JWM>
+  <RootMenu onroot="123" labeled="true" label="ORPHAN X">
+    <Program label="xterm">xterm</Program>
+    <Separator/>
+<!--APPS-->
+    <Separator/>
+    <Restart label="Restart JWM"/>
+  </RootMenu>
+  <Tray x="0" y="-1" height="26" autohide="off">
+    <TrayButton label="ORPHAN X">root:1</TrayButton>
+    <Spacer width="6"/>
+    <TaskList maxwidth="240"/>
+    <Clock format="%H:%M"><Button mask="123">exec:xterm</Button></Clock>
+  </Tray>
+  <WindowStyle decorations="flat">
+    <Font>DejaVu Sans Mono-10:bold</Font>
+    <Width>3</Width>
+    <Height>22</Height>
+    <Foreground>#a3afa2</Foreground>
+    <Background>#18221b</Background>
+    <Outline>#364239</Outline>
+    <Opacity>1.0</Opacity>
+    <Active>
+      <Foreground>#131a06</Foreground>
+      <Background>#d2ff51</Background>
+      <Outline>#d2ff51</Outline>
+      <Opacity>1.0</Opacity>
+    </Active>
+  </WindowStyle>
+  <TrayStyle decorations="flat">
+    <Font>DejaVu Sans Mono-10</Font>
+    <Background>#0a100c</Background>
+    <Foreground>#d2ff51</Foreground>
+  </TrayStyle>
+  <TaskListStyle decorations="flat">
+    <Font>DejaVu Sans Mono-9</Font>
+    <Foreground>#a3afa2</Foreground>
+    <Background>#18221b</Background>
+    <Active>
+      <Foreground>#131a06</Foreground>
+      <Background>#d2ff51</Background>
+    </Active>
+  </TaskListStyle>
+  <MenuStyle decorations="flat">
+    <Font>DejaVu Sans Mono-10</Font>
+    <Foreground>#e8efe6</Foreground>
+    <Background>#0b110d</Background>
+    <Outline>#d2ff51</Outline>
+    <Active>
+      <Foreground>#131a06</Foreground>
+      <Background>#d2ff51</Background>
+    </Active>
+  </MenuStyle>
+  <Desktops width="1" height="1">
+    <Background type="solid">#060809</Background>
+  </Desktops>
+  <FocusModel>click</FocusModel>
+  <SnapMode distance="10">border</SnapMode>
+  <MoveMode>opaque</MoveMode>
+  <ResizeMode>opaque</ResizeMode>
+  <Key mask="A" key="Tab">nextstacked</Key>
+  <Key mask="A" key="F4">close</Key>
+</JWM>

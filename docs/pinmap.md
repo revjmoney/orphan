@@ -8,7 +8,9 @@ J3 (I2S DAC), the fan pins and the 4 FPGA LEDs, all as listed here.
 
 ## Hashboard connectors J1..J9 (2x9, 18-pin)
 
-All on FPGA bank 34 (3.3 V, LVCMOS33). Every line has a 4.7K pull-up to 3.3 V and goes
+Which project uses which header, the differential pairs and the attachments (VGA, HDMI, DAC, antennas): [headers.md](headers.md).
+
+All on FPGA bank 34 (3.3 V, LVCMOS33). No pull-ups on these 4 lines (measured 2026-11-22 on board 2 with weak FPGA pull-downs: every pin on J1, J2, J4, J5, J6, J7 read 0, so no board pull-up); each goes
 straight to the FPGA: no buffer, no protection, NOT 5 V tolerant.
 
 Connector pins: **5 = PLUG, 11 = TXD, 12 = RXD, 15 = RST** (the 4 FPGA pins),

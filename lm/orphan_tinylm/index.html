@@ -67,7 +67,7 @@ footer{justify-content:space-between;gap:6px;flex-wrap:wrap}
 <main>
 <header>
  <div class="identity"><div class="mark" aria-hidden="true">L</div><div><h1>ORPHAN <span>TINYLM</span></h1><div class="brand">[orphan] · retired silicon writes stories · stories15M + stories42M on the FPGA</div></div></div>
- <div class="tools"><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a><button id="motion" type="button">FX on</button><span class="pill" id="conn">CONNECTING</span></div>
+ <div class="tools"><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a><span id="orphan-fan"></span><button id="motion" type="button">FX on</button><span class="pill" id="conn">CONNECTING</span></div>
 </header>
 <div class="metrics">
  <div class="metric"><div class="label">Tokens / second</div><strong><span id="tps">0</span> <small>tok/s</small></strong></div>
@@ -190,5 +190,6 @@ tick(); setInterval(tick, 250);
   set(on);
 })();
 </script>
+<script>(function(){var s=document.createElement('script');s.src='http://'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
 </body>
 </html>

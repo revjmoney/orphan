@@ -1,0 +1,12 @@
+[Unit]
+Description=Orphan first start: update to the newest Orphan from GitHub when online
+Wants=network-online.target
+After=network-online.target ardzy-firstboot.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/orphan-update --firstboot
+TimeoutStartSec=30min
+
+[Install]
+WantedBy=multi-user.target

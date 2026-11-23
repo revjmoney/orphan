@@ -1,0 +1,27 @@
+name: Plugin
+description: A SPEKTOR dekoder, INJEKTOR module, VIZOR window, or a chip model for the chip emulator
+labels: [plugin, enhancement]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Plugin for
+      options: [SPEKTOR dekoder, INJEKTOR module, VIZOR window, chip emulator chip model, other]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What it does
+    validations:
+      required: true
+  - type: textarea
+    id: refs
+    attributes:
+      label: Datasheets, protocol specs, test captures
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Can you help build it?
+      options:
+        - label: I'd like to work on this

@@ -63,7 +63,7 @@ footer{justify-content:space-between;gap:6px;flex-wrap:wrap}
 <main>
 <header>
  <div class="identity"><div class="mark" aria-hidden="true">₿</div><div><h1>ORPHAN <span>BTC</span></h1><div class="brand">[orphan] · JMSCNC · S9 FPGA · SHA-256d Stratum miner</div></div></div>
- <div class="tools"><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a>
+ <div class="tools"><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a><span id="orphan-fan"></span>
   <span class="pill fee" id="feeNote" hidden>DEV FEE SLICE</span><button id="motion" type="button">FX on</button><span class="pill" id="conn">CONNECTING</span></div>
 </header>
 <div class="metrics">
@@ -170,5 +170,6 @@ tick(); setInterval(tick, 1000);
   set(on);
 })();
 </script>
+<script>(function(){var s=document.createElement('script');s.src='http://'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
 </body>
 </html>

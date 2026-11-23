@@ -114,6 +114,7 @@ BODY = """<body>
  <div class="identity"><div class="mark" aria-hidden="true">O</div><div><h1>ORPHAN <span>FPGA</span></h1><div class="brand">[orphan] · by JMSCNC, makers of RotatoCAM · FPGA Dev Linux for the S9 Control Board</div></div></div>
  <div class="header-tools">
   <a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a>
+  <span id="orphan-fan"></span>
   <button id="motion" type="button" aria-pressed="true">FX on</button>
   <a class="pill" href="https://github.com/chrysovalantischryso/ardzy" target="_blank" rel="noopener" title="This page, the FPGA tool flow and the project loader are Ardzy"><b>ARDZY</b> INSIDE%s</a>
   <a class="pill" id="orphanGui" target="_blank" rel="noopener" hidden></a>
@@ -171,6 +172,7 @@ setInterval(async () => {
 </script>
 <!--RAIN-->
 <!--INFO-->
+<script>(function(){var s=document.createElement('script');s.src='http://'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
 </body>
 </html>
 """ % ((' ' + ver) if ver else '', script)
