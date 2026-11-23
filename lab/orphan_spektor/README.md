@@ -5,8 +5,9 @@
 [![Buy me a coffee](https://img.shields.io/badge/%E2%98%95-Buy%20me%20a%20coffee-ffcc2e)](https://buymeacoffee.com/revjmoney)
 
 A 16-channel logic analyzer built into the FPGA of a retired Antminer S9 control board (Zynq XC7Z010).
-SPEKTOR captures, triggers and decodes. INJEKTOR, the signal output half (replay, pattern generator,
-protocol drive, MITM, JTAG finder, glitcher), arrives with the next core build; its bay is already in the page.
+SPEKTOR captures, triggers and decodes. INJEKTOR is the signal output half: its first module, **INTERSEKTOR**,
+a UART man-in-the-middle bridge, is live (below). Replay, pattern generator, protocol drive, SPI MITM, JTAG finder
+and glitcher come with the next cores; their bays are already in the page.
 
 ![SKOPE](../../docs/screenshots/spektor-skope.png)
 
@@ -128,9 +129,64 @@ values, counts, trig, rle = s.read()                              # runs of 16-b
 Tested on hardware (board 2): edge spacing exact in RAW and RLE, rise/fall/any/level+edge triggers land on the exact
 sample in both modes, the divider, force and stop; the UART, I2C and SPI dekoders against known bytes.
 
+## INTERSEKTOR: the UART man-in-the-middle bridge (INJEKTOR page)
+
+![INTERSEKTOR RELAY with a swap rule](../../docs/screenshots/intersektor-relay-swap.jpg)
+
+Cut the serial line between two devices and put the S9 in the middle. Every byte, both ways, is logged with a
+microsecond time stamp, and you decide what goes through.
+
+```
+ device A TX ──> J6.5      J7.11 ──[330R]──> device B RX        (direction A → B)
+ device A RX <──[330R]── J6.11      J7.5 <── device B TX        (direction B → A)
+ GND ─────────── J6 pin 1/2 ── J7 pin 1/2 ─────────── GND
+```
+
+| Mode (per direction) | What happens |
+|---|---|
+| OFF | listen only: the output pin is not driven, bytes are still logged (a sniffer) |
+| WIRE | bit-level pass-through in the FPGA, under 100 ns of delay, any baud and any frame format |
+| RELAY | each byte goes through a 256-entry table in the FPGA (pass, swap to another byte, drop) and is sent again, one frame later; you can INJEKT your own bytes in between |
+| HOLD | bytes go to the ARM: sequence rules rewrite them (find / replace of any length), or PAUSE and edit them by hand in the HOLD KUE, then FORWARD |
+
+- **RULEZ**: text with `\r \n \t \xNN`, or `hex:de ad`. A one-byte find (to one byte, or to nothing = drop) runs in
+  the FPGA in RELAY at wire speed. Longer finds need HOLD (a partial match waits up to 30 ms for the rest).
+- **INJEKT**: send your own bytes to either device (512-byte queue per direction).
+- **AUTO baud**: the core measures the shortest pulse on each input; AUTO sets the nearest standard baud.
+- **Safety**: nothing is driven until **GO**, and GO is never saved (the bridge always starts with its outputs off).
+  A direction whose output pin is an input in use, or the other direction's output, is not driven (PIN CONFLICT).
+  If the web service stops answering in HOLD, the FPGA falls back to RELAY after 250 ms (FAILSAFE), so the link
+  keeps working.
+- Store and forward never overruns: while bytes are waiting, the stop bit is sent 3/4 long, so a sender up to about
+  2.5 % fast is kept up with (tested at 2.4 %). Framing errors and breaks are logged, not forwarded (use WIRE to
+  pass those).
+- Frames are 8N1. Other formats (parity, 7 bits, 2 stop bits): use WIRE.
+- Pins are any of the 36 header pins (IN / OUT selects); defaults as drawn above. SPEKTOR keeps capturing while the
+  bridge runs, and its CH0 / CH1 / CH4 / CH5 are exactly the four wires (default kanal map).
+- **TEST**: two built-in test UARTs play device A and device B (the AS A / AS B buttons), so you can try it all with
+  nothing wired.
+
+Terminal: `mitm`, `mitm go`, `mitm stop`, `mitm a2b relay 115200`, `inject b2a hello\r\n`, `rule a2b a 4`
+(`rule a2b x -` drops x).
+
+![HOLD: a held request edited by hand before it goes](../../docs/screenshots/intersektor-hold-edit.jpg)
+
+### Tested
+
+- Simulation (`sim/test_ik.py`, Icarus): **40 of 40**. The bench's devices are written with their own timing,
+  separate from the core: a 200-byte burst 2.4 % fast with nothing lost, a 2 % slow sender, 9600 baud passed
+  bit by bit through WIRE with the core set to 115200, WIRE delay under 100 ns, swap/drop, inject during traffic,
+  HOLD with an edited copy, FAILSAFE, a break, the baud finder, pin conflicts, TEST mode, OFF sniffing.
+  Result: `docs/sim-result-intersektor.txt`.
+- Board 2 (`ik_hw_test.py`): **20 of 20**. The bridge drives its real pins and SPEKTOR captures them from the pads;
+  the script decodes the UART from the raw samples itself: RELAY both ways, 9600 and 1,000,000 baud, the swap
+  table, INJEKT, WIRE, HOLD with sequence rules, FAILSAFE, the baud finder, the conflict guard.
+- The page in Chrome on board 2: modes, GO, a live swap rule, PAUSE + hand edit + FORWARD, the terminal.
+- **Not yet tested**: two real outside devices on the wires (all board tests used the built-in test UARTs).
+
 ## Roadmap: INJEKTOR
 
-Protocol drive (UART/I2C/SPI master), rekord/replay of kaptures, pattern generator, DDS/PWM, MITM bridge,
+Protocol drive (UART/I2C/SPI master), rekord/replay of kaptures, pattern generator, DDS/PWM, SPI MITM,
 JTAG/SWD finder, GLITCHR; a SUMP/sigrok link so PulseView can drive SPEKTOR directly; sigrok-cli in the distro.
 
 Built on Ardzy (by chryso, GPL-3.0): ardzy_bus, ardzy_info, the board tools. "Bus Pirate" is a trademark of its owners;

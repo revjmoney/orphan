@@ -1,0 +1,42 @@
+PASS ID reads IKT1
+PASS GO off: no pin is driven
+PASS GO on: only J7.11 and J6.11 are driven
+PASS idle transmit pins are high
+PASS RELAY A->B: 19 bytes from a 2% fast sender
+PASS nothing came back to A
+PASS log: 19 passed entries
+PASS log: 19 OUT entries (read back from the pin)
+PASS log time stamps never go backwards
+PASS log holds the byte values
+PASS 200-byte burst 2.4% fast: all bytes, in order
+PASS no byte lost (ERRS)
+PASS receiver B saw no framing errors
+PASS RELAY B->A: 2% slow sender
+PASS table reads back (l -> L)
+PASS swap l->L and drop o: hello world -> heLL wrLd
+PASS the table is per direction (B->A untouched)
+PASS ERRS counts 3 swapped, 2 dropped
+PASS inject B->A: INJ arrives at A
+PASS inject during traffic: 8 relayed + 3 injected, each in order
+PASS mode change to WIRE takes effect when idle
+PASS WIRE passes 9600 baud bit by bit (core set to 115200)
+PASS WIRE delay under 100 ns
+PASS HOLD: nothing forwarded by itself
+PASS HOLD: 4 held entries in the log
+PASS HOLD: the edited copy H0LD goes out
+PASS FAILSAFE flag after the heartbeat stops
+PASS FAILSAFE relays bytes
+PASS a heartbeat ends FAILSAFE
+PASS break: framing error logged
+PASS break: nothing forwarded
+PASS break: ERRS framing count
+PASS MINP = one bit at 115200 (868 clocks)
+PASS conflict flag when a transmit pin is a receive pin
+PASS the conflicting pin is not driven
+PASS conflict clears
+PASS TEST: test transmitter A reaches B
+PASS TEST: test transmitter B reaches A
+PASS OFF: pins released
+PASS OFF still logs (sniffing)
+DONE 0
+tb_ik.v:268: $finish called at 35550025000 (1ps)

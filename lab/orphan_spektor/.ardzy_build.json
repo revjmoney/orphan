@@ -1,23 +1,23 @@
 {
  "orphan_spektor.bit": {
   "board": "s9",
-  "sha256": "1a558ac2dc25a0545050e4ee5fd02183a760a6f133b88b604334c008edc2ccba",
-  "date": "2026-11-22 18:03",
+  "sha256": "a09b172e48347982df37820a1bfd08127bce8395661afacefef0275f7da6e8ce",
+  "date": "2026-11-23 08:50",
   "report": {
    "board": "s9",
    "board_name": "Antminer S9",
    "part": "xc7z010clg400-1",
    "top": "top",
-   "seconds": 61,
-   "date": "2026-11-22 18:03",
+   "seconds": 243,
+   "date": "2026-11-23 08:50",
    "used": {
-    "LUT": 1106,
-    "FF": 1317,
-    "BRAM": 16,
+    "LUT": 2309,
+    "FF": 2702,
+    "BRAM": 19,
     "DSP": 1,
-    "LUT_RAM": 15,
+    "LUT_RAM": 87,
     "SRL": 1,
-    "CARRY": 125,
+    "CARRY": 320,
     "BUFG": 1,
     "MMCM_PLL": 0
    },
@@ -31,7 +31,7 @@
    "pins": 47,
    "clocks": {
     "clk": {
-     "fmax": 120.18,
+     "fmax": 127.49,
      "need": 100.0,
      "pass": true
     }
@@ -42,67 +42,22 @@
     {
      "clock": "clk",
      "cross": false,
-     "start": "u_spk.wp[0]",
-     "end": "u_spk (logic)",
-     "delay": 8.32,
-     "levels": 13,
-     "logic_ns": 2.87,
-     "route_ns": 5.41,
+     "start": "u_spk.tsrc",
+     "end": "u_spk.live[1]",
+     "delay": 7.84,
+     "levels": 8,
+     "logic_ns": 1.5,
+     "route_ns": 6.32,
      "steps": [
       {
-       "net": "u_spk.wp[0]",
-       "ns": 0.18,
-       "src": "spektor.v:97"
+       "net": "u_spk.tsrc",
+       "ns": 1.18,
+       "src": "spektor.v:49"
       },
       {
-       "net": "(logic)",
-       "ns": 0.46,
-       "src": "spektor.v:121"
-      },
-      {
-       "net": "(logic)",
-       "ns": 1.11,
-       "src": "spektor.v:121"
-      },
-      {
-       "net": "u_spk.wpn[6]",
+       "net": "u_spk.live[1]",
        "ns": 0.95,
-       "src": "spektor.v:121"
-      },
-      {
-       "net": "u_spk.wpn[6]$legal999",
-       "ns": 0.0,
-       "src": ""
-      },
-      {
-       "net": "u_spk (logic)",
-       "ns": 0.7,
-       "src": ""
-      },
-      {
-       "net": "u_spk (logic)",
-       "ns": 0.35,
-       "src": ""
-      },
-      {
-       "net": "u_spk (logic)",
-       "ns": 0.68,
-       "src": ""
-      },
-      {
-       "net": "u_spk (logic)",
-       "ns": 0.33,
-       "src": ""
-      },
-      {
-       "net": "u_spk (logic)",
-       "ns": 0.51,
-       "src": ""
-      },
-      {
-       "net": "u_spk (logic)",
-       "ns": 0.02,
-       "src": ""
+       "src": "spektor.v:84"
       }
      ]
     }

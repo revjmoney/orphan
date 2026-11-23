@@ -113,6 +113,24 @@ tr.click{cursor:pointer} tr.click:hover td{background:#18241b}
 #tin{flex:1;background:transparent!important;border:0!important;outline:none;color:var(--ink)}
 #tab{position:fixed;right:0;top:46%;z-index:19;writing-mode:vertical-rl;border-right:0;border-radius:3px 0 0 3px;padding:.8em .3em;color:var(--lime);background:#0c130ee8;letter-spacing:.2em}
 footer{display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;color:var(--muted);font-size:.8em;letter-spacing:.06em}
+/* INTERSEKTOR */
+#p-injektor{overflow:auto}
+.ik{display:flex;flex-direction:column;gap:var(--space);flex:none}
+.ikgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:var(--space)}
+.ikdir{border:1px solid #26332a;border-radius:3px;padding:.5em;background:#0b110dcc;min-width:0}
+.ikdir .hd{display:flex;justify-content:space-between;align-items:center;gap:.5em;flex-wrap:wrap;margin-bottom:.4em}
+.ikdir .hd>b{color:var(--amber);letter-spacing:.08em}
+.seg{display:inline-flex}.seg button{border-radius:0;margin-left:-1px}.seg button:first-child{border-radius:3px 0 0 3px}.seg button:last-child{border-radius:0 3px 3px 0}
+.ikrow{display:flex;gap:.5em;align-items:center;flex-wrap:wrap;margin:.3em 0}
+.ikrow label{color:var(--muted);font-size:.86em;display:inline-flex;gap:.3em;align-items:center}
+.ikst{display:flex;gap:.9em;flex-wrap:wrap;font-size:.86em;color:var(--muted);margin:.3em 0}.ikst b{color:var(--ink);font-weight:400}
+.flag{font-size:.78em;padding:.05em .4em;border:1px solid var(--line);border-radius:2px;color:var(--muted)}
+.flag.hot{color:#131a06;background:var(--lime);border-color:var(--lime)}.flag.bad{color:#ffaea3;border-color:#744744}
+#iklog{height:17em;overflow:auto;margin:0;background:#070c08;border:1px solid #26332a;padding:.4em .5em;font-size:.88em;white-space:pre}
+#iklog .k1{color:#c9f59a}#iklog .k2{color:var(--amber)}#iklog .k3,#iklog .k5,#iklog .k7{color:#ff9d92}#iklog .k4{color:var(--cyan)}#iklog .k6{color:var(--muted)}
+.ikrules td{padding:.15em .25em}.ikrules input{width:100%}
+textarea{font:inherit;background:#090e0b;border:1px solid #405044;color:var(--ink);width:100%;min-height:3.2em;border-radius:2px;padding:.3em}
+.small{font-size:.84em}
 @media(max-width:900px){.pcard{grid-template-columns:1fr}nav.menu{overflow-x:auto}}
 </style>
 </head>
@@ -243,8 +261,23 @@ footer{display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;color:v
 
  <!-- 7 INJEKTOR -->
  <section class="page" id="p-injektor">
-  <div class="ph"><h2>INJEKTOR bay</h2><span class="muted">outputs on any J pin you don't map as an input · these modules arrive with the INJEKTOR core build</span></div>
-  <div class="inj grow" id="inj"></div>
+  <div class="ph"><h2>INJEKTOR bay</h2><span class="muted">INTERSEKTOR is live · the other modules arrive with the next kores · outputs only on the pins you pick, only after GO</span></div>
+  <div class="panel ik">
+   <div class="ph"><h2>INTERSEKTOR · UART MITM BRIDJ</h2>
+    <span class="ikrow"><label title="two built-in test UARTs stand in for device A and device B"><input type="checkbox" id="iktest"> TEST (built-in A / B)</label>
+     <button id="ikgo" type="button" class="primary">GO</button><span id="ikstat" class="pill">OUTPUTS OFF</span><button id="ikclr" type="button">CLEAR LOG</button></span></div>
+   <p class="muted small">Cut the line between device A and device B. A's TX to <b>J6.5</b>, <b>J6.11</b> to A's RX; B's TX to <b>J7.5</b>, <b>J7.11</b> to B's RX; all grounds together. 3.3 V only, 330 ohm in series on the two outputs.
+    SPEKTOR's CH0, CH1, CH4, CH5 see all four wires at once. Frames: 8N1. OFF = listen only · WIRE = bit-level pass-through (any baud or format) · RELAY = byte rewrite in the FPGA · HOLD = the ARM rewrites (sequences, hand edits).</p>
+   <div class="ikgrid"><div class="ikdir" id="ikd0"></div><div class="ikdir" id="ikd1"></div></div>
+   <div class="ikgrid">
+    <div class="ikdir"><div class="hd"><b>RULEZ</b><span><button id="ikadd" type="button">+ RULE</button> <button id="iksave" type="button" class="primary">SAVE RULEZ</button></span></div>
+     <table class="ikrules"><thead><tr><th>dir</th><th>find</th><th>replace with</th><th>on</th><th></th></tr></thead><tbody id="ikrules"></tbody></table>
+     <p class="muted small">Text with \r \n \t \xNN, or hex:de ad. A one-byte find (to one byte, or to nothing = drop) runs in the FPGA in RELAY, at wire speed. Longer finds work in HOLD: the ARM rewrites them (a partial match waits up to 30 ms).</p></div>
+    <div class="ikdir"><div class="hd"><b>HOLD KUE</b><span class="muted small">PAUSE a HOLD direction, edit the held bytes, FORWARD</span></div><div id="ikhold"></div></div>
+   </div>
+   <div class="ikdir"><div class="hd"><b>LIVE LOG</b><span class="ikrow"><label><input type="checkbox" id="ikin" checked> IN</label><label><input type="checkbox" id="ikout"> OUT (read back from the pin)</label><label><input type="checkbox" id="ikasc" checked> ASCII</label></span></div><pre id="iklog"></pre></div>
+  </div>
+  <div class="inj" id="inj"></div>
  </section>
 </div>
 
@@ -674,11 +707,95 @@ const INJ = [
   ['REKORD / REPLAY', 'Play any SPEKTOR kapture back out of the pins, sample-exact, once or looped. Clone a remote, a keypad or a boot sequence.'],
   ['PATTERN GEN', '16 outputs from a pattern RAM at up to 100 MSa/s: counters, walking ones, PRBS, your own waveform.'],
   ['DDS / PWM', 'Numerically controlled clocks and PWM on any output: millihertz to 50 MHz, set from the page.'],
-  ['MITM BRIDGE', 'Sit inside a UART or SPI line: pass bytes through, log them, and rewrite the ones you pick on the fly.'],
+  ['SPI MITM', 'INTERSEKTOR for SPI: sit between a chip and its master and swap the bytes it answers. (UART MITM is live above.)'],
   ['JTAG / SWD FINDER', 'Drive candidate pins through the IDCODE and BYPASS tests and name TCK, TMS, TDI, TDO automatically.'],
   ['GLITCHR', 'Trigger-locked pulses with 10 ns steps of delay and width: clock and reset glitching research on your own hardware.']];
 $('inj').innerHTML = INJ.map(([t, d]) => '<div class="panel"><div class="ph"><h2>' + t + '</h2><span class="tag">NEXT KORE</span></div><p>' + d + '</p></div>').join('') +
   '<div class="panel"><div class="ph"><h2>OUTPUT PINS</h2></div><p>Any of the 36 header pins (J1..J9 pins 5 / 11 / 12 / 15, 3.3 V), picked per pin like the kanal map. Use 330 ohm series resistors on every output you connect.</p></div>';
+
+// ---------------- INTERSEKTOR: the UART MITM bridge
+const IKM = ['OFF', 'WIRE', 'RELAY', 'HOLD'], IKK = ['', 'PASS', 'SWAP', 'DROP', 'HELD', 'FERR', 'OUT ', 'LOST'], IKD = ['A → B', 'B → A'];
+let ik = null, ikSeq = 0, ikLog = [], ikRules = null, ikT0 = null, ikCfgKey = '';
+const hx = b => b.toString(16).padStart(2, '0').toUpperCase();
+const ch = b => b >= 32 && b < 127 ? "'" + String.fromCharCode(b) + "'" : b === 10 ? '\\n' : b === 13 ? '\\r' : '·';
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function ikPost(op, body) { const r = await api('mitm', Object.assign({ op }, body || {})); if (r && r.conflict && r.conflict.length) log('INTERSEKTOR: pin conflict on ' + r.conflict.map(d => IKD[d]).join(', ') + ' (not driven)'); return r; }
+function pinSel(id, v) { return '<select id="' + id + '">' + PIN_NAMES.map((n, i) => '<option value="' + i + '"' + (i === v ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>'; }
+function renderIkDirs() {
+  [0, 1].forEach(d => { const c = ik.cfg[d];
+    $('ikd' + d).innerHTML = '<div class="hd"><b>' + IKD[d] + '</b><span class="seg">' + IKM.map((m, k) => '<button type="button" data-ikm="' + d + ':' + k + '"' + (c.mode === k ? ' class="on"' : '') + '>' + m + '</button>').join('') + '</span></div>' +
+      '<div class="ikrow"><label>IN ' + pinSel('ikrx' + d, c.rx) + '</label><label>OUT ' + pinSel('iktx' + d, c.tx) + '</label><label>BAUD <input id="ikb' + d + '" size="8" value="' + c.baud + '"></label><button type="button" data-ikauto="' + d + '" title="use the baud measured from the shortest pulse">AUTO</button></div>' +
+      '<div class="ikst" id="iks' + d + '"></div>' +
+      '<div class="ikrow"><input id="iki' + d + '" placeholder="text, \\r\\n, \\xNN or hex:.." style="flex:1;min-width:8em"><button type="button" data-ikinj="' + d + '" title="send these bytes to device ' + 'BA'[d] + ' (RELAY / HOLD)">INJEKT</button><button type="button" data-iktst="' + d + '" title="TEST mode: the built-in device ' + 'AB'[d] + ' sends this into the bridge">AS ' + 'AB'[d] + '</button></div>'; });
+  ['rx', 'tx'].forEach(k => [0, 1].forEach(d => $('ik' + k + d).onchange = ikSendCfg)); [0, 1].forEach(d => $('ikb' + d).onchange = ikSendCfg);
+}
+function ikCfgFromPage() { return [0, 1].map(d => ({ mode: ik.cfg[d].mode, rx: +$('ikrx' + d).value, tx: +$('iktx' + d).value, baud: Math.round(parseRate($('ikb' + d).value) || ik.cfg[d].baud) })); }
+async function ikSendCfg() { try { await ikPost('cfg', { dirs: ikCfgFromPage() }); await ikPoll(true); } catch (e) { log('INTERSEKTOR: ' + e.message); } }
+function renderIkStats() {
+  [0, 1].forEach(d => { const s = ik.dirs[d], c = ik.cfg[d];
+    $('iks' + d).innerHTML = 'RX <b>' + s.rx_bytes + '</b> SENT <b>' + s.tx_bytes + '</b> SWAP <b>' + s.swapped + '</b> DROP <b>' + s.dropped + '</b> FERR <b>' + s.ferr + '</b> LOST <b>' + s.lost + '</b> KUE <b>' + s.queued + '</b>' +
+      ' <span class="flag' + (s.driving ? ' hot' : '') + '">' + (s.driving ? 'DRIVING ' + PIN_NAMES[s.tx] : 'NOT DRIVEN') + '</span>' +
+      (s.failsafe ? ' <span class="flag bad">FAILSAFE</span>' : '') + (s.active !== c.mode ? ' <span class="flag">SWITCHING</span>' : '') +
+      (s.baud_guess ? ' <span title="from the shortest pulse on the input">line ~<b>' + s.baud_guess + '</b></span>' : ''); });
+  const go = ik.go; $('ikgo').textContent = go ? 'STOP' : 'GO'; $('ikgo').className = go ? 'stop' : 'primary';
+  $('ikstat').textContent = !go ? 'OUTPUTS OFF' : ik.conflict ? 'PIN CONFLICT' : ik.dirs.some(s => s.driving) ? 'BRIDJ LIVE' : 'GO · ALL OFF';
+  $('ikstat').className = 'pill' + (ik.conflict ? ' bad' : ''); $('iktest').checked = ik.test;
+  // HOLD kue
+  const hold = $('ikhold');
+  [0, 1].forEach(d => { let el = $('ikh' + d);
+    if (!el) { el = document.createElement('div'); el.id = 'ikh' + d; el.innerHTML = '<div class="ikrow"><b class="muted">' + IKD[d] + '</b><button type="button" data-ikp="' + d + '">PAUSE</button><span class="muted small" id="ikhn' + d + '"></span></div>' +
+      '<textarea id="ikht' + d + '" spellcheck="false" placeholder="held bytes (hex) appear here while paused"></textarea><div class="ikrow"><button type="button" class="primary" data-ikfw="' + d + '">FORWARD</button><button type="button" data-ikdc="' + d + '">DISCARD</button></div>'; hold.appendChild(el); }
+    const pb = hold.querySelector('[data-ikp="' + d + '"]'); pb.textContent = ik.paused[d] ? 'PAUSED' : 'PAUSE'; pb.className = ik.paused[d] ? 'on' : '';
+    $('ikhn' + d).textContent = (ik.cfg[d].mode === 3 ? 'HOLD' : 'not in HOLD') + ' · ' + ik.pending[d].length / 2 + ' bytes held · rule hits ' + ik.hits[d];
+    const t = $('ikht' + d); if (document.activeElement !== t) t.value = ik.pending[d].replace(/(..)/g, '$1 ').trim(); });
+}
+function renderIkRules() {
+  $('ikrules').innerHTML = ikRules.map((r, i) => '<tr><td><select data-r="' + i + '" data-f="dir"><option value="0"' + (r.dir ? '' : ' selected') + '>A→B</option><option value="1"' + (r.dir ? ' selected' : '') + '>B→A</option></select></td>' +
+    '<td><input data-r="' + i + '" data-f="find" value="' + esc(r.find) + '"></td><td><input data-r="' + i + '" data-f="repl" value="' + esc(r.repl) + '"></td>' +
+    '<td><input type="checkbox" data-r="' + i + '" data-f="on"' + (r.on ? ' checked' : '') + '></td><td><button type="button" data-rdel="' + i + '">X</button></td></tr>').join('') ||
+    '<tr><td colspan="5" class="muted">no rules: bytes pass unchanged</td></tr>';
+}
+$('ikrules').addEventListener('input', ev => { const t = ev.target, i = t.dataset.r; if (i == null) return; const f = t.dataset.f;
+  ikRules[i][f] = f === 'on' ? t.checked : f === 'dir' ? +t.value : t.value; });
+$('ikrules').addEventListener('change', ev => { const t = ev.target; if (t.dataset.f === 'dir') ikRules[t.dataset.r].dir = +t.value; });
+$('ikadd').onclick = () => { ikRules.push({ dir: 0, find: '', repl: '', on: true }); renderIkRules(); };
+$('iksave').onclick = async () => { try { await ikPost('rules', { rules: ikRules.filter(r => r.find) }); log('INTERSEKTOR: ' + ikRules.filter(r => r.find).length + ' rules saved'); ikRules = null; await ikPoll(true); } catch (e) { log('rules: ' + e.message); } };
+$('ikgo').onclick = async () => { try { await ikPost('go', { on: !ik.go }); log('INTERSEKTOR ' + (ik.go ? 'STOP: outputs released' : 'GO: outputs on')); await ikPoll(true); } catch (e) { log('INTERSEKTOR: ' + e.message); } };
+$('iktest').onchange = async () => { await ikPost('cfg', { test: $('iktest').checked }); await ikPoll(true); };
+$('ikclr').onclick = async () => { await ikPost('clearlog'); ikLog = []; ikT0 = null; $('iklog').textContent = ''; };
+['ikin', 'ikout', 'ikasc'].forEach(id => $(id).onchange = renderIkLog);
+$('p-injektor').addEventListener('click', async ev => { const b = ev.target.closest('button'); if (!b || !ik) return; const ds = b.dataset;
+  try {
+    if (ds.ikm) { const [d, m] = ds.ikm.split(':').map(Number); const dirs = ikCfgFromPage(); dirs[d].mode = m; await ikPost('cfg', { dirs }); await ikPoll(true); }
+    else if (ds.ikauto) { const d = +ds.ikauto, g = ik.dirs[d].baud_guess; if (!g) { log('AUTO: no pulses seen on ' + PIN_NAMES[ik.cfg[d].rx] + ' yet'); return; } $('ikb' + d).value = g; await ikSendCfg(); }
+    else if (ds.ikinj) { const d = +ds.ikinj, r = await ikPost('inject', { dir: d, data: $('iki' + d).value }); log('INJEKT ' + IKD[d] + ': ' + r.sent + ' bytes'); }
+    else if (ds.iktst) { const d = +ds.iktst, r = await ikPost('testsend', { dir: d, data: $('iki' + d).value }); log('TEST device ' + 'AB'[d] + ' sent ' + r.sent + ' bytes'); }
+    else if (ds.ikp) { const d = +ds.ikp; await ikPost('pause', { dir: d, on: !ik.paused[d] }); await ikPoll(true); }
+    else if (ds.ikfw) { const d = +ds.ikfw, h = $('ikht' + d).value.replace(/[^0-9a-fA-F]/g, ''); if (h.length % 2) throw new Error('odd number of hex digits'); const r = await ikPost('forward', { dir: d, hex: h }); $('ikht' + d).value = ''; log('FORWARD ' + IKD[d] + ': ' + r.sent + ' bytes'); }
+    else if (ds.ikdc) { await ikPost('discard', { dir: +ds.ikdc }); $('ikht' + ds.ikdc).value = ''; }
+    else if (ds.rdel != null) { ikRules.splice(+ds.rdel, 1); renderIkRules(); }
+  } catch (e) { log('INTERSEKTOR: ' + e.message); } });
+function renderIkLog() {
+  const inn = $('ikin').checked, out = $('ikout').checked, asc = $('ikasc').checked, lines = [];
+  for (const e of ikLog) { if (e.k === 6 ? !out : !inn) continue;
+    const t = ((e.t - ikT0) / 1000).toFixed(3).padStart(10) + ' ms ', dir = e.d ? 'B→A ' : 'A→B ';
+    let txt = hx(e.b) + (asc ? ' ' + ch(e.b) : '');
+    if (e.k === 2) txt = hx(e.b) + '→' + hx(e.o) + (asc ? ' ' + ch(e.b) + '→' + ch(e.o) : '');
+    lines.push('<span class="k' + e.k + '">' + t + dir + IKK[e.k] + ' ' + esc(txt) + '</span>'); }
+  const el = $('iklog'), atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+  el.innerHTML = lines.slice(-600).join(NL) || '<span class="muted">waiting for bytes ...</span>'; if (atEnd) el.scrollTop = el.scrollHeight;
+}
+async function ikPoll(force) {
+  if (!force && page !== 6) return;
+  try { const s = await (await fetch('/api/mitm?since=' + ikSeq)).json(); ik = s;
+    const key = JSON.stringify(s.cfg); if (key !== ikCfgKey || !$('ikrx0')) { ikCfgKey = key; renderIkDirs(); }
+    if (!ikRules) { ikRules = s.rules.map(r => Object.assign({}, r)); renderIkRules(); }
+    if (s.seq < ikSeq) { ikLog = []; ikT0 = null; }
+    if (s.log.length) { if (ikT0 == null) ikT0 = s.log[0].t; ikLog = ikLog.concat(s.log).slice(-3000); renderIkLog(); }
+    ikSeq = s.seq; renderIkStats();
+  } catch (e) { $('ikstat').textContent = 'NO KORE'; $('ikstat').className = 'pill bad'; }
+}
+setInterval(ikPoll, 250);
 
 // ---------------- TERMINAL drawer
 const tout = $('tout');
@@ -698,6 +815,10 @@ const HELP = [
   'map [<ch> <Jn.p>] | map stock    show / set the kanal map',
   'pins                             all 36 header pins now',
   'vcd | csv                        save the kapture',
+  'mitm [go|stop]                   INTERSEKTOR status / outputs on, off',
+  'mitm <a2b|b2a> <off|wire|relay|hold> [baud]   set a direction',
+  'inject <a2b|b2a> <text>          send bytes (\\r \\n \\xNN, hex:..)',
+  'rule <a2b|b2a> <find> <replace>  add a rewrite rule (replace "-" = drop)',
   'page <name>                      SKOPE TRIGGR DEKODE MEETRZ LOGZ PROBEZ INJEKTOR',
   'clear                            wipe this screen'];
 function parseRate(s) { const m = /^([\d.]+)\s*([kKmM]?)/.exec(s || ''); if (!m) return null; return +m[1] * (m[2].toLowerCase() === 'm' ? 1e6 : m[2].toLowerCase() === 'k' ? 1e3 : 1); }
@@ -728,6 +849,14 @@ async function cmd(line) {
       for (let r = 0; r < 4; r++) tprint(Array.from({ length: 4 }, (_, k) => { const c = r * 4 + k; return ('CH' + c).padEnd(5) + pinOf(c).padEnd(7); }).join('  ')); }
     else if (c === 'pins') { for (let j = 0; j < 9; j++) tprint('J' + (j + 1) + '  ' + [5, 11, 12, 15].map((q, k) => q + ':' + (Math.floor(rawPins / Math.pow(2, j * 4 + k)) % 2)).join('  ')); }
     else if (c === 'vcd') saveVcd(cap); else if (c === 'csv') { if (cap) saveCsv(cap); }
+    else if (c === 'mitm' || c === 'inject' || c === 'rule') { await ikPoll(true); if (!ik) throw new Error('INTERSEKTOR kore not answering');
+      const w = (a[1] || '').toLowerCase(), d = w === 'b2a' ? 1 : w === 'a2b' ? 0 : -1;
+      if (c === 'inject') { if (d < 0) throw new Error('inject <a2b|b2a> <text>'); const r = await ikPost('inject', { dir: d, data: line.trim().split(/\s+/).slice(2).join(' ') }); tprint('injekted ' + r.sent + ' bytes ' + IKD[d], 'y'); }
+      else if (c === 'rule') { if (d < 0 || a.length < 4) throw new Error('rule <a2b|b2a> <find> <replace|->'); const rs = ik.rules.concat([{ dir: d, find: a[2], repl: a[3] === '-' ? '' : a[3], on: true }]); await ikPost('rules', { rules: rs }); ikRules = null; tprint('rule added ' + IKD[d] + ': ' + a[2] + ' -> ' + (a[3] === '-' ? '(drop)' : a[3]), 'y'); }
+      else if (w === 'go' || w === 'stop') { await ikPost('go', { on: w === 'go' }); tprint(w === 'go' ? 'GO: outputs on' : 'outputs released', 'y'); }
+      else if (d >= 0) { const m = IKM.indexOf((a[2] || '').toUpperCase()); if (m < 0) throw new Error('mitm <a2b|b2a> <off|wire|relay|hold> [baud]'); const dirs = ik.cfg.map(x => Object.assign({}, x)); dirs[d].mode = m; if (a[3]) dirs[d].baud = Math.round(parseRate(a[3])); await ikPost('cfg', { dirs }); tprint(IKD[d] + ' ' + IKM[m] + ' ' + dirs[d].baud + ' baud', 'y'); }
+      await ikPoll(true); tprint('INTERSEKTOR ' + (ik.go ? 'GO' : 'outputs off') + (ik.test ? ' · TEST' : '') + (ik.conflict ? ' · PIN CONFLICT' : ''));
+      ik.dirs.forEach((s, k) => tprint('  ' + IKD[k] + '  ' + IKM[ik.cfg[k].mode].padEnd(5) + ' ' + String(ik.cfg[k].baud).padStart(7) + ' baud  ' + PIN_NAMES[s.rx] + ' -> ' + PIN_NAMES[s.tx] + '  rx ' + s.rx_bytes + ' sent ' + s.tx_bytes + ' swap ' + s.swapped + ' drop ' + s.dropped + (s.failsafe ? ' FAILSAFE' : ''), 'm')); }
     else if (c === 'page') { const i = PAGES.indexOf((a[1] || '').toLowerCase()); if (i < 0) throw new Error('pages: ' + PAGES.join(' ')); show(i); }
     else tprint('?SYNTAX ERROR. type HELP', 'e');
   } catch (e) { tprint('ERR ' + e.message, 'e'); }
@@ -773,6 +902,6 @@ renderTrig(); renderDeks(); renderCards();
 fetch('/api/capture').then(r => r.json()).then(c => { if (c.values && c.values.length) loadCapture(c); }).catch(() => {});
 poll(); setInterval(poll, 400);
 </script>
-<script>(function(){var s=document.createElement('script');s.src='//'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
+<script>(function(){var s=document.createElement('script');s.src='http://'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
 </body>
 </html>

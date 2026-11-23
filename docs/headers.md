@@ -46,6 +46,7 @@ footprint. The pins connect straight to the FPGA, so there is nothing to jumper.
 | [ardzy] 12 FM radio | | | | | | | | | RF in (11) |
 
 SPEKTOR's "any" means its kanal map: each of its 16 channels can sample any of the 36 pins (the defaults are shown).
+Its INTERSEKTOR UART bridge (INJEKTOR page) drives two pins, only after GO: by default J7.11 (to device B) and J6.11 (to device A); in on J6.5 and J7.5. Any header pin can be picked instead.
 Projects with an empty row use no header pins: their picture, sound and controls go over the network.
 
 ## Attachments

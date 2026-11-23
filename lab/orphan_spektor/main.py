@@ -1,6 +1,7 @@
 """[orphan] ORPHAN LOGIC LAB: SPEKTOR / INJEKTOR 3000 -- the web service (port 8000).
 SPEKTOR: a 16-channel logic analyzer in the S9 control board's FPGA (spektor.v). The page shows the waveforms,
 sets the 4-stage trigger, decodes UART / I2C / SPI in the browser and exports VCD for PulseView.
+INTERSEKTOR (intersektor.v, mitm_service.py): the UART man-in-the-middle bridge on the INJEKTOR page.
 by JMSCNC, makers of RotatoCAM. GPL-3.0-or-later."""
 import http.server
 import json
@@ -10,6 +11,7 @@ import time
 
 import numpy as np
 
+from mitm_service import MitmService
 from spektor_hw import DEFAULT_MAP, PIN_NAMES, Spektor, to_vcd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -31,6 +33,7 @@ def load_map():
 
 
 load_map()
+mitm = MitmService(hw.bus, lock, HERE)      # INTERSEKTOR, the UART man-in-the-middle bridge (slot 2)
 
 
 def names():
@@ -77,6 +80,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             except (OSError, ValueError):
                 s['temp'] = None
             return self.send(200, s)
+        if self.path.startswith('/api/mitm'):
+            q = self.path.split('since=')
+            st = mitm.state(int(q[1]) if len(q) > 1 and q[1].isdigit() else 0)
+            st['pin_names'] = PIN_NAMES
+            return self.send(200, st)
         if self.path.startswith('/api/capture'):
             return self.send(200, last)
         if self.path.startswith('/api/vcd'):
@@ -109,6 +117,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 with lock:
                     m = hw.set_map(d.get('map') or DEFAULT_MAP)
                 json.dump(m, open(MAP_FILE, 'w'))
+            elif a == 'mitm':
+                return self.send(200, dict(mitm.action(d), ok=True))
             elif a == 'names':
                 json.dump([str(x)[:16] for x in d.get('names', [])][:16], open(NAMES_FILE, 'w'))
             else:
