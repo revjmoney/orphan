@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#080a0c">
 <title>ORPHAN · FPGA Dev Linux for the S9 Control Board</title>
-<meta name="description" content="Orphan turns the Antminer S9 control board into a hacker's bench computer: game consoles, a software radio, a synth, a miner and a language model built inside its FPGA. By JMSCNC, makers of RotatoCAM.">
+<meta name="description" content="Orphan turns the Antminer S9 control board into a hacker's bench computer: game consoles, a software radio, a synth, a logic lab, a chip emulator, a miner and a language model built inside its FPGA, with a desktop in your browser. By JMSCNC, makers of RotatoCAM.">
 <style>
 :root{color-scheme:dark;--ink:#e8efe6;--muted:#a3afa2;--lime:#d2ff51;--gold:#ffb02e;--line:#364239;--panel:#101613c8;--mono:Consolas,"IBM Plex Mono",ui-monospace,monospace;
  --fs:clamp(12px,1.75vh,17px)}
@@ -34,7 +34,7 @@ footer{display:flex;justify-content:space-between;gap:8px;color:var(--muted);fon
 .home.away{transform:translateX(-8%);opacity:0;pointer-events:none}
 .hero{margin:0;color:#cfe0c6;max-width:1100px}
 .hero b{color:var(--lime)}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:1.4vh;min-height:0}
+.grid{display:grid;grid-template-columns:repeat(var(--cols,4),1fr);grid-template-rows:repeat(3,1fr);gap:1.4vh;min-height:0}
 .tile{position:relative;display:flex;flex-direction:column;gap:.3em;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:4px;padding:1.4vh 1.2vw;box-shadow:inset 0 1px #e1ffc810,0 10px 24px #0006;cursor:pointer;overflow:hidden;min-height:0;transition:transform .15s,border-color .15s;backdrop-filter:blur(2px)}
 .tile::before,.card::before{content:"";position:absolute;top:-1px;left:12px;width:28px;height:1px;background:#b3c3b3}
 .tile:hover{transform:translateY(-3px);border-color:var(--lime)}
@@ -64,7 +64,7 @@ footer{display:flex;justify-content:space-between;gap:8px;color:var(--muted);fon
 .card .foot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:1vh 1.4vw;border-top:1px solid #364239}
 .dots{display:flex;gap:8px}.dots i{width:10px;height:10px;border:1px solid var(--lime);border-radius:50%;cursor:pointer}.dots i.on{background:var(--lime);box-shadow:0 0 8px var(--lime)}
 @media (max-width:820px),(max-aspect-ratio:1/1){
- .grid{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(6,1fr)}
+ .grid{grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(var(--mrows,6),1fr)}
  .tile .th,.tile p{display:none}
  .page{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
  .brand,.pill,#fx{display:none}
@@ -89,7 +89,8 @@ footer{display:flex;justify-content:space-between;gap:8px;color:var(--muted);fon
  <section class="home" id="home">
   <p class="hero">In Bitcoin, an <i>orphan block</i> is one the chain left behind. <b>Orphan</b> is for the control boards the
    mining world left behind: an S9 controller (Zynq ARM + FPGA, a few dollars used) becomes a hacker's bench computer with
-   <b>game consoles, a radio, a synth, a miner and a language model built inside the FPGA</b>. Pick a card.</p>
+   <b>game consoles, a radio, a synth, a logic lab, a chip emulator, a miner and a language model built inside the FPGA</b>,
+   and a desktop in your browser. Flash one card and boot. Pick a card.</p>
   <div class="grid" id="grid"></div>
  </section>
  <section class="card" id="card" role="dialog" aria-modal="true">
@@ -107,26 +108,39 @@ const S = 'shots/';
 const CARDS = [
  {id: 'start', tag: 'start here', title: 'What is Orphan', thumb: 'board.png', blurb: 'A $5 mining controller turned FPGA bench computer.', pages: [
   {img: 'board.png', h: 'The board', t: `<p>The Antminer S9's control board has a Xilinx <b>Zynq XC7Z010</b>: two ARM cores running Linux
-   plus a real FPGA, 512 MB RAM, Ethernet and 51 free FPGA pins.</p><p>Orphan installs on top of <a href="https://github.com/chrysovalantischryso/ardzy">Ardzy</a>
-   (chryso's Debian 13 + FPGA toolchain) and adds a BBS-style menu, a web control page, and machines built inside the FPGA.</p>`},
+   plus a real FPGA, 512 MB RAM, Ethernet and 51 free FPGA pins.</p><p>Orphan is one complete firmware for it: Debian 13 and
+   <a href="https://github.com/chrysovalantischryso/ardzy">Ardzy</a> (chryso's bootloader, kernel and FPGA loader) inside, plus a
+   BBS-style menu, a web board page, the VIZOR desktop and machines built inside the FPGA. Nothing to install first.</p>`},
   {img: 'menu.png', h: 'Where things run', t: `<ul><li><code>{fpga core}</code>: the hardware is built in the FPGA.</li>
    <li><code>{arm linux}</code>: a program on the ARM.</li><li><code>{fpga + arm}</code>: both, working together.</li></ul>
    <p>Load a core in one keypress or one click; its own page opens. No Vivado: everything builds with Yosys + nextpnr.</p>`}]},
- {id: 'install', tag: 'install', title: 'Getting started', thumb: 'menu.png', blurb: 'SD card, one script, done.', pages: [
-  {h: 'You need', t: `<ul><li>An <b>Antminer S9 control board</b></li><li>A 12 V supply with a 6-pin PCIe plug</li>
-   <li>A microSD card, 8 GB or more</li><li>Ethernet to your router</li><li>Recommended: a fan on a fan header</li></ul>`},
-  {h: '1. Ardzy on the SD card', t: `<p>Write <code>Ardzy-0.3-sdcard.img.xz</code> from <a href="https://github.com/chrysovalantischryso/ardzy/releases">Ardzy's releases</a>.
-   Set the jumpers <b>JP2 = 1, JP4 = 1</b>, power up, wait 2 minutes.</p><pre>ssh root@ardzy.local    # password root
-passwd                   # change it now</pre>`},
-  {img: 'menu.png', h: '2. Orphan', t: `<pre>apt update && apt install -y git
-git clone https://github.com/revjmoney/orphan
-cd orphan
-sh orphan/setup-board.sh orphan</pre><p>Log in again: the Orphan menu opens. Open <code>http://orphan.local</code> for the board page.</p>`}]},
+ {id: 'install', tag: 'install', title: 'Getting started', thumb: 'menu.png', blurb: 'Flash one card, boot, done.', pages: [
+  {h: 'You need', t: `<ul><li>An <b>Antminer S9 control board</b> (the one with the Zynq XC7Z010)</li><li>A 12 V supply with a 6-pin PCIe plug</li>
+   <li>A microSD card, 8 GB or more</li><li>Ethernet to your router, and a PC on the same network</li><li>Recommended: a fan on a fan header</li></ul>`},
+  {h: '1. Flash the Orphan card', t: `<p>Download <code>Orphan-&lt;version&gt;-sdcard.img.xz</code> from the
+   <a href="https://github.com/revjmoney/orphan/releases">Releases</a> and write it with balenaEtcher or Raspberry Pi Imager
+   (no need to unpack it).</p><p>Optional: edit <code>ardzy.txt</code> on the card's boot partition first (hostname, root password,
+   network, timezone, SSH).</p>`},
+  {img: 'vizor-desktop.png', h: '2. Liberate the board', t: `<p>Boot jumpers to SD card: <b>JP2 = 1, JP4 = 1</b>. Card in, Ethernet, then
+   power. The first start takes a few minutes (it grows the card and pulls the newest Orphan if it is online).</p><ul>
+   <li><code>http://orphan.local:8080</code>: <b>VIZOR</b>, the desktop</li><li><code>http://orphan.local</code>: the board page</li>
+   <li><code>ssh root@orphan.local</code>: password <code>root</code>, change it with <code>passwd</code></li></ul>`},
+  {img: 'menu.png', h: 'Updates and more boards', t: `<p>Update any time with <code>orphan-update</code>.</p>
+   <p>Already running Ardzy? Turn it into Orphan in place:</p><pre>git clone https://github.com/revjmoney/orphan
+sh orphan/orphan/setup-board.sh orphan</pre><p>Several boards: give each a hostname in <code>ardzy.txt</code>, or keep them
+   identical with <code>orphan/sync-boards.sh</code>. Build the image yourself with <code>tools/make-sdimage.sh</code>.</p>`}]},
  {id: 'board', tag: 'web', title: 'The board page', thumb: 'board.png', blurb: 'Matrix rain, project tree, quick starts.', pages: [
   {img: 'board.png', h: 'Ardzy inside, Orphan outside', t: `<p>Ardzy's board app in the Orphan look. Projects sit in a tree:
    <b>[orphan]</b> and <b>[ardzy]</b>, each split into [games], [mining], [science], [radio &amp; sound], [lab toys], [starters &amp; tests].</p>`},
   {img: 'board-popup.png', h: 'Quick starts', t: `<p>Click a project's name: what it is, a <b>quick start</b> and the wiring.</p>
    <p><b>Load</b> starts it and opens its own page in a new tab; the header shows OPEN &lt;core&gt; GUI while it runs.</p>`}]},
+ {id: 'vizor', tag: 'arm linux', title: 'VIZOR desktop', thumb: 'vizor-desktop.png', blurb: 'The board\'s desktop, in your browser.', pages: [
+  {img: 'vizor-desktop.png', h: 'A desktop on port 8080', t: `<p>Menus (ORPHAN, KORES, TOOLZ, SYSTEM, WINDOWZ), windows you drag,
+   resize and tile, a taskbar and a tray with the loaded kore, CPU, die temperature, fan and network.</p>
+   <p><b>KORES</b> loads any FPGA project and opens its page in a window. A real shell runs in a window too.</p>`},
+  {img: 'vizor-x-pulseview.png', h: 'Real X apps', t: `<p>An X desktop on the board streams into a VIZOR window: <b>PulseView</b>,
+   GTKWave and xterm run on the ARM and you work them from the browser.</p><p>Apps installed with <code>apt</code> show up in the
+   TOOLZ menu by themselves; web apps on the board open as windows.</p>`}]},
  {id: 'tinylm', tag: 'fpga + arm', title: 'Orphan TinyLM', thumb: 'tinylm-adventure.png', blurb: 'Retired silicon writes stories: a Llama on the FPGA.', pages: [
   {img: 'tinylm-adventure.png', h: 'Choose your own adventure', t: `<p>Real Llama language models with every matrix product in the FPGA.
    <b>Adventure</b>: the FPGA writes <b>4 takes of the next chapter at once</b>; you pick one and the story goes on from your choice.</p>`},
@@ -153,10 +167,26 @@ sh orphan/setup-board.sh orphan</pre><p>Log in again: the Orphan menu opens. Ope
   {h: 'More', t: `<ul><li><b>Graphics Toys</b>: a raycaster, colour waves, XOR fields and the Game of Life drawn by the FPGA.</li>
    <li><b>Fan control everywhere</b>: Orphan's designs and Ardzy's examples carry Orphan's fan block; the Cooling page sets the speed and reads rpm.</li>
    <li><b>ORPHAN Remote</b>: a $15 ESP32 Cheap Yellow Display as a Wi-Fi touch screen for the board.</li></ul>`}]},
- {id: 'next', tag: 'coming', title: 'SPEKTOR / INJEKTOR 3000', thumb: 'board.png', blurb: 'ORPHAN LOGIC LAB: the next build.', pages: [
-  {h: 'Orphan Logic Lab', t: `<p><b>SPEKTOR</b> sees: 16 channels, hardware triggers, PulseView support, decoders on the board.</p>
-   <p><b>INJEKTOR</b> drives: UART, I&#178;C, SPI, CAN, 1-Wire, IR; record and bit-exact replay; glitch timing.</p>
-   <p>Probe build plans and pinouts on the page, and a terminal drawer.</p>`}]},
+ {id: 'spektor', tag: 'fpga + arm', title: 'SPEKTOR / INJEKTOR 3000', thumb: 'spektor-skope.png', blurb: 'Logic analyzer and UART man-in-the-middle.', pages: [
+  {img: 'spektor-skope.png', h: 'SPEKTOR sees', t: `<p>ORPHAN LOGIC LAB: a <b>16-channel, 100 MSa/s</b> logic analyzer on any of
+   the 36 header pins.</p><ul><li>4-stage hardware trigger</li><li>UART, I&#178;C and SPI dekoders, meetrz on the board</li>
+   <li>VCD export for PulseView</li></ul>`},
+  {img: 'spektor-triggr.png', h: 'TRIGGR', t: `<p>A <b>4-stage sequencer</b> in the FPGA: per stage and channel a level (0 / 1 / X) or a
+   rise / fall / any edge, plus how many samples it must hold. Presets: rising edge, UART start bit, I&#178;C START,
+   SPI chip select, two-stage glitch hunt, Nth edge.</p><p>Probe pages show how to build each probe; a terminal drawer is one key away.</p>`},
+  {img: 'intersektor-relay-swap.jpg', h: 'INJEKTOR: INTERSEKTOR', t: `<p>A <b>UART man-in-the-middle</b> between two devices: OFF, WIRE,
+   RELAY and HOLD.</p><ul><li><b>RELAY</b>: every byte goes through a 256-entry table in the FPGA (pass, swap, drop) at wire speed;
+   INJEKT your own bytes in between</li><li><b>HOLD</b>: bytes go to the ARM, where sequence rules find and replace, or you
+   pause and edit</li><li><b>FAILSAFE</b>: if the web service stops answering in HOLD, the FPGA falls back to RELAY in 250 ms</li></ul>`},
+  {img: 'intersektor-hold-edit.jpg', h: 'Hand edit', t: `<p>PAUSE, and the held bytes wait in the HOLD KUE: edit them by hand, then
+   FORWARD.</p>`}]},
+ {id: 'mimik', tag: 'fpga + arm', title: 'MIMIK chip emulator', thumb: 'mimik-sensorz.jpg', blurb: 'The FPGA answers as the chip.', pages: [
+  {img: 'mimik-sensorz.jpg', h: 'Be the sensor', t: `<p>ORPHAN LOGIC LAB: the FPGA answers the bus master as an <b>I&#178;C chip, at the
+   chip's own speed</b>, from that chip's own registers.</p><p>Sensors report whatever you set: sliders, or sine, ramp, square
+   and noise around them. TMP102, LM75, MLX90614, SRF02, TF-Luna, HMC5883L, QMC5883L, MPU-6050, BH1750.</p>`},
+  {img: 'mimik-live.jpg', h: 'EEPROMs and the live bus', t: `<p>EEPROMs 24C02 to 24C256 with page writes, write protect and ACK
+   polling, plus a hex editor.</p><p>The <b>LIVE</b> tab logs every bus access and draws a hit map: which bytes the target board
+   really reads and writes. Chip models are plugins.</p>`}]},
  {id: 'support', tag: 'coffee', title: 'Support Orphan', thumb: 'board.png', blurb: 'Made in a garage, fueled by coffee.', pages: [
   {h: 'Keep the soldering iron hot', t: `<p>Orphan is made by one person in a garage. If it brought your old control board back to life:</p>
    <p><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a></p>
@@ -165,12 +195,15 @@ sh orphan/setup-board.sh orphan</pre><p>Log in again: the Orphan menu opens. Ope
   {h: 'Built on', t: `<table><tr><th>Part</th><th>By</th></tr><tr><td>Ardzy</td><td>chryso, GPL-3.0</td></tr>
    <tr><td>fpganes</td><td>Ludvig Strigeus, GPL-2.0</td></tr><tr><td>VerilogBoy</td><td>Wenting Zhang, OHDL 1.0</td></tr>
    <tr><td>MiSTer SMS core, T80</td><td>Sorgelig, Daniel Wallner, MiSTer developers</td></tr><tr><td>jt89</td><td>Jose Tejada, GPL-3.0</td></tr>
-   <tr><td>stories15M / 42M</td><td>Andrej Karpathy (llama2.c), MIT</td></tr><tr><td>Yosys, nextpnr, GHDL</td><td>YosysHQ, f4pga, GHDL</td></tr></table>`},
+   <tr><td>stories15M / 42M</td><td>Andrej Karpathy (llama2.c), MIT</td></tr><tr><td>verilog-i2c (MIMIK)</td><td>Alex Forencich, MIT</td></tr><tr><td>Yosys, nextpnr, GHDL</td><td>YosysHQ, f4pga, GHDL</td></tr></table>`},
   {h: 'Licence', t: `<p>Orphan is GPL-3.0-or-later with two additional terms: keep "by JMSCNC, makers of RotatoCAM", and a fork uses its own
    name and logo. The monkey logo is not GPL. No Bitmain software, firmware or schematic is in the repository.</p>
    <p>Full list: <a href="https://github.com/revjmoney/orphan/blob/main/NOTICE.md">NOTICE.md</a></p>`}]},
 ];
 const $ = id => document.getElementById(id);
+// the grid fits every card on one screen: 3 rows on a wide screen, 2 columns on a narrow one
+document.documentElement.style.setProperty('--cols', Math.ceil(CARDS.length / 3));
+document.documentElement.style.setProperty('--mrows', Math.ceil(CARDS.length / 2));
 $('grid').innerHTML = CARDS.map(c => '<button class="tile" data-id="' + c.id + '"><div class="tag">' + c.tag + '</div><h2>' + c.title +
   '</h2><p>' + c.blurb + '</p><div class="th" style="background-image:url(' + S + c.thumb + ')"></div></button>').join('');
 let ci = -1, pi = 0;
