@@ -60,7 +60,7 @@ footer{border-top:1px solid #71827140;color:var(--muted);font-size:.78em;letter-
  <p class="lead">Plug an original NES controller into the S9 control board and play the Orphan NES console with it. The FPGA reads
   the pad's own shift register about 1000 times a second, with NES timing. Real pads and the browser pads (keyboard, USB gamepad)
   work together.</p>
- <span class="status">Not tested with a NES controller, yet · built and simulated</span>
+ <span class="status">Not tested with a NES controller, yet · simulated · empty-header test passed on one board</span>
 
  <div class="danger" role="alert"><div class="tri" aria-hidden="true">!</div><div>
   <h2>Disconnect every hashboard first</h2>
@@ -111,9 +111,9 @@ footer{border-top:1px solid #71827140;color:var(--muted);font-size:.78em;letter-
    into (do the pin 16 check there too). Optional extra safety: <code>ORPHAN_NES_PADS_NEVER=6,7</code> (or <code>6,7</code> in
    <code>/etc/orphan/nespads-never</code>) lists headers that are never driven or read.</li>
   <li><b>Empty-header test</b> (required on J6 to J8). With no pad plugged in, start the console with your two headers picked and
-   check that it prints <code>no adapter</code> for both pads. No board pull-ups were found on these pins (measured on J1, J2 and
-   J4 to J7 of one board), but J6 to J8 have resistors fitted nearby that are not measured yet: a pull-down on PLUG would show up
-   here as "adapter found" with nothing plugged in.</li>
+   check that it prints <code>no adapter</code> for both pads. On the first test board every header read empty (below), but J6 to
+   J8 have resistors fitted nearby and boards may differ: a pull-down on PLUG would show up here as "adapter found" with nothing
+   plugged in.</li>
  </ol>
 
  <h2>Turn it on</h2>
@@ -138,8 +138,13 @@ ORPHAN_NES_PADS_NEVER=6,7    # optional: never drive or read J6 and J7 (default:
    are being read. HWNEVER (word 11): optional protected headers, none after the FPGA loads. Real pads stay off after the FPGA loads
    until the console program turns them on, and go off again when it exits.</li>
   <li><b>Tested in simulation:</b> the reader against a model of the pad's 4021 (15 checks) and the header crossbar (13 checks:
-   switching headers mid-scan, PLUG high, a protected header with PLUG low). <b>Not tested with a NES controller, yet</b>, and not yet
-   on a board: reports welcome as <a href="https://github.com/revjmoney/orphan/issues">GitHub issues</a>.</li>
+   switching headers mid-scan, PLUG high, a protected header with PLUG low).</li>
+  <li><b>First board test</b> (2026-11-25, one S9 board, no pad plugged in): the console loaded, and J1, J2, J3, J4, J5, J7, J8 and
+   J9 all read "no adapter" with no buttons over about 200 scans each, so on that board nothing on those headers pulls PLUG or DATA
+   low against the FPGA's pull-ups. J6 had a hashboard on it and was listed in <code>ORPHAN_NES_PADS_NEVER=6</code>, so it was never
+   driven or read. Still: disconnect every hashboard before you use real pads.</li>
+  <li><b>Not tested with a NES controller, yet:</b> reports welcome as
+   <a href="https://github.com/revjmoney/orphan/issues">GitHub issues</a>.</li>
  </ul>
  <p class="note">Pad facts (button order, latch and clock behaviour, wire colours, socket layout) are from the NESdev wiki:
   <a href="https://www.nesdev.org/wiki/Standard_controller">Standard controller</a> and

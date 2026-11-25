@@ -58,9 +58,9 @@ find each wire with the continuity tester, against the socket drawing (front vie
    solder a header into (do the pin 16 check there too). Optional extra safety: `ORPHAN_NES_PADS_NEVER=6,7` (or the
    line `6,7` in `/etc/orphan/nespads-never`) lists headers that are never driven or read.
 3. **Empty-header test** (no pad plugged in yet, required on J6 to J8): start the console with your two headers picked
-   (below) and check that it prints `no adapter` for both pads. No board pull-ups were found on these pins (measured on
-   J1, J2 and J4 to J7 of one board), but J6 to J8 have resistors fitted nearby that are not measured yet; a pull-down
-   on PLUG would show up here as "adapter found" with nothing plugged in.
+   (below) and check that it prints `no adapter` for both pads. On the first test board every header read empty (see
+   Status), but J6 to J8 have resistors fitted nearby and boards may differ: a pull-down on PLUG would show up here as
+   "adapter found" with nothing plugged in.
 
 ## Turn it on
 
@@ -101,7 +101,14 @@ Pad facts (button order, latch and clock behaviour, wire colours, socket layout)
 
 ## Status
 
-**Not tested with a NES controller, yet.** Built and simulated; not yet tried on a board. Reports welcome as GitHub issues.
+**Not tested with a NES controller, yet.** Reports welcome as GitHub issues.
+
+- Simulation: the reader against a model of the 4021 (15 checks) and the header crossbar (13 checks).
+- First board test (2026-11-25, one S9 board, no pad plugged in): the console loaded, and J1, J2, J3, J4, J5, J7, J8
+  and J9 all read "no adapter" with no buttons over about 200 scans each. So on that board nothing on those headers
+  pulls PLUG or DATA low against the FPGA's pull-ups (the resistors fitted near J6 to J8 do not fake an adapter on J7
+  or J8). J6 had a hashboard on it and was listed in `ORPHAN_NES_PADS_NEVER=6`, so it was never driven or read.
+  Still: disconnect every hashboard before you use real pads.
 
 The drawing is made by `docs/nes-pad/make_adapter_svg.py` (it writes the same SVG for the docs, the website and the
 console's page).
