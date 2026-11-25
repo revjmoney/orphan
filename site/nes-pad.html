@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080a0c">
+<title>Real NES pads · ORPHAN FPGA</title>
+<meta name="description" content="Plug an original NES controller into the Antminer S9 control board and play Orphan's NES console with it: wiring, the 3.3 V adapter, setup and how the FPGA reads the pad.">
+<style>
+:root{color-scheme:dark;--ink:#e8efe6;--muted:#a3afa2;--lime:#d2ff51;--gold:#ffb02e;--line:#364239;--panel:#101613;--mono:Consolas,"IBM Plex Mono",ui-monospace,monospace}
+*{box-sizing:border-box}
+html{background:#080a0c}
+body{margin:0;color:var(--ink);font:15px/1.6 var(--mono);background:radial-gradient(1200px 500px at 70% -10%,#1a2a1244,transparent 70%),#080a0c}
+a{color:var(--lime)}a:hover{color:#fff}
+header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px clamp(12px,3vw,34px);
+ background:#080a0cee;border-bottom:1px solid #71827170;backdrop-filter:blur(6px)}
+.identity{display:flex;align-items:center;gap:12px;min-width:0;text-decoration:none;color:var(--ink)}
+.identity img{height:48px;width:auto;filter:drop-shadow(0 0 10px #ffb02e55)}
+.identity b{font:800 30px/.9 "Arial Narrow",Bahnschrift,Impact,sans-serif;letter-spacing:-.03em;white-space:nowrap}
+.identity b span{color:var(--lime)}
+.tools{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:3px;padding:.4em .8em;font-weight:700;text-decoration:none;box-shadow:0 0 14px #ffcc2e55;white-space:nowrap}
+.gh{display:inline-flex;align-items:center;gap:.45em;color:#0c1400!important;background:var(--lime);border:1px solid #e6ff9a;border-radius:3px;padding:.4em .8em;font-weight:700;text-decoration:none;box-shadow:0 0 14px #d2ff5155;white-space:nowrap}
+.gh svg{width:1.15em;height:1.15em;fill:currentColor}.gh:hover{background:#fff}
+main{max-width:1080px;margin:0 auto;padding:28px clamp(14px,3vw,34px) 40px}
+.crumb{color:var(--muted);font-size:.85em;letter-spacing:.08em;text-transform:uppercase}
+h1{margin:.2em 0 .3em;color:var(--lime);font:800 clamp(30px,5vw,52px)/1 "Arial Narrow",Bahnschrift,Impact,sans-serif;letter-spacing:-.02em;text-transform:uppercase}
+.lead{color:#cfe0c6;max-width:820px;margin:0 0 18px}
+h2{margin:34px 0 10px;color:var(--gold);font-size:1em;letter-spacing:.1em;text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:6px}
+.fig{margin:18px 0;border:1px solid #2d3b31;box-shadow:0 10px 30px #000a;background:#080a0c}
+.fig img{display:block;width:100%;height:auto}
+.warn{border:1px solid var(--gold);background:#2a1a08;color:#ffe2b0;padding:12px 16px;border-radius:4px;margin:18px 0}
+.warn b{color:var(--gold)}
+table{border-collapse:collapse;width:100%;font-size:.92em;margin:8px 0}
+td,th{border:1px solid #2d3b31;padding:.45em .6em;text-align:left;vertical-align:top}
+th{color:var(--lime);background:#0d130f}
+.sw{display:inline-block;width:.85em;height:.85em;border-radius:50%;vertical-align:-.08em;margin-right:.4em;border:1px solid #0008}
+code,pre{background:#080e0a;border:1px solid #2d3b31;color:#b8f0c9}
+code{padding:0 .3em}pre{padding:.8em;overflow:auto;font-size:.92em}
+ol li,ul li{margin:.35em 0}
+.note{color:var(--muted);font-size:.9em}
+.status{display:inline-block;border:1px solid #596e3e;background:#152112;color:var(--lime);padding:.2em .6em;font-size:.85em;letter-spacing:.06em;text-transform:uppercase}
+footer{border-top:1px solid #71827140;color:var(--muted);font-size:.78em;letter-spacing:.06em;text-transform:uppercase;padding:14px clamp(12px,3vw,34px);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+@media (max-width:640px){.identity img{height:36px}.identity b{font-size:22px}.bmc span{display:none}.bmc,.gh{padding:.35em .55em}table{font-size:.82em}}
+</style>
+</head>
+<body>
+<header>
+ <a class="identity" href="./"><img src="img/logo.png" alt=""><b>ORPHAN <span>FPGA</span></b></a>
+ <div class="tools"><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener" aria-label="Buy me a coffee">&#9749;<span> Coffee</span></a>
+  <a class="gh" href="https://github.com/revjmoney/orphan" target="_blank" rel="noopener" aria-label="Orphan on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a></div>
+</header>
+<main>
+ <div class="crumb"><a href="./#games">Orphan Games</a> · NES</div>
+ <h1>Real NES pads</h1>
+ <p class="lead">Plug an original NES controller into the S9 control board and play the Orphan NES console with it. The FPGA reads
+  the pad's own shift register about 1000 times a second, with NES timing. Real pads and the browser pads (keyboard, USB gamepad)
+  work together.</p>
+ <span class="status">Built and simulated · not yet tried on a board</span>
+
+ <div class="fig"><img src="img/nes-pad-adapter.svg" alt="Adapter wiring: S9 header pin 15 RST to the NES socket LATCH, pin 11 TXD to CLOCK, pin 12 RXD from DATA, pin 16 3.3 V to VCC, pin 1 GND to GND, and pin 5 PLUG tied to pin 9 GND." width="1240" height="540"></div>
+
+ <div class="warn"><b>3.3 V only.</b> The hashboard header pins go straight into the FPGA: no buffer, no protection, not 5 V
+  tolerant. Power the pad from the header's 3.3 V pin (16), never from 5 V.</div>
+
+ <h2>What you need</h2>
+ <ul>
+  <li>An S9 control board running Orphan, with the <code>orphan_nes</code> core</li>
+  <li>An original NES controller. Its CD4021 chip runs from 3 V to 15 V, so 3.3 V is fine; some clone pads use other chips
+   and may not run at 3.3 V.</li>
+  <li>A 2x9 socket that fits the header on your board (check the pitch with calipers: 2.54 mm or 2.0 mm)</li>
+  <li>An NES controller socket: the easiest is the socket end of an NES extension cable</li>
+  <li>A multimeter (continuity and DC volts) and a soldering iron</li>
+ </ul>
+
+ <h2>Wiring</h2>
+ <table>
+  <tr><th>S9 header pin</th><th>On the S9 board</th><th>NES socket</th><th>Official pad wire</th></tr>
+  <tr><td>15</td><td>RST (FPGA output)</td><td>LATCH (OUT)</td><td><span class="sw" style="background:#ff9a2e"></span>orange</td></tr>
+  <tr><td>11</td><td>TXD (FPGA output)</td><td>CLOCK (CLK)</td><td><span class="sw" style="background:#ff5a4f"></span>red</td></tr>
+  <tr><td>12</td><td>RXD (FPGA input)</td><td>DATA (D0)</td><td><span class="sw" style="background:#ffe14d"></span>yellow</td></tr>
+  <tr><td>16</td><td>3.3 V</td><td>VCC (the "+5V" pin)</td><td><span class="sw" style="background:#f4f6f2"></span>white</td></tr>
+  <tr><td>1 (or 2, 9, 10, 13, 14)</td><td>GND</td><td>GND</td><td><span class="sw" style="background:#c08a5a"></span>brown</td></tr>
+  <tr><td>5</td><td>PLUG</td><td>tie to GND (pin 9) in the adapter</td><td><span class="sw" style="background:#d2ff51"></span>jumper</td></tr>
+ </table>
+ <p>Leave every other header pin unconnected (18 is EN, driven by the ARM; 3, 4, 6, 7, 8 and 17 are not used). D3 and D4 on the
+  NES socket stay unconnected.</p>
+ <p><b style="color:var(--lime)">PLUG to GND matters:</b> it tells Orphan an adapter is on this header. The FPGA only drives LATCH
+  and CLOCK on a header you picked <i>and</i> whose PLUG pin is low. Without the jumper the pad is never read.</p>
+ <p class="note">The wire colours are those of an official NES pad cable. Extension cables and clones use other colours: find each
+  wire with the continuity tester, against the socket drawing (front view, like the console's own port).</p>
+
+ <h2>Before you plug a pad in</h2>
+ <ol>
+  <li><b>Check the header numbering.</b> The drawing uses the usual 2x9 numbering: pin 1 is the square pad, odd pins in one row,
+   even pins in the other. With the board powered, measure pin 16 to pin 1: it must read <b>3.3 V</b>. If it does not, stop and
+   find the 3.3 V and GND pins on your board first.</li>
+  <li><b>Pick a header without a hashboard.</b> Stock boards only have headers fitted on J6, J7 and J8. Never pick a header that
+   has a hashboard on it. J1 to J5 and J9 are bare footprints you can solder a header into (measure pin 16 there too).</li>
+  <li><b>Empty-header test.</b> With no pad plugged in, start the console with your two headers picked and check that it prints
+   <code>no adapter</code> for both pads.</li>
+ </ol>
+
+ <h2>Turn it on</h2>
+ <p>The console reads pads on J1 (pad 1) and J2 (pad 2) unless told otherwise. Pick other headers on the board:</p>
+<pre>ORPHAN_NES_PADS=7,8          # pad 1 on J7, pad 2 on J8
+echo 7,8 &gt; /etc/orphan/nespads
+ORPHAN_NES_PADS=off          # real pads off</pre>
+ <p>At start the console prints, for example, <code>Real NES pads on J7,J8: pad 1 adapter found, pad 2 no adapter</code>.
+  Its web page (port 8000) has an <b>NES pads</b> button: each pad's header, whether an adapter is found, and every button
+  lighting up as you press it.</p>
+
+ <h2>How it works</h2>
+ <ul>
+  <li><b>The reader</b> (<a href="https://github.com/revjmoney/orphan/blob/main/games/orphan_nes/orphan_nespad.v">orphan_nespad.v</a>):
+   LATCH high for 12 us, then 8 bits with 6 us clock halves (A, B, Select, Start, Up, Down, Left, Right; low = pressed), a scan
+   every 1.002 ms. A read no real pad can give (Up + Down or Left + Right at once) counts as no buttons, so a stuck DATA line
+   can not jam a game.</li>
+  <li><b>Any header:</b> a 9-header crossbar in the FPGA, so J1 to J9 can each be pad 1 or pad 2. The FPGA's weak pull-ups are on
+   for all 36 header pins (the board has none).</li>
+  <li><b>Registers:</b> HWPADS (word 9 of the NES block): write enable and the two header numbers, read the buttons and which pads
+   are being read. Real pads stay off after the FPGA loads until the console program turns them on.</li>
+  <li><b>Tested</b> in simulation against a model of the pad's 4021 (15 checks). Not yet on a board or with a real pad:
+   reports welcome as <a href="https://github.com/revjmoney/orphan/issues">GitHub issues</a>.</li>
+ </ul>
+ <p class="note">Pad facts (button order, latch and clock behaviour, wire colours, socket layout) are from the NESdev wiki:
+  <a href="https://www.nesdev.org/wiki/Standard_controller">Standard controller</a> and
+  <a href="https://www.nesdev.org/wiki/Controller_port_pinout">Controller port pinout</a>.</p>
+</main>
+<footer><span><a href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> · [Rev. J. Money - 2026] · by <a href="https://jmscnc.com">JMSCNC</a>, makers of RotatoCAM</span>
+ <span>GPL-3.0-or-later · <a href="./">back to Orphan</a></span></footer>
+</body>
+</html>

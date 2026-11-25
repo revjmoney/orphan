@@ -40,7 +40,7 @@ networks ...), 6 starters and tests, and Orphan's own ten:
 |---|---|---|
 | **Orphan Radio** (Orphan 7600) | fpga + arm | Software defined receiver, 1 kHz to 49 MHz from one pin: 4 tuners, panadapter, AM/SAM/SSB/CW/NFM, noise blanker, CW, NAVTEX, WWVB and SSTV decoders on the board, scanner, memories. An RTL-SDR on your PC can be a second tuner (`radio/nesdr-remote`). |
 | **Orphan Synth** | fpga + arm | 8 voices, 6-oscillator mixer, filters, envelopes, LFOs, mod matrix, drive, bitcrusher, delay, looper, arpeggiator, presets; web keys, terminal keyboard or network MIDI. |
-| **Orphan Games: NES** | fpga core | fpganes in the FPGA: CPU, picture, sound, mappers 0 to 4. |
+| **Orphan Games: NES** | fpga core | fpganes in the FPGA: CPU, picture, sound, mappers 0 to 4. Real NES controllers plug into the hashboard headers through a 3.3 V adapter: [wiring guide](docs/nes-pad/README.md). |
 | **Orphan Games: Game Boy** | fpga core | VerilogBoy with Orphan's own boot ROM, stereo, carts to 128 KB (MBC1/3/5). |
 | **Orphan Games: Master System + Game Gear** | fpga core | MiSTer's SMS core turned into Verilog with GHDL, T80 Z80, VDP, jt89 sound; `.gg` switches to Game Gear mode. Own test cart included. |
 | **Orphan TinyLM** | fpga + arm | Karpathy's stories15M / stories42M Llama models with every matrix product in the FPGA: 64 lanes, 4 stories per weight pass. Modes: Write, 4 Stories, **Adventure** (4 takes per chapter, you pick), model selector, FPGA vs ARM race. |

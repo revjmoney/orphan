@@ -323,8 +323,22 @@ def nes_pads_state():
             'buttons': [r & 255, r >> 8 & 255]}
 
 
+def pads_watch():
+    """Tell the page when a real pad adapter appears or goes, or its buttons change (4 times a second)."""
+    last = None
+    while True:
+        try:
+            hp = nes_pads_state()
+        except Exception:  # noqa: BLE001
+            hp = None
+        if hp != last:
+            last = hp
+            broadcast(json.dumps({'hwpads': hp, 'hwports': state.get('hwpads', '')}).encode(), opcode=1)
+        time.sleep(0.25)
+
+
 def status():
-    return json.dumps({'state': state, 'hwpads': nes_pads_state(), 'games': game_list(), 'audio_hz': AUDIO_HZ, 'system': SYS['name'],
+    return json.dumps({'state': state, 'hwpads': nes_pads_state(), 'hwports': state.get('hwpads', ''), 'games': game_list(), 'audio_hz': AUDIO_HZ, 'system': SYS['name'],
                        'w': SYS['w'], 'h': SYS['h'], 'ext': SYS['ext'], 'roms': ROMS}).encode()
 
 
@@ -384,6 +398,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     clients.pop(sock, None)
                 q.put(None)
             return
+        if self.path == '/adapter.svg':                     # the NES pad adapter diagram
+            body = open(os.path.join(HERE, 'adapter.svg'), 'rb').read()
+            self.send_response(200)
+            self.send_header('Content-Type', 'image/svg+xml')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if self.path not in ('/', '/index.html'):
             self.send_error(404)
             return
@@ -425,7 +447,7 @@ if __name__ == '__main__':
           flush=True)
     if games:
         load(games[0])
-    for t in (frames, sound, raw_audio_server, cyd_sender):
+    for t in (frames, sound, raw_audio_server, cyd_sender, pads_watch):
         threading.Thread(target=t, daemon=True).start()
     ip = (subprocess.run(['hostname', '-I'], capture_output=True, text=True).stdout.split() or ['<board>'])[0]
     print('Orphan Games: open http://%s:%d in a browser' % (ip, PORT))
