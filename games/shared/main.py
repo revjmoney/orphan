@@ -29,6 +29,8 @@ import numpy as np
 
 from blocks import Bus, require
 import gbrom
+import cydlink
+from cydlink import RGB565, GB565, SMS565, GG565
 import nesrom
 import smsrom
 
@@ -196,21 +198,6 @@ def sound():
 
 
 # ---------------------------------------------------------------- ORPHAN Remote (CYD): RGB565 over TCP 8091
-PAL555 = [0x39ce, 0x4464, 0x5400, 0x4c08, 0x3811, 0x0815, 0x0014, 0x002f, 0x00a8, 0x0100, 0x0140, 0x08e0,
-          0x2ce3, 0x0000, 0x0000, 0x0000, 0x5ef7, 0x75c0, 0x74e4, 0x7810, 0x5c17, 0x2c1c, 0x00bb, 0x0539,
-          0x01d1, 0x0240, 0x02a0, 0x1e40, 0x4600, 0x0000, 0x0000, 0x0000, 0x7fff, 0x7ee7, 0x7e4b, 0x7e28,
-          0x7dfe, 0x59df, 0x31df, 0x1e7f, 0x1efe, 0x0b50, 0x2769, 0x4feb, 0x6fa0, 0x3def, 0x0000, 0x0000,
-          0x7fff, 0x7f95, 0x7f58, 0x7f3a, 0x7f1f, 0x6f1f, 0x5aff, 0x577f, 0x539f, 0x53fc, 0x5fd5, 0x67f6,
-          0x7bf3, 0x6318, 0x0000, 0x0000]
-RGB565 = np.array([((v & 31) << 11) | ((v >> 5 & 31) << 6) | (v >> 10 & 31) for v in PAL555], dtype='<u2')
-# the Game Boy's 4 greens, lightest first, as RGB565
-GB565 = np.array([((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3) for r, g, b in
-                  ((0xE0, 0xF0, 0xC8), (0x88, 0xC0, 0x70), (0x34, 0x68, 0x56), (0x08, 0x18, 0x20))], dtype='<u2')
-# Master System (BBGGRR, 2 bits each) and Game Gear (BGR 4-4-4) colors as RGB565
-SMS565 = np.array([((v & 3) * 31 // 3) << 11 | ((v >> 2 & 3) * 63 // 3) << 5 | (v >> 4 & 3) * 31 // 3
-                   for v in range(64)], dtype='<u2')
-GG565 = np.array([((v & 15) * 31 // 15) << 11 | ((v >> 4 & 15) * 63 // 15) << 5 | (v >> 8 & 15) * 31 // 15
-                  for v in range(4096)], dtype='<u2')
 cyd_q = queue.Queue(maxsize=1)
 
 
@@ -230,28 +217,72 @@ def cyd_frame(fb):
         pass                                   # the CYD is slower than the console: keep only the newest
 
 
+def cyd_layout(fb):
+    """The picture as the CYD game stream wants it: (image, scale, x, y, palette). Game Boy and Game Gear are
+    shown 1.5x (240 x 216, in-between pixels blended), NES and Master System 1:1."""
+    w = np.array(fb, dtype=np.uint32)
+    if SYS_ID == 'GB01':
+        px = np.stack([(w >> (2 * k)) & 3 for k in range(16)], axis=1).reshape(-1)[:160 * 144]
+        return px.astype(np.uint8).reshape(144, 160), 1, 40, 12, GB565
+    if SUB == 3:
+        px = np.stack([(w >> (12 * k)) & 4095 for k in range(2)], axis=1).reshape(-1)[:160 * 144]
+        return GG565[px].reshape(144, 160), 1, 40, 12, None
+    if SUB == 2:
+        px = np.stack([(w >> (6 * k)) & 63 for k in range(5)], axis=1).reshape(-1)[:256 * 192]
+        return px.astype(np.uint8).reshape(192, 256), 0, 32, 24, SMS565
+    px = np.stack([(w >> (6 * k)) & 63 for k in range(5)], axis=1).reshape(-1)[:256 * 240]
+    return px.astype(np.uint8).reshape(240, 256), 0, 32, 0, RGB565
+
+
+def cyd_has_game_port(host):
+    """Newer ORPHAN Remote firmware lists game_port 8092 in /status; older firmware only has /rect on 8091."""
+    try:
+        with socket.create_connection((host, 80), timeout=2) as s:
+            s.sendall(b'GET /status HTTP/1.1\r\nHost: cyd\r\nConnection: close\r\n\r\n')
+            data = b''
+            while True:
+                chunk = s.recv(2048)
+                if not chunk:
+                    break
+                data += chunk
+        return b'"game_port":8092' in data
+    except OSError:
+        return False
+
+
+def cyd_sender_rect(fb):
+    """Older ORPHAN Remote firmware: one RGB565 rectangle per picture over HTTP on 8091."""
+    img, scale, x, y, pal = cyd_layout(fb)
+    if scale:                                  # no 1.5x on old firmware: centre the picture 1:1
+        x, y = (320 - img.shape[1]) // 2, (240 - img.shape[0]) // 2
+    data = (img if pal is None else pal[img]).astype('<u2').tobytes()
+    rect = 'x=%d&y=%d&w=%d&h=%d' % (x, y, img.shape[1], img.shape[0])
+    with socket.create_connection((state['cyd'], 8091), timeout=2) as s:
+        s.sendall(('POST /rect?%s&scale=1&hud=0 HTTP/1.1\r\nHost: cyd\r\n'
+                   'Content-Length: %d\r\nConnection: close\r\n\r\n' % (rect, len(data))).encode() + data)
+        s.recv(64)
+
+
 def cyd_sender():
+    link, fast, checked = None, False, 0.0
+    n, t0 = 0, time.time()
     while True:
         fb = cyd_q.get()
-        w = np.array(fb, dtype=np.uint32)
-        if SYS_ID == 'GB01':
-            px = np.stack([(w >> (2 * k)) & 3 for k in range(16)], axis=1).reshape(-1)[:160 * 144]
-            data, rect = GB565[px].tobytes(), 'x=80&y=48&w=160&h=144'
-        elif SUB == 3:
-            px = np.stack([(w >> (12 * k)) & 4095 for k in range(2)], axis=1).reshape(-1)[:160 * 144]
-            data, rect = GG565[px].tobytes(), 'x=80&y=48&w=160&h=144'
-        elif SUB == 2:
-            px = np.stack([(w >> (6 * k)) & 63 for k in range(5)], axis=1).reshape(-1)[:256 * 192]
-            data, rect = SMS565[px].tobytes(), 'x=32&y=24&w=256&h=192'
-        else:
-            px = np.stack([(w >> (6 * k)) & 63 for k in range(5)], axis=1).reshape(-1)[:256 * 240]
-            data, rect = RGB565[px].tobytes(), 'x=32&y=0&w=256&h=240'
         try:
-            with socket.create_connection((state['cyd'], 8091), timeout=2) as s:
-                s.sendall(('POST /rect?%s&scale=1&hud=0 HTTP/1.1\r\nHost: cyd\r\n'
-                           'Content-Length: %d\r\nConnection: close\r\n\r\n' % (rect, len(data))).encode() + data)
-                s.recv(64)
+            if time.time() - checked > 30 and not fast:
+                fast, checked = cyd_has_game_port(state['cyd']), time.time()
+                link = cydlink.CydLink(state['cyd']) if fast else None
+            if fast:
+                img, scale, x, y, pal = cyd_layout(fb)
+                link.send(img, scale=scale, x=x, y=y, palette=pal)
+            else:
+                cyd_sender_rect(fb)
+            n += 1
+            if time.time() - t0 >= 1:
+                state['cyd_fps'] = round(n / (time.time() - t0), 1)
+                n, t0 = 0, time.time()
         except OSError:
+            fast, checked = False, 0.0
             time.sleep(1)
 
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Rev. J. Money
-// Orphan Remote: generic Linux scene terminal + RGB565 rectangle transport.
+// Orphan Remote: generic Linux scene terminal + RGB565 rectangle transport + game stream (TCP 8092).
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -11,12 +11,15 @@
 
 WiFiServer control(80);
 WiFiServer graphics(8091);
+WiFiServer gameServer(8092);
+WiFiClient gameClient;
 String target="http://orphan.local:8090";
 const char* views[]={"system","mining","projects","radio","synth"};
 int view=0;
 uint32_t lastPoll=0,lastTouch=0,lastFrame=0;
 uint32_t frameCount=0,frameTransferMs=0;
 float frameFps=0;
+bool hudOn=true;     // last frame's hud= flag: hud=0 keeps the temp/FPS box off, also on the 5 s timer
 float chipTemperature=NAN;
 uint32_t lastTemperaturePoll=0;
 bool online=false;
@@ -128,12 +131,24 @@ void scene(){
 }
 // Rectangle packets: POST /rect?x=N&y=N&w=N&h=N HTTP/1.1, little-endian RGB565 rows.
 // Scale 2 expands source pixels on the CYD. Small strips keep memory bounded.
+// WiFiClient::readBytes falls back to Stream's byte-at-a-time reads (about 300 KB/s); read in bulk instead.
+bool readFull(WiFiClient& c,void* dst,size_t n,uint32_t timeoutMs=1000){
+ uint8_t* p=(uint8_t*)dst;uint32_t last=millis();
+ while(n){
+  int a=c.available();
+  if(a>0){int got=c.read(p,min((size_t)a,n));if(got>0){p+=got;n-=got;last=millis();continue;}}
+  if(!c.connected() && c.available()<=0)return false;
+  if(millis()-last>timeoutMs)return false;
+  delayMicroseconds(200);
+ }
+ return true;
+}
 int queryInt(String query,const char* key,int fallback){String needle=String(key)+"=";int p=query.indexOf(needle);return p<0?fallback:query.substring(p+needle.length()).toInt();}
 bool drawNative(WiFiClient& c,int x,int y,int w,int h){
  static uint16_t strip[320*8];
  for(int row=0;row<h;row+=8){
   int rows=min(8,h-row);size_t bytes=w*rows*2;
-  if(c.readBytes((char*)strip,bytes)!=bytes)return false;
+  if(!readFull(c,strip,bytes))return false;
   tft.pushImage(x,y+row,w,rows,strip);
  }
  return true;
@@ -143,10 +158,10 @@ bool drawDoubled(WiFiClient& c,int x,int y,int w,int h,bool smooth){
  static uint16_t strip[320*8];
  uint16_t *above=input[0],*current=input[1],*below=input[2];
  const size_t bytes=w*2;
- if(c.readBytes((char*)current,bytes)!=bytes)return false;
+ if(!readFull(c,current,bytes))return false;
  memcpy(above,current,bytes);
  for(int row=0;row<h;row++){
-  if(row+1<h){if(c.readBytes((char*)below,bytes)!=bytes)return false;}
+  if(row+1<h){if(!readFull(c,below,bytes))return false;}
   else memcpy(below,current,bytes);
   uint16_t* top=strip+(row%4)*4*w;
   uint16_t* bottom=top+2*w;
@@ -176,11 +191,126 @@ void frame(){
   uint32_t now=millis();float fps=lastFrame?1000.0f/(now-lastFrame):0;
   frameFps=frameFps>0?frameFps*.7f+fps*.3f:fps;
   lastFrame=now;frameCount++;frameTransferMs=now-begin;online=true;redrawScene=true;
-  if(queryInt(line,"hud",1)){
-   graphicsHud();
-  }
+  hudOn=queryInt(line,"hud",1);
+  if(hudOn)graphicsHud();
  }
  c.print(ok?"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n":"HTTP/1.1 408 Request Timeout\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");c.stop();
+}
+
+// ---------------------------------------------------------------- game stream (TCP 8092, one connection kept open)
+// Messages: u8 type, u32 length (little endian), payload.
+//  1 MODE  u8 pixel bytes (1 = palette index, 2 = RGB565), u8 scale (0 = 1x, 1 = 1.5x blended), u8 flags (bit 0 hud),
+//          u8 0, u16 src w, u16 src h, u16 x, u16 y, u16 palette count, palette (u16 RGB565 each). Clears the screen.
+//  2 ROWS  u16 first row, u16 count, then per row: u8 encoding (0 raw, 1 runs), u16 bytes, data.
+//          runs = (u8 count-1, value) pairs. With scale 1.5x the board sends whole row pairs (first row even).
+//  3 END   end of a picture: the CYD answers one byte 'K' once it is drawn.
+constexpr int GameMaxBytes=256*240;
+static uint8_t* gameFb=nullptr;                    // the source picture (heap): bytes or u16 per pixel
+static uint16_t gamePal[256];
+static uint16_t* gameLine[2]={nullptr,nullptr};    // two DMA strips (320 x 8): one fills while the other goes out
+static int gameBuf=0;
+int gamePb=1,gameScale=0,gameW=0,gameH=0,gameX=0,gameY=0;bool gameMode=false,gameHud=false;
+uint32_t gameFrameStart=0,gameBytes=0;
+static inline uint16_t gamePixel(int row,int col){
+ if(gamePb==2)return ((uint16_t*)gameFb)[row*gameW+col];
+ return gamePal[gameFb[row*gameW+col]];
+}
+static inline uint16_t blend565(uint16_t a,uint16_t b){return ((a&0xF7DE)>>1)+((b&0xF7DE)>>1);}
+static uint16_t* gameStrip(){uint16_t* b=gameLine[gameBuf];gameBuf^=1;return b;}
+static void gamePush(int x,int y,int w,int h,uint16_t* b){tft.waitDMA();tft.pushImageDMA(x,y,w,h,b);}
+// 1x: rows r0..r1-1 straight out, 8 rows per DMA strip
+static void gameDraw1x(int r0,int r1){
+ for(int r=r0;r<r1;r+=8){
+  int n=min(8,r1-r);uint16_t* b=gameStrip();
+  for(int k=0;k<n;k++){uint16_t* o=b+k*gameW;for(int c=0;c<gameW;c++)o[c]=gamePixel(r+k,c);}
+  gamePush(gameX,gameY+r,gameW,n,b);
+ }
+}
+// 1.5x: each source row pair (2p, 2p+1) becomes 3 lines (a, a/b blend, b); each pixel pair becomes 3 pixels too
+static void gameScaleRow(int row,uint16_t* o){
+ for(int c=0;c+1<gameW;c+=2){uint16_t a=gamePixel(row,c),b=gamePixel(row,c+1);*o++=a;*o++=blend565(a,b);*o++=b;}
+}
+static void gameDraw15(int r0,int r1){             // r0 even, r1 even
+ int ow=gameW*3/2;
+ for(int p=r0/2;p<r1/2;p+=2){                     // 2 pairs = 6 lines per strip
+  int pairs=min(2,r1/2-p);uint16_t* b=gameStrip();
+  for(int k=0;k<pairs;k++){
+   uint16_t* l0=b+(k*3)*ow,*l1=l0+ow,*l2=l1+ow;
+   gameScaleRow(2*(p+k),l0);gameScaleRow(2*(p+k)+1,l2);
+   for(int c=0;c<ow;c++)l1[c]=blend565(l0[c],l2[c]);
+  }
+  gamePush(gameX,gameY+p*3,ow,pairs*3,b);
+ }
+}
+static bool gameRead(void* d,size_t n){bool ok=readFull(gameClient,d,n,1500);if(ok)gameBytes+=n;return ok;}
+static bool gameRows(uint32_t len){
+ uint16_t hdr[2];if(len<4 || !gameRead(hdr,4))return false;len-=4;
+ int r0=hdr[0],n=hdr[1];if(!gameMode || n<1 || r0+n>gameH || (gameScale && ((r0|n)&1)))return false;
+ const int rowBytes=gameW*gamePb;
+ for(int r=r0;r<r0+n;r++){
+  uint8_t enc;uint16_t nb;if(len<3 || !gameRead(&enc,1) || !gameRead(&nb,2))return false;len-=3;
+  if(nb>len || nb>256*3)return false;
+  uint8_t* dst=gameFb+r*rowBytes;
+  if(enc==0){if(nb!=rowBytes || !gameRead(dst,nb))return false;}
+  else{
+   static uint8_t runs[256*3];if(!gameRead(runs,nb))return false;
+   int rec=1+gamePb,pos=0;
+   for(int i=0;i+rec<=nb;i+=rec){
+    int count=runs[i]+1;if(pos+count>gameW)return false;
+    if(gamePb==1){memset(dst+pos,runs[i+1],count);}
+    else{uint16_t v=runs[i+1]|(runs[i+2]<<8);uint16_t* d16=(uint16_t*)dst;for(int k=0;k<count;k++)d16[pos+k]=v;}
+    pos+=count;
+   }
+   if(pos!=gameW)return false;
+  }
+  len-=nb;
+ }
+ if(len)return false;
+ tft.startWrite();
+ if(gameScale==1)gameDraw15(r0,r0+n);else gameDraw1x(r0,r0+n);
+ tft.endWrite();
+ return true;
+}
+static bool gameModeMsg(uint32_t len){
+ uint8_t h[14];if(len<14 || !gameRead(h,14))return false;
+ int pb=h[0],sc=h[1],npal=h[12]|(h[13]<<8);
+ int w=h[4]|(h[5]<<8),hh=h[6]|(h[7]<<8),x=h[8]|(h[9]<<8),y=h[10]|(h[11]<<8);
+ int ow=sc?w*3/2:w,oh=sc?hh*3/2:hh;
+ if((pb!=1 && pb!=2) || sc>1 || w<2 || w>256 || hh<2 || w*hh*pb>GameMaxBytes || (sc && ((w|hh)&1)) || x+ow>320 || y+oh>240
+    || npal>256 || len!=(uint32_t)14+npal*2)return false;
+ if(npal && !gameRead(gamePal,npal*2))return false;
+ gamePb=pb;gameScale=sc;gameW=w;gameH=hh;gameX=x;gameY=y;gameHud=h[2]&1;gameMode=true;
+ tft.waitDMA();tft.fillScreen(0x0000);
+ return true;
+}
+void gameStream(){
+ if(!gameFb){
+  gameFb=(uint8_t*)heap_caps_malloc(GameMaxBytes,MALLOC_CAP_8BIT);
+  for(auto& b:gameLine)b=(uint16_t*)heap_caps_malloc(320*8*2,MALLOC_CAP_DMA);
+  if(!gameFb || !gameLine[0] || !gameLine[1]){Serial.println("game stream: no memory");return;}
+ }
+ if(!gameClient.connected()){
+  WiFiClient n=gameServer.available();if(!n)return;
+  gameClient=n;gameClient.setNoDelay(true);gameMode=false;
+ }
+ for(int budget=0;budget<64 && gameClient.available()>=5;budget++){
+  uint8_t h[5];if(!gameRead(h,5)){gameClient.stop();return;}
+  uint32_t len=h[1]|(h[2]<<8)|(h[3]<<16)|((uint32_t)h[4]<<24);
+  bool ok=false;
+  if(!gameFrameStart)gameFrameStart=millis();
+  if(h[0]==1)ok=gameModeMsg(len);
+  else if(h[0]==2)ok=gameRows(len);
+  else if(h[0]==3 && len==0){
+   tft.waitDMA();
+   uint32_t now=millis();float fps=lastFrame?1000.0f/(now-lastFrame):0;
+   frameFps=frameFps>0?frameFps*.8f+fps*.2f:fps;
+   lastFrame=now;frameCount++;frameTransferMs=now-gameFrameStart;gameFrameStart=0;online=true;redrawScene=true;
+   hudOn=gameHud;if(hudOn)graphicsHud();
+   gameClient.write((uint8_t)'K');
+   return;                                         // one picture per loop pass: touch and the web page stay alive
+  }
+  if(!ok){Serial.println("game stream: bad message, closing");gameClient.stop();gameMode=false;return;}
+ }
 }
 void sendTouch(int x,int y){
  HTTPClient h;h.setConnectTimeout(300);h.setTimeout(300);h.begin(target+"/api/input");h.addHeader("Content-Type","application/json");
@@ -201,7 +331,7 @@ void controlRequest(){
  for(int n=0;n<30;n++){String header=c.readStringUntil('\n');header.trim();if(!header.length())break;header.toLowerCase();if(header.startsWith("content-length:"))length=header.substring(15).toInt();}
  String body,type="text/plain";int status=200;
  if(request.startsWith("GET /status ")){
-  JsonDocument d;d["online"]=online;d["target"]=target;d["view"]=views[view];d["ip"]=WiFi.localIP().toString();d["heap"]=ESP.getFreeHeap();d["graphics_port"]=8091;d["scale2"]=true;d["frames"]=frameCount;d["fps"]=frameFps;d["transfer_ms"]=frameTransferMs;if(!isnan(chipTemperature))d["temperature"]=chipTemperature;
+  JsonDocument d;d["online"]=online;d["target"]=target;d["view"]=views[view];d["ip"]=WiFi.localIP().toString();d["heap"]=ESP.getFreeHeap();d["graphics_port"]=8091;d["game_port"]=8092;d["game_bytes"]=gameBytes;d["scale2"]=true;d["frames"]=frameCount;d["fps"]=frameFps;d["transfer_ms"]=frameTransferMs;if(!isnan(chipTemperature))d["temperature"]=chipTemperature;
   d["scene_polls"]=scenePolls;d["scene_tiles_drawn"]=sceneTilesDrawn;d["scene_draw_ms"]=sceneDrawMs;
   serializeJson(d,body);type="application/json";
  }else if(request.startsWith("POST /target ") && length>0 && length<300){
@@ -214,7 +344,7 @@ void controlRequest(){
   if(count==(size_t)length){for(int i=0;i<5;i++)if(name==views[i])view=i;lastFrame=0;lastPoll=0;redrawScene=true;body="View selected";}
   else{status=400;body="Incomplete body";}
  }else if(request.startsWith("GET / ")){
-  type="text/html";body="<h1>ORPHAN Remote</h1><p>[orphan] · by <a href='https://jmscnc.com'>JMSCNC</a>, makers of RotatoCAM · <a href='https://buymeacoffee.com/revjmoney'>Buy me a coffee</a></p><p>[Rev. J. Money - 2026] · Orphan · FPGA Dev Linux for the S9 Control Board</p><form method='post' action='/target'>S9 URL <input name='url' placeholder='http://orphan.local:8090'><button>Save</button></form><p>Scene terminal and RGB565 rectangle receiver on TCP 8091.</p>";
+  type="text/html";body="<h1>ORPHAN Remote</h1><p>[orphan] · by <a href='https://jmscnc.com'>JMSCNC</a>, makers of RotatoCAM · <a href='https://buymeacoffee.com/revjmoney'>Buy me a coffee</a></p><p>[Rev. J. Money - 2026] · Orphan · FPGA Dev Linux for the S9 Control Board</p><form method='post' action='/target'>S9 URL <input name='url' placeholder='http://orphan.local:8090'><button>Save</button></form><p>Scene terminal, RGB565 rectangle receiver on TCP 8091 and game stream on TCP 8092.</p>";
  }else {status=404;body="Not found";}
  String response="HTTP/1.1 "+String(status)+(status==200?" OK\r\n":" Error\r\n")+"Content-Type: "+type+"\r\nContent-Length: "+String(body.length())+"\r\nConnection: close\r\n\r\n"+body;
  c.setNoDelay(true);c.print(response);delay(2);c.stop();
@@ -227,15 +357,15 @@ void setup(){
  bool connected=connectSaved();
  Serial.printf("Orphan Remote: WiFi %s; IP %s\n",connected?"connected":"not connected",WiFi.localIP().toString().c_str());
  if(connected)MDNS.begin("orphan-remote");
- control.begin();control.setNoDelay(true);graphics.begin();graphics.setNoDelay(true);scene();lastPoll=millis();
+ control.begin();control.setNoDelay(true);graphics.begin();graphics.setNoDelay(true);gameServer.begin();gameServer.setNoDelay(true);scene();lastPoll=millis();
 }
 void loop(){
- controlRequest();frame();int x,y;
- if(lastFrame && millis()-lastFrame<GraphicsHoldMs && millis()-lastTemperaturePoll>5000){temperaturePoll();graphicsHud();}
+ controlRequest();frame();gameStream();int x,y;
+ if(lastFrame && millis()-lastFrame<GraphicsHoldMs && millis()-lastTemperaturePoll>5000){temperaturePoll();if(hudOn)graphicsHud();}
  if(millis()-lastTouch>300 && boardTouch(x,y)){
   lastTouch=millis();sendTouch(x,y);
   if(y>=212){view=(view+(x<100?4:1))%5;lastFrame=0;lastPoll=0;redrawScene=true;}
  }
  if((!lastPoll || millis()-lastPoll>(online?SceneIntervalMs:1500)) && (!lastFrame || millis()-lastFrame>GraphicsHoldMs)){scene();lastPoll=millis();}
- delay(2);
+ if(!gameClient.connected())delay(2);
 }
