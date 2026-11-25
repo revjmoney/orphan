@@ -13,11 +13,10 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
-  deploy:
+  # two jobs, as in GitHub's own Pages template: deploy-pages looked up the artifact one second after
+  # the upload in the same job and found none (the listing lags), so the deploy now runs as its own job
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - run: mkdir -p site/shots && cp docs/screenshots/* site/shots/
@@ -25,5 +24,12 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - id: deployment
         uses: actions/deploy-pages@v4
