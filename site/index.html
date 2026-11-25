@@ -24,6 +24,8 @@ h1 span{color:var(--lime)}
 .brand{color:var(--muted);font-size:.78em;letter-spacing:.08em;text-transform:uppercase;margin-top:.35em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tools{display:flex;gap:8px;align-items:center;flex-shrink:0}
 .pill{color:var(--lime);font-size:.78em;border:1px solid #596e3e;background:#152112;padding:.45em .7em;text-decoration:none}
+.gh{display:inline-flex;align-items:center;gap:.45em;color:#0c1400!important;background:var(--lime);border:1px solid #e6ff9a;border-radius:3px;padding:.45em .8em;font-weight:700;text-decoration:none;box-shadow:0 0 14px #d2ff5155;white-space:nowrap}
+.gh svg{width:1.15em;height:1.15em;fill:currentColor}.gh:hover{background:#fff}
 .bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:3px;padding:.45em .8em;font-weight:700;text-decoration:none;box-shadow:0 0 14px #ffcc2e55;white-space:nowrap}
 button{font:inherit;cursor:pointer;color:var(--ink);border:1px solid #47584d;border-radius:3px;background:linear-gradient(#242e28,#131914);padding:.4em .8em}
 button:hover{color:var(--lime);border-color:var(--lime)}
@@ -53,7 +55,9 @@ footer{display:flex;justify-content:space-between;gap:8px;color:var(--muted);fon
 .page.text-only{grid-template-columns:minmax(0,1fr)}
 .page .txt{min-height:0;overflow:hidden}
 .page .pic{min-height:0;height:100%;display:flex;align-items:center;justify-content:center}
-.page .pic img{max-width:100%;max-height:100%;object-fit:contain;border:1px solid #2d3b31;box-shadow:0 10px 30px #000a}
+.page .pic img,.page .pic video{max-width:100%;max-height:100%;object-fit:contain;border:1px solid #2d3b31;box-shadow:0 10px 30px #000a}
+.page.wide{grid-template-columns:minmax(0,.62fr) minmax(0,2fr)}
+.page .pic video{width:100%;background:#000}
 .page h3{margin:0 0 .5em;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;font-size:.95em}
 .page p{margin:0 0 .7em}
 .page ul{margin:0 0 .7em;padding-left:1.2em}.page li{margin:.2em 0}
@@ -68,6 +72,8 @@ footer{display:flex;justify-content:space-between;gap:8px;color:var(--muted);fon
  .tile .th,.tile p{display:none}
  .page{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
  .brand,.pill,#fx{display:none}
+ .page.wide{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+ .tools{gap:6px}.bmc,.gh{padding:.4em .55em}.bmc span{display:none}
  .identity img{height:clamp(30px,6vh,52px)}
  h1{font-size:min(5.6vh,6.2vw)}
  .page{padding:1.4vh 3vw;gap:1.4vh}
@@ -82,15 +88,15 @@ footer{display:flex;justify-content:space-between;gap:8px;color:var(--muted);fon
 <header>
  <div class="identity"><img src="img/logo.png" alt=""><div style="min-width:0"><h1>ORPHAN <span>FPGA</span></h1>
   <div class="brand">[orphan] · FPGA Dev Linux for the S9 Control Board · by JMSCNC, makers of RotatoCAM</div></div></div>
- <div class="tools"><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Coffee</a>
-  <a class="pill" href="https://github.com/revjmoney/orphan">GITHUB</a><button id="fx" type="button">FX on</button></div>
+ <div class="tools"><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener" aria-label="Buy me a coffee">&#9749;<span> Coffee</span></a>
+  <a class="gh" href="https://github.com/revjmoney/orphan" target="_blank" rel="noopener" aria-label="Orphan on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>GitHub</a><button id="fx" type="button">FX on</button></div>
 </header>
 <div class="stage">
  <section class="home" id="home">
   <p class="hero">In Bitcoin, an <i>orphan block</i> is one the chain left behind. <b>Orphan</b> is for the control boards the
    mining world left behind: an S9 controller (Zynq ARM + FPGA, a few dollars used) becomes a hacker's bench computer with
    <b>game consoles, a radio, a synth, a logic lab, a chip emulator, a miner and a language model built inside the FPGA</b>,
-   and a desktop in your browser. Flash one card and boot. Pick a card.</p>
+   and a desktop in your browser. Flash one card and boot. Pick a card, or <a href="#demo">watch the 2 minute demo</a>.</p>
   <div class="grid" id="grid"></div>
  </section>
  <section class="card" id="card" role="dialog" aria-modal="true">
@@ -106,6 +112,10 @@ footer{display:flex;justify-content:space-between;gap:8px;color:var(--muted);fon
 // every card is a list of pages; every page fits one screen: some text, at most one picture
 const S = 'shots/';
 const CARDS = [
+ {id: 'demo', tag: 'video', title: 'Watch the demo', thumb: 'video/orphan-demo-poster.jpg', blurb: 'Orphan in two and a half minutes.', pages: [
+  {vid: 'video/orphan-demo.mp4', poster: 'video/orphan-demo-poster.jpg', h: 'Orphan in 2:30', t: `<p>A narrated tour of the real screens:
+   the menu, the board page, the game consoles, Radio 7600, the synth, TinyLM, BTC, SPEKTOR / INJEKTOR and the VIZOR desktop.</p>
+   <p>Then pick any card to read more.</p>`}]},
  {id: 'start', tag: 'start here', title: 'What is Orphan', thumb: 'board.png', blurb: 'A $5 mining controller turned FPGA bench computer.', pages: [
   {img: 'board.png', h: 'The board', t: `<p>The Antminer S9's control board has a Xilinx <b>Zynq XC7Z010</b>: two ARM cores running Linux
    plus a real FPGA, 512 MB RAM, Ethernet and 51 free FPGA pins.</p><p>Orphan is one complete firmware for it: Debian 13 and
@@ -205,17 +215,20 @@ const $ = id => document.getElementById(id);
 document.documentElement.style.setProperty('--cols', Math.ceil(CARDS.length / 3));
 document.documentElement.style.setProperty('--mrows', Math.ceil(CARDS.length / 2));
 $('grid').innerHTML = CARDS.map(c => '<button class="tile" data-id="' + c.id + '"><div class="tag">' + c.tag + '</div><h2>' + c.title +
-  '</h2><p>' + c.blurb + '</p><div class="th" style="background-image:url(' + S + c.thumb + ')"></div></button>').join('');
+  '</h2><p>' + c.blurb + '</p><div class="th" style="background-image:url(' + (c.thumb.includes('/') ? '' : S) + c.thumb + ')"></div></button>').join('');
 let ci = -1, pi = 0;
 function renderCard() {
   const c = CARDS[ci];
   $('ctitle').textContent = c.title; $('ctag').textContent = c.tag;
-  $('pages').innerHTML = c.pages.map((p, i) => '<div class="page' + (p.img ? '' : ' text-only') + '" data-i="' + i + '"><div class="txt"><h3>' + p.h +
-    '</h3>' + p.t + '</div>' + (p.img ? '<div class="pic"><img src="' + S + p.img + '" alt=""></div>' : '') + '</div>').join('');
+  $('pages').innerHTML = c.pages.map((p, i) => '<div class="page' + (p.vid ? ' wide' : p.img ? '' : ' text-only') + '" data-i="' + i + '"><div class="txt"><h3>' + p.h +
+    '</h3>' + p.t + '</div>' + (p.vid ? '<div class="pic"><video src="' + p.vid + '" poster="' + p.poster + '" controls playsinline preload="metadata"></video></div>'
+    : p.img ? '<div class="pic"><img src="' + S + p.img + '" alt=""></div>' : '') + '</div>').join('');
   $('dots').innerHTML = c.pages.map((p, i) => '<i data-i="' + i + '"></i>').join('');
   place();
 }
+function hush() { document.querySelectorAll('#pages video').forEach(v => v.pause()); }
 function place() {
+  hush();
   document.querySelectorAll('#pages .page').forEach((el, i) => {
     el.style.transform = 'translateX(' + ((i - pi) * 104) + '%)'; el.style.opacity = i === pi ? 1 : 0; });
   document.querySelectorAll('#dots i').forEach((el, i) => el.classList.toggle('on', i === pi));
@@ -227,7 +240,7 @@ function openCard(i, page) {
   $('card').classList.add('on'); $('home').classList.add('away');
   history.replaceState(null, '', '#' + CARDS[ci].id);
 }
-function closeCard() { $('card').classList.remove('on'); $('home').classList.remove('away'); ci = -1; history.replaceState(null, '', location.pathname); }
+function closeCard() { hush(); $('card').classList.remove('on'); $('home').classList.remove('away'); ci = -1; history.replaceState(null, '', location.pathname); }
 function step(d) {
   const n = CARDS[ci].pages.length;
   if (pi + d >= 0 && pi + d < n) { pi += d; place(); }

@@ -52,6 +52,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: YosysHQ/setup-oss-cad-suite@aefa8397bbf8fc6670a0a62af9805a89738f3cde  # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}   # the anonymous API limit is shared by all runners and runs out
       - name: Every FPGA design file parses (Yosys)
         run: |
           fails=0
