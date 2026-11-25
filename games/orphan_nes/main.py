@@ -3,6 +3,8 @@
 #   Web page + WebSocket on port 8000: game list, the picture, sound, keyboard / gamepad
 #   raw s16le mono sound (47.95 kHz) on TCP 8001 for ffplay
 #   ORPHAN Remote (CYD): set ORPHAN_CYD=<cyd ip> (or /etc/orphan/cyd) and every picture also goes to its screen
+#   Real NES pads (NES design): an adapter on hashboard connectors J1 / J2 by default; ORPHAN_NES_PADS=7,8
+#   (or /etc/orphan/nespads) picks other connectors, ORPHAN_NES_PADS=off turns them off. Wiring: orphan_nespad.v
 # Games: /opt/orphan-games/roms/<nes|gb|sms> (free homebrew only, see the README). The loaded FPGA design says which.
 import base64
 import glob
@@ -61,7 +63,7 @@ SUB = {'NES1': 0, 'GB01': 1, 'SMS1': 2}[SYS_ID]  # picture type in the WebSocket
 AUDIO_HZ = SYS['audio_hz']
 WBASE = (bus.m._off >> 2) + SLOT * 1024        # word index of the slot in Ardzy's mapped view
 lock = threading.RLock()
-state = {'game': '', 'running': False, 'fps': 0.0, 'error': '', 'cyd': ''}
+state = {'game': '', 'running': False, 'fps': 0.0, 'error': '', 'cyd': '', 'hwpads': ''}
 pads = [0, 0]
 clients, clients_lock = {}, threading.Lock()
 raw_clients, raw_lock = set(), threading.Lock()
@@ -291,8 +293,38 @@ def ws_recv(rf):
     return op, bytes(c ^ mask[i % 4] for i, c in enumerate(rf.read(n)))
 
 
+def nes_pads_setup():
+    """Real NES pads on the hashboard connectors (NES design only): which connector is pad 1 and pad 2."""
+    if SYS_ID != 'NES1':
+        return ''
+    v = os.environ.get('ORPHAN_NES_PADS', '')
+    if not v and os.path.exists('/etc/orphan/nespads'):
+        v = open('/etc/orphan/nespads').read().strip()
+    v = (v or '1,2').lower()
+    if v in ('off', '0', 'no'):
+        W(9, 0)
+        return 'off'
+    try:
+        a, b = [int(x) for x in v.replace(' ', '').split(',')[:2]]
+        if not (1 <= a <= 9 and 1 <= b <= 9) or a == b:
+            raise ValueError
+    except ValueError:
+        print('ORPHAN_NES_PADS=%r: use two different connector numbers 1..9 like 7,8 (or off); keeping J1,J2' % v)
+        a, b = 1, 2
+    W(9, 1 | a << 4 | b << 8)
+    return 'J%d,J%d' % (a, b)
+
+
+def nes_pads_state():
+    if SYS_ID != 'NES1' or state.get('hwpads') in ('', 'off'):
+        return None
+    r, ports = R(9), R(10)
+    return {'ports': [ports & 15, ports >> 4 & 15], 'present': [bool(r >> 16 & 1), bool(r >> 17 & 1)],
+            'buttons': [r & 255, r >> 8 & 255]}
+
+
 def status():
-    return json.dumps({'state': state, 'games': game_list(), 'audio_hz': AUDIO_HZ, 'system': SYS['name'],
+    return json.dumps({'state': state, 'hwpads': nes_pads_state(), 'games': game_list(), 'audio_hz': AUDIO_HZ, 'system': SYS['name'],
                        'w': SYS['w'], 'h': SYS['h'], 'ext': SYS['ext'], 'roms': ROMS}).encode()
 
 
@@ -382,6 +414,12 @@ def raw_audio_server():
 
 if __name__ == '__main__':
     state['cyd'] = cyd_host()
+    state['hwpads'] = nes_pads_setup()
+    if state['hwpads'] not in ('', 'off'):
+        time.sleep(0.01)
+        hp = nes_pads_state()
+        print('Real NES pads on %s: %s' % (state['hwpads'], ', '.join(
+            'pad %d %s' % (i + 1, 'adapter found' if hp['present'][i] else 'no adapter') for i in range(2))), flush=True)
     games = game_list()
     print('Orphan Games (%s): %d games in %s%s' % (SYS['name'], len(games), ROMS, ', CYD ' + state['cyd'] if state['cyd'] else ''),
           flush=True)
