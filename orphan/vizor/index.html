@@ -41,8 +41,8 @@ a{color:var(--lime);text-decoration:none}
 .dot{display:inline-block;width:.6em;height:.6em;border-radius:50%;background:#555;margin-right:.35em}
 .dot.on{background:var(--lime);box-shadow:0 0 6px var(--lime)}
 /* desktop icons */
-#icons{position:fixed;top:48px;left:14px;display:grid;gap:10px;z-index:1}
-.ico{width:86px;text-align:center;padding:8px 4px;border:1px solid transparent;border-radius:4px;cursor:pointer;color:var(--ink);font-size:.86em}
+#icons{position:fixed;top:48px;left:14px;bottom:50px;display:grid;grid-auto-flow:column;grid-template-rows:repeat(auto-fill,84px);grid-auto-columns:86px;gap:6px 10px;align-content:start;z-index:1}  /* wraps into another column above the taskbar */
+.ico{width:86px;height:84px;box-sizing:border-box;overflow:hidden;text-align:center;padding:8px 4px;border:1px solid transparent;border-radius:4px;cursor:pointer;color:var(--ink);font-size:.86em}
 .ico:hover{border-color:#5b7a24;background:#d2ff5112}
 .ico i{display:grid;place-items:center;margin:0 auto 6px;width:44px;height:44px;border:1px solid #5b7a24;border-radius:4px;background:#0b120dcc;color:var(--lime);font-style:normal;font-size:1.2em;font-weight:700}
 /* windows */
@@ -400,8 +400,8 @@ $('startBtn').onclick = ev => { ev.stopPropagation(); document.querySelector('.m
 const ICONS = [['>_', 'SHELL', () => terminal('')], ['◈', 'KORES', () => kores()], ['X', 'X DESKTOP', xdesk], ['▣', 'KORE PAGE', () => corePage()], ['⌂', 'BOARD', boardPage],
   ['≡', 'FILES', () => terminal('mc')], ['▤', 'HTOP', () => terminal('htop')], ['❄', 'COOLING', cooling], ['◉', 'ABOUT', about]];
 $('icons').innerHTML = ICONS.map((c, i) => '<div class="ico" data-i="' + i + '"><i>' + c[0] + '</i>' + c[1] + '</div>').join('');
-$('icons').addEventListener('dblclick', ev => { const d = ev.target.closest('.ico'); if (d) ICONS[+d.dataset.i][2](); });
-$('icons').addEventListener('click', ev => { const d = ev.target.closest('.ico'); if (d && matchMedia('(pointer:coarse)').matches) ICONS[+d.dataset.i][2](); });
+let icoLast = -1e9;                                 // one click opens; the second click of a double click is ignored
+$('icons').addEventListener('click', ev => { const d = ev.target.closest('.ico'); if (!d || ev.timeStamp - icoLast < 500) return; icoLast = ev.timeStamp; ICONS[+d.dataset.i][2](); });
 
 // ================================================================ tray
 const fmtB = b => b > 1e6 ? (b / 1e6).toFixed(1) + 'M' : b > 1e3 ? Math.round(b / 1e3) + 'k' : Math.round(b) + '';
