@@ -8,6 +8,7 @@
 #   DISCONNECT EVERY HASHBOARD before using real pads. ORPHAN_NES_PADS_NEVER=6,7 (or /etc/orphan/nespads-never) is an
 #   optional extra: connectors that are never driven or read (default: none)
 # Games: /opt/orphan-games/roms/<nes|gb|sms> (free homebrew only, see the README). The loaded FPGA design says which.
+import array
 import atexit
 import base64
 import glob
@@ -77,10 +78,10 @@ raw_clients, raw_lock = set(), threading.Lock()
 
 def pop(window, n):
     """n words from a pop window (each 32-bit read returns the next word)."""
-    out = []
+    out = array.array('I')                     # one 32-bit read per word, straight into a compact array
     while n > 0:
         k = min(n, 256)
-        out += bus.m._w[WBASE + window:WBASE + window + k].tolist()
+        out.extend(bus.m._w[WBASE + window:WBASE + window + k])
         n -= k
     return out
 
@@ -158,13 +159,18 @@ def frames():
             W(4, 0)
             fb = pop(512, FB_WORDS)
             W(0, RUN)                          # capture again
-        pic = struct.pack('<hh%dI' % len(fb), 1, SUB, *fb)
+        pic = struct.pack('<hh', 1, SUB) + fb.tobytes()
         broadcast(pic)
         cyd_frame(fb)
         n += 1
         if time.time() - t0 >= 1:
             state['fps'] = round(n / (time.time() - t0), 1)
             n, t0 = 0, time.time()
+            logn = state.get('_logn', 0) + 1
+            state['_logn'] = logn
+            if logn % 10 == 0:
+                print('pictures/s: console %.1f, CYD %.1f (%.1f ms per CYD picture)' % (state['fps'], state.get('cyd_fps', 0.0),
+                                                                         state.get('cyd_ms', 0.0)), flush=True)
 
 
 def sound():
@@ -184,7 +190,7 @@ def sound():
         last = (last + n) & 0x7FF
         if not words:
             continue
-        pcm = np.array(words, dtype='<u4').view('<i2').tobytes()
+        pcm = np.frombuffer(words, dtype='<u4').view('<i2').tobytes()
         broadcast(struct.pack('<hh', 2, 1 if SYS['stereo'] else 0) + pcm)
         with raw_lock:
             rs = list(raw_clients)
@@ -212,30 +218,39 @@ def cyd_frame(fb):
     if not state['cyd']:
         return
     try:
+        cyd_q.get_nowait()                     # the CYD is slower than the console: drop the waiting picture,
+    except queue.Empty:                        # so the newest one always goes next
+        pass
+    try:
         cyd_q.put_nowait(fb)
     except queue.Full:
-        pass                                   # the CYD is slower than the console: keep only the newest
+        pass
+
+
+SH_GB = np.arange(0, 32, 2, dtype=np.uint32)        # bit offsets of the pixels inside one frame buffer word
+SH_GG = np.array([0, 12], dtype=np.uint32)
+SH_6 = np.arange(0, 30, 6, dtype=np.uint32)
 
 
 def cyd_layout(fb):
     """The picture as the CYD game stream wants it: (image, scale, x, y, palette). Game Boy and Game Gear are
     shown 1.5x (240 x 216, in-between pixels blended), NES and Master System 1:1."""
-    w = np.array(fb, dtype=np.uint32)
+    w = np.frombuffer(fb, dtype=np.uint32)[:, None]
     if SYS_ID == 'GB01':
-        px = np.stack([(w >> (2 * k)) & 3 for k in range(16)], axis=1).reshape(-1)[:160 * 144]
-        return px.astype(np.uint8).reshape(144, 160), 1, 40, 12, GB565
+        px = ((w >> SH_GB) & 3).astype(np.uint8).reshape(-1)[:160 * 144]
+        return px.reshape(144, 160), 1, 40, 12, GB565
     if SUB == 3:
-        px = np.stack([(w >> (12 * k)) & 4095 for k in range(2)], axis=1).reshape(-1)[:160 * 144]
+        px = ((w >> SH_GG) & 4095).reshape(-1)[:160 * 144]
         return GG565[px].reshape(144, 160), 1, 40, 12, None
+    px = ((w >> SH_6) & 63).astype(np.uint8).reshape(-1)
     if SUB == 2:
-        px = np.stack([(w >> (6 * k)) & 63 for k in range(5)], axis=1).reshape(-1)[:256 * 192]
-        return px.astype(np.uint8).reshape(192, 256), 0, 32, 24, SMS565
-    px = np.stack([(w >> (6 * k)) & 63 for k in range(5)], axis=1).reshape(-1)[:256 * 240]
-    return px.astype(np.uint8).reshape(240, 256), 0, 32, 0, RGB565
+        return px[:256 * 192].reshape(192, 256), 0, 32, 24, SMS565
+    return px[:256 * 240].reshape(240, 256), 0, 32, 0, RGB565
 
 
-def cyd_has_game_port(host):
-    """Newer ORPHAN Remote firmware lists game_port 8092 in /status; older firmware only has /rect on 8091."""
+def cyd_stream_kind(host):
+    """What the ORPHAN Remote offers (from its /status): 'udp' (game stream on UDP 8093, fastest), 'tcp' (TCP 8092)
+    or 'rect' (older firmware: one RGB565 rectangle per picture on 8091)."""
     try:
         with socket.create_connection((host, 80), timeout=2) as s:
             s.sendall(b'GET /status HTTP/1.1\r\nHost: cyd\r\nConnection: close\r\n\r\n')
@@ -245,9 +260,13 @@ def cyd_has_game_port(host):
                 if not chunk:
                     break
                 data += chunk
-        return b'"game_port":8092' in data
     except OSError:
-        return False
+        return 'rect'
+    if b'"game_udp":8093' in data:
+        return 'udp'
+    if b'"game_port":8092' in data:
+        return 'tcp'
+    return 'rect'
 
 
 def cyd_sender_rect(fb):
@@ -264,17 +283,21 @@ def cyd_sender_rect(fb):
 
 
 def cyd_sender():
-    link, fast, checked = None, False, 0.0
+    link, kind, checked = None, 'rect', 0.0
     n, t0 = 0, time.time()
     while True:
         fb = cyd_q.get()
         try:
-            if time.time() - checked > 30 and not fast:
-                fast, checked = cyd_has_game_port(state['cyd']), time.time()
-                link = cydlink.CydLink(state['cyd']) if fast else None
-            if fast:
+            if kind == 'rect' and time.time() - checked > 30:
+                kind, checked = cyd_stream_kind(state['cyd']), time.time()
+                link = (cydlink.CydLinkUdp(state['cyd']) if kind == 'udp' else
+                        cydlink.CydLink(state['cyd']) if kind == 'tcp' else None)
+                print('CYD %s: %s stream' % (state['cyd'], kind), flush=True)
+            if link:
+                ts = time.perf_counter()
                 img, scale, x, y, pal = cyd_layout(fb)
                 link.send(img, scale=scale, x=x, y=y, palette=pal)
+                state['cyd_ms'] = state.get('cyd_ms', 0.0) * 0.9 + (time.perf_counter() - ts) * 100
             else:
                 cyd_sender_rect(fb)
             n += 1
@@ -282,7 +305,7 @@ def cyd_sender():
                 state['cyd_fps'] = round(n / (time.time() - t0), 1)
                 n, t0 = 0, time.time()
         except OSError:
-            fast, checked = False, 0.0
+            kind, checked, link = 'rect', 0.0, None
             time.sleep(1)
 
 

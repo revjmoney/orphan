@@ -59,9 +59,11 @@ def main():
     ap.add_argument('host')
     ap.add_argument('pictures', nargs='*')
     ap.add_argument('--frames', type=int, default=120)
+    ap.add_argument('--tcp', action='store_true', help='use the TCP 8092 stream instead of UDP 8093')
+    ap.add_argument('--rate', type=int, default=1200000, help='UDP pacing, bytes per second')
     a = ap.parse_args()
     pics = [Image.open(p) for p in a.pictures] or [Image.new('RGB', (256, 240), (40, 80, 160))]
-    link = cydlink.CydLink(a.host)
+    link = cydlink.CydLink(a.host) if a.tcp else cydlink.CydLinkUdp(a.host, rate=a.rate)
     layouts = [
         ('NES', lambda im: quantize(im, 256, 240, cydlink.RGB565), dict(scale=0, x=32, y=0, palette=cydlink.RGB565)),
         ('SMS', lambda im: quantize(im, 256, 192, cydlink.SMS565), dict(scale=0, x=32, y=24, palette=cydlink.SMS565)),
@@ -77,6 +79,7 @@ def main():
                 link.prev = None                       # start each case with a full picture
                 fps, per = run(link, base, a.frames, case, **kw)
                 print('%-10s %-7s %8.1f %10.0f' % (name, case, fps, per), flush=True)
+    print('lost packets:', getattr(link, 'lost', 0))
     link.close()
 
 
