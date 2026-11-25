@@ -3,8 +3,8 @@
 // The picture, sound and pads go through the ARM (browser / CYD); no video pins. Real NES pads can also plug into
 // any hashboard connector J1..J9 through a small adapter (orphan_nespad.v has the wiring); register HWPADS picks
 // which connector is pad 1 and pad 2 (J1 and J2 after reset). Only a picked connector whose own PLUG pin is
-// grounded by an adapter is ever driven (orphan_nespad_ports), and never one in the HWNEVER mask (J6 protected
-// from the moment the FPGA loads); every other header pin stays an input.
+// grounded by an adapter is ever driven (orphan_nespad_ports), and never one in the optional HWNEVER mask; every
+// other header pin stays an input. DISCONNECT EVERY HASHBOARD before loading this core.
 // by JMSCNC, makers of RotatoCAM. GPL-2.0-or-later (built together with fpganes, GPL-2).
 module top (
     output wire [3:0] leds,

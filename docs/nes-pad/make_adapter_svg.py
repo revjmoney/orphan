@@ -18,18 +18,28 @@ HOLE_LABEL = {'GND': 'GND', 'CLK': 'CLOCK', 'LATCH': 'LATCH', 'DATA': 'DATA', 'V
 
 out = []
 w = out.append
-w('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 540" role="img" '
+w('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 640" role="img" '
   'aria-labelledby="t d" font-family="%s">' % FONT)
 w('<title id="t">Orphan NES pad adapter wiring</title>')
 w('<desc id="d">S9 hashboard header pin 15 RST to the NES socket LATCH, pin 11 TXD to CLOCK, pin 12 RXD from DATA, '
-  'pin 16 3.3 V to VCC, pin 1 GND to GND, and pin 5 PLUG tied to pin 9 GND. 3.3 V only.</desc>')
-w('<rect width="1240" height="540" fill="%s"/>' % INK)
+  'pin 16 3.3 V to VCC, pin 1 GND to GND, and pin 5 PLUG tied to pin 9 GND. 3.3 V only. '
+  'Disconnect every hashboard from the board before plugging in a pad or loading the NES core.</desc>')
+w('<rect width="1240" height="640" fill="%s"/>' % INK)
 w('<text x="40" y="52" fill="%s" font-size="26" font-weight="700" letter-spacing="2">ORPHAN NES PAD ADAPTER</text>' % LIME)
 w('<text x="40" y="78" fill="%s" font-size="14">a real NES controller on an S9 hashboard header, read by the FPGA</text>' % DIM)
 # 3.3 V badge
 w('<rect x="900" y="30" width="300" height="52" rx="4" fill="#2a1a08" stroke="%s"/>' % GOLD)
 w('<text x="1050" y="53" fill="%s" font-size="17" font-weight="700" text-anchor="middle">3.3 V ONLY</text>' % GOLD)
 w('<text x="1050" y="72" fill="%s" font-size="12" text-anchor="middle">these pins are not 5 V tolerant</text>' % TXT)
+# the giant warning: every hashboard off the board before a pad goes on
+RED = '#ff4838'
+w('<rect x="40" y="96" width="1160" height="76" rx="6" fill="#2b0a08" stroke="%s" stroke-width="3"/>' % RED)
+w('<path d="M78 156 L100 114 L122 156 Z" fill="%s"/>' % RED)
+w('<text x="100" y="151" fill="#2b0a08" font-size="26" font-weight="800" text-anchor="middle">!</text>')
+w('<text x="146" y="128" fill="%s" font-size="23" font-weight="800" letter-spacing="1">DISCONNECT EVERY HASHBOARD FIRST</text>' % RED)
+w('<text x="146" y="155" fill="%s" font-size="14">Unplug all hashboards from J1..J9 before you plug in a pad or load the NES core.'
+  ' Any header can be a pad port.</text>' % TXT)
+w('<g transform="translate(0,96)">')         # the drawing, below the warning
 
 def wire(pts, col):
     d = 'M' + ' L'.join('%d %d' % p for p in pts)
@@ -84,6 +94,7 @@ w('<text x="885" y="490" fill="%s" font-size="13" font-weight="700" letter-spaci
 w('<text x="885" y="510" fill="%s" font-size="12">front view, like the console port</text>' % DIM)
 w('<text x="40" y="528" fill="%s" font-size="11">by JMSCNC, makers of RotatoCAM · github.com/revjmoney/orphan</text>' % '#56635a')
 w('<text x="1200" y="528" fill="%s" font-size="11" text-anchor="end">Not tested with a NES controller, yet.</text>' % GOLD)
+w('</g>')
 w('</svg>')
 root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 for rel in ('docs/nes-pad/adapter.svg', 'site/img/nes-pad-adapter.svg', 'games/orphan_nes/adapter.svg'):

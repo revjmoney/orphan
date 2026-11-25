@@ -12,7 +12,7 @@
 //   pin 16 3.3V -> pad power     GND (pin 1/2/9/10/13/14) -> pad GND
 //   pin 5 PLUG  -> tie to GND in the adapter: "a pad is here". Only a picked port with PLUG low is driven;
 //                 with PLUG high (an empty port with the FPGA pull-up) LATCH and CLOCK stay inputs.
-//                 Do not pick a connector that has a hashboard on it: its PLUG level is not checked yet.
+//                 DISCONNECT EVERY HASHBOARD before loading the NES core: a hashboard's PLUG level is not checked.
 // Inputs need the FPGA's weak pull-ups (PULLTYPE PULLUP in pins.xdc): the board has no pull-ups on these lines
 // (measured), but the populated J6..J8 have resistors fitted nearby that are not measured yet. A read that no
 // real pad can give (Up + Down, Left + Right, or all 8 held, e.g. a DATA line held low) counts as no buttons.
@@ -71,8 +71,8 @@ endmodule
 // whether its LATCH (RST) and CLOCK (TXD) pins are driven. A connector is driven only while ALL of these hold:
 // real pads are enabled, it is pad 1's or pad 2's connector, the reader is reading that pad, and the connector's
 // OWN PLUG pin reads low right now (synchronised per connector), and it is not in the NEVER mask. So switching
-// connectors can never drive one whose PLUG is high, even for the rest of a scan, and a protected connector (a
-// hashboard's, e.g. J6) is never driven or read whatever the other settings say.
+// connectors can never drive one whose PLUG is high, even for the rest of a scan, and a protected connector
+// (optional, ORPHAN_NES_PADS_NEVER) is never driven or read whatever the other settings say.
 module orphan_nespad_ports #(parameter DIV = 600) (
     input  wire        clk,
     input  wire        enable,

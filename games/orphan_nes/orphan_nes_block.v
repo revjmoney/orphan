@@ -23,7 +23,7 @@
 //                      [24] enable
 //  10 HWPADS2   read: [3:0] pad 1 connector, [7:4] pad 2 connector
 //  11 HWNEVER   write/read: [8:0] connectors (bit n-1 = Jn) that are never driven or read, whatever else is set.
-//               After the FPGA loads: J6 protected (bit 5), the first hashboard position on a stock S9.
+//               After the FPGA loads: none (disconnect every hashboard before loading this core).
 //               The console sees PADS | these buttons, so browser and real pads work together.
 //   512..767    write: 4 cart bytes (little endian) at UP_ADDR, UP_ADDR += 4  (wait for UP_ADDR read == writes)
 //   512..767    read:  frame buffer word at FB_ADDR, FB_ADDR += 1: 5 pixels of 6 bits, pixel 0 in [5:0]
@@ -43,7 +43,7 @@ module orphan_nes_block #(parameter [3:0] SLOT = 4'd1) (
     output reg         hw_enable = 1'b0,
     output reg  [3:0]  hw_port1 = 4'd1,
     output reg  [3:0]  hw_port2 = 4'd2,
-    output reg  [8:0]  hw_never = 9'h020     // J6 protected from the moment the FPGA loads
+    output reg  [8:0]  hw_never = 9'h000     // optional: main.py sets it from ORPHAN_NES_PADS_NEVER
 );
     wire sel = (bus_addr[15:12] == SLOT);
     wire [9:0] idx = bus_addr[11:2];
@@ -250,7 +250,7 @@ module orphan_nes_block #(parameter [3:0] SLOT = 4'd1) (
 
     // ---------------------------------------------------------------- registers
     always @(posedge clk) begin
-        if (!rstn) begin ctrl <= 2'd0; hw_enable <= 1'b0; hw_port1 <= 4'd1; hw_port2 <= 4'd2; hw_never <= 9'h020; end
+        if (!rstn) begin ctrl <= 2'd0; hw_enable <= 1'b0; hw_port1 <= 4'd1; hw_port2 <= 4'd2; hw_never <= 9'h000; end
         else if (bus_we && sel) begin
             if (idx[9]) begin
                 if (!idx[8]) begin up_data <= bus_wdata; up_a <= up_addr; up_addr <= up_addr + 17'd4; up_req <= ~up_req; end

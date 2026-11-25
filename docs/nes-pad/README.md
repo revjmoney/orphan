@@ -6,6 +6,11 @@ browser pads (keyboard, USB gamepad) work together.
 
 **Not tested with a NES controller, yet.** Built and simulated only; reports welcome as GitHub issues.
 
+> [!CAUTION]
+> # ⚠ DISCONNECT EVERY HASHBOARD FIRST
+> Unplug **all** hashboards from J1..J9 before you plug in a pad or load the NES core. Any header can be a pad port,
+> and the FPGA drives the LATCH and CLOCK pins of the headers you pick.
+
 ![Adapter wiring](adapter.svg)
 
 > **3.3 V only.** The hashboard header pins go straight into the FPGA: no buffer, no protection, **not 5 V tolerant**.
@@ -48,11 +53,10 @@ find each wire with the continuity tester, against the socket drawing (front vie
    measure across it: it must stay at **3.3 V**. (A plain voltage check is not enough: while an Orphan design with
    pull-ups is loaded, the signal pins also read about 3.3 V, but a weak pull-up drops to almost 0 V under 1 k.)
    If it does not hold 3.3 V, stop and find the 3.3 V and GND pins on your board first.
-2. **Pick a header without a hashboard.** Stock boards only have headers fitted on J6, J7 and J8. Never pick a header
-   that has a hashboard on it. **J6 is protected by default:** the FPGA never drives or reads it, from the moment the
-   console loads. List every connector with a hashboard: `ORPHAN_NES_PADS_NEVER=6,8` (or the line `6,8` in
-   `/etc/orphan/nespads-never`). A pad picked on a protected connector keeps real pads off.
-   J1 to J5 and J9 are bare footprints you can solder a header into (do the pin 16 check there too).
+2. **Unplug every hashboard.** All of J1..J9 are available for pads, so no hashboard may be on the board while the NES
+   core runs. Stock boards only have headers fitted on J6, J7 and J8; J1 to J5 and J9 are bare footprints you can
+   solder a header into (do the pin 16 check there too). Optional extra safety: `ORPHAN_NES_PADS_NEVER=6,7` (or the
+   line `6,7` in `/etc/orphan/nespads-never`) lists headers that are never driven or read.
 3. **Empty-header test** (no pad plugged in yet, required on J6 to J8): start the console with your two headers picked
    (below) and check that it prints `no adapter` for both pads. No board pull-ups were found on these pins (measured on
    J1, J2 and J4 to J7 of one board), but J6 to J8 have resistors fitted nearby that are not measured yet; a pull-down
@@ -67,7 +71,7 @@ variable or a one-line file on the board:
 ORPHAN_NES_PADS=7,8        # pad 1 on J7, pad 2 on J8
 echo 7,8 > /etc/orphan/nespads
 ORPHAN_NES_PADS=off        # real pads off
-ORPHAN_NES_PADS_NEVER=6,8  # hashboards on J6 and J8: never driven (default: 6)
+ORPHAN_NES_PADS_NEVER=6,7  # optional: never drive or read J6 and J7 (default: none)
 ```
 
 When the console starts it prints, for example, `Real NES pads on J7,J8: pad 1 adapter found, pad 2 no adapter`.
@@ -85,11 +89,11 @@ found, and lights every button as you press it.
   weak pull-ups are on for all 36 header pins.
 - `games/orphan_nes/orphan_nes_block.v`, register 9 `HWPADS`: write `[0]` enable, `[7:4]` pad 1 header,
   `[11:8]` pad 2 header (1 to 9); read `[15:0]` the buttons, `[17:16]` pads being read, `[24]` enable.
-  Register 10 reads both header numbers. Register 11 `HWNEVER`: `[8:0]` protected headers (bit n-1 = Jn), J6 after
-  the FPGA loads. Real pads are off after the FPGA loads, until `main.py` turns them on; `main.py` turns them off
+  Register 10 reads both header numbers. Register 11 `HWNEVER`: `[8:0]` optional protected headers (bit n-1 = Jn),
+  none after the FPGA loads. Real pads are off after the FPGA loads, until `main.py` turns them on; `main.py` turns them off
   again when it exits.
 - `games/sim/tb_nespad.v` (the reader against a model of the 4021, 15 checks) and `games/sim/tb_nespad_ports.v`
-  (the crossbar: switching headers mid-scan, PLUG high, a protected J6 with PLUG low, 13 checks), Icarus Verilog.
+  (the crossbar: switching headers mid-scan, PLUG high, a protected header with PLUG low, 13 checks), Icarus Verilog.
 
 Pad facts (button order, latch and clock behaviour, wire colours, socket layout) are from the NESdev wiki:
 [Standard controller](https://www.nesdev.org/wiki/Standard_controller) and

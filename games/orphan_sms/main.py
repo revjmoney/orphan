@@ -5,7 +5,8 @@
 #   ORPHAN Remote (CYD): set ORPHAN_CYD=<cyd ip> (or /etc/orphan/cyd) and every picture also goes to its screen
 #   Real NES pads (NES design): an adapter on hashboard connectors J1 / J2 by default; ORPHAN_NES_PADS=7,8
 #   (or /etc/orphan/nespads) picks other connectors, ORPHAN_NES_PADS=off turns them off. Wiring: orphan_nespad.v
-#   ORPHAN_NES_PADS_NEVER=6 (or /etc/orphan/nespads-never) lists hashboard connectors that are never driven (default J6)
+#   DISCONNECT EVERY HASHBOARD before using real pads. ORPHAN_NES_PADS_NEVER=6,7 (or /etc/orphan/nespads-never) is an
+#   optional extra: connectors that are never driven or read (default: none)
 # Games: /opt/orphan-games/roms/<nes|gb|sms> (free homebrew only, see the README). The loaded FPGA design says which.
 import atexit
 import base64
@@ -306,18 +307,17 @@ def nes_pads_setup():
     v = (v or '1,2').lower()
     W(9, 0)                                  # off first: never move the pins while a pad is being driven
     time.sleep(0.005)                        # (one scan is 1 ms)
-    # connectors that are never driven or read (hashboards): ORPHAN_NES_PADS_NEVER or /etc/orphan/nespads-never,
-    # default J6 (the FPGA itself also starts with J6 protected); "none" protects nothing
+    # optional: connectors that are never driven or read: ORPHAN_NES_PADS_NEVER or /etc/orphan/nespads-never
+    # (default none: every connector is available; disconnect every hashboard before using real pads)
     nv = os.environ.get('ORPHAN_NES_PADS_NEVER', '')
     if not nv and os.path.exists('/etc/orphan/nespads-never'):
         nv = open('/etc/orphan/nespads-never').read().strip()
-    nv = (nv or '6').lower()
+    nv = (nv or 'none').lower()
     never = set()
     if nv not in ('none', 'off', '0'):
         never = {int(x) for x in nv.replace(' ', '').split(',') if x.isdigit() and 1 <= int(x) <= 9}
         if not never:
-            print('ORPHAN_NES_PADS_NEVER=%r: not understood, protecting J6' % nv)
-            never = {6}
+            print('ORPHAN_NES_PADS_NEVER=%r: not understood (use connector numbers like 6,7)' % nv)
     W(11, sum(1 << (n - 1) for n in never))
     state['hwnever'] = sorted(never)
     if v in ('off', '0', 'no'):
@@ -330,8 +330,8 @@ def nes_pads_setup():
         print('ORPHAN_NES_PADS=%r: use two different connector numbers 1..9 like 7,8 (or off); keeping J1,J2' % v)
         a, b = 1, 2
     if a in never or b in never:
-        print('Real NES pads stay OFF: J%s is protected (a hashboard connector, ORPHAN_NES_PADS_NEVER=%s). Pick other '
-              'connectors, or change the protected list if no hashboard is on it.' % (a if a in never else b, nv), flush=True)
+        print('Real NES pads stay OFF: J%s is in ORPHAN_NES_PADS_NEVER=%s. Pick other connectors, or change that list.'
+              % (a if a in never else b, nv), flush=True)
         return 'off'
     W(9, 1 | a << 4 | b << 8)
     atexit.register(lambda: W(9, 0))         # stop reading (and driving) the headers when this program ends
@@ -470,6 +470,7 @@ if __name__ == '__main__':
     if state['hwpads'] not in ('', 'off'):
         time.sleep(0.01)
         hp = nes_pads_state()
+        print('!! Real NES pads on %s: disconnect every hashboard from this board !!' % state['hwpads'], flush=True)
         print('Real NES pads on %s: %s' % (state['hwpads'], ', '.join(
             'pad %d %s' % (i + 1, 'adapter found' if hp['present'][i] else 'no adapter') for i in range(2))), flush=True)
     games = game_list()

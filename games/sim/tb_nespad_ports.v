@@ -10,7 +10,7 @@ module tb_nespad_ports;
     reg  [3:0] port1 = 4'd1, port2 = 4'd2;
     reg  [8:0] plug = 9'h1FF;                 // all high: nothing plugged in
     reg  [7:0] press = 8'h00;
-    reg  [8:0] never = 9'h020;                // J6 protected, as after the FPGA loads
+    reg  [8:0] never = 9'h020;                // J6 in the optional protected mask (ORPHAN_NES_PADS_NEVER=6)
     wire       latch, pclk;
     wire [8:0] oe;
     wire [15:0] buttons;

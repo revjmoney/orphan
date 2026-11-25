@@ -1,12 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 540" role="img" aria-labelledby="t d" font-family="'IBM Plex Mono',Consolas,ui-monospace,monospace">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 640" role="img" aria-labelledby="t d" font-family="'IBM Plex Mono',Consolas,ui-monospace,monospace">
 <title id="t">Orphan NES pad adapter wiring</title>
-<desc id="d">S9 hashboard header pin 15 RST to the NES socket LATCH, pin 11 TXD to CLOCK, pin 12 RXD from DATA, pin 16 3.3 V to VCC, pin 1 GND to GND, and pin 5 PLUG tied to pin 9 GND. 3.3 V only.</desc>
-<rect width="1240" height="540" fill="#080a0c"/>
+<desc id="d">S9 hashboard header pin 15 RST to the NES socket LATCH, pin 11 TXD to CLOCK, pin 12 RXD from DATA, pin 16 3.3 V to VCC, pin 1 GND to GND, and pin 5 PLUG tied to pin 9 GND. 3.3 V only. Disconnect every hashboard from the board before plugging in a pad or loading the NES core.</desc>
+<rect width="1240" height="640" fill="#080a0c"/>
 <text x="40" y="52" fill="#d2ff51" font-size="26" font-weight="700" letter-spacing="2">ORPHAN NES PAD ADAPTER</text>
 <text x="40" y="78" fill="#7d8a7c" font-size="14">a real NES controller on an S9 hashboard header, read by the FPGA</text>
 <rect x="900" y="30" width="300" height="52" rx="4" fill="#2a1a08" stroke="#ffb02e"/>
 <text x="1050" y="53" fill="#ffb02e" font-size="17" font-weight="700" text-anchor="middle">3.3 V ONLY</text>
 <text x="1050" y="72" fill="#e8efe6" font-size="12" text-anchor="middle">these pins are not 5 V tolerant</text>
+<rect x="40" y="96" width="1160" height="76" rx="6" fill="#2b0a08" stroke="#ff4838" stroke-width="3"/>
+<path d="M78 156 L100 114 L122 156 Z" fill="#ff4838"/>
+<text x="100" y="151" fill="#2b0a08" font-size="26" font-weight="800" text-anchor="middle">!</text>
+<text x="146" y="128" fill="#ff4838" font-size="23" font-weight="800" letter-spacing="1">DISCONNECT EVERY HASHBOARD FIRST</text>
+<text x="146" y="155" fill="#e8efe6" font-size="14">Unplug all hashboards from J1..J9 before you plug in a pad or load the NES core. Any header can be a pad port.</text>
+<g transform="translate(0,96)">
 <path d="M885 160 L975 160 L1080 215 L1080 405 L885 405 Z" fill="#101613" stroke="#596e3e" stroke-width="2"/>
 <path d="M110 262 L110 120 L800 120 L800 190 L930 190" fill="none" stroke="#080a0c" stroke-width="10" stroke-linejoin="round"/>
 <path d="M110 262 L110 120 L800 120 L800 190 L930 190" fill="none" stroke="#c08a5a" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
@@ -85,4 +91,5 @@
 <text x="885" y="510" fill="#7d8a7c" font-size="12">front view, like the console port</text>
 <text x="40" y="528" fill="#56635a" font-size="11">by JMSCNC, makers of RotatoCAM · github.com/revjmoney/orphan</text>
 <text x="1200" y="528" fill="#ffb02e" font-size="11" text-anchor="end">Not tested with a NES controller, yet.</text>
+</g>
 </svg>

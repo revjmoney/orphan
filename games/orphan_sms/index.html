@@ -53,6 +53,8 @@
   .hwbody ol { margin:6px 0 8px 18px; padding:0; } .hwbody li { margin:3px 0; }
   .hwbody code { background:#080e0a; border:1px solid var(--line); color:#b8f0c9; padding:0 4px; }
   .warn { color:#ffb02e; font-weight:600; }
+  .danger { border:3px solid #ff4838; background:#2b0a08; color:#ffe2dc; padding:12px 16px; border-radius:6px; margin:0 0 10px;
+            box-shadow:0 0 24px #ff483844; } .danger b { display:block; color:#ff4838; font:800 22px/1.1 var(--num); text-transform:uppercase; margin-bottom:4px; }
 .bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:4px;padding:3px 10px;font-weight:700;font-size:12px;text-decoration:none;white-space:nowrap;box-shadow:0 0 12px #ffcc2e55;vertical-align:middle}.bmc:hover{color:#000!important;box-shadow:0 0 18px #ffcc2e99}</style>
 </head>
 <body>
@@ -84,6 +86,8 @@
 <dialog id="hwdlg" aria-labelledby="hwtitle">
   <div class="hwhead"><h2 id="hwtitle">Real NES pads</h2><span id="hwports" class="pill"></span><button class="key" id="hwclose">Close</button></div>
   <div class="hwbody">
+    <div class="danger" role="alert"><b>&#9888; Disconnect every hashboard first</b>Unplug all hashboards from J1..J9 before you plug in a pad.
+      Any header can be a pad port.</div>
     <div id="hwstate"></div>
     <img src="adapter.svg" alt="Adapter wiring: header pin 15 RST to LATCH, 11 TXD to CLOCK, 12 RXD from DATA, 16 3.3 V to VCC, 1 GND to GND, pin 5 PLUG to GND">
     <p class="warn">3.3 V only: the header pins are not 5 V tolerant. Power the pad from pin 16 (3.3 V), never from 5 V.</p>
@@ -91,8 +95,8 @@
     <ol>
       <li>Build the adapter as drawn (an NES extension cable's socket end works well: find each wire with a continuity tester).
         Tie pin 5 (PLUG) to GND: that tells Orphan a pad is plugged in.</li>
-      <li>Plug it into a header on the S9 board. Stock boards only have headers on J6, J7 and J8. Never use a header that has a hashboard on it:
-        J6 is protected by default (never driven); list yours with <code>ORPHAN_NES_PADS_NEVER=6,8</code> (or <code>/etc/orphan/nespads-never</code>).</li>
+      <li>Unplug every hashboard, then plug the adapter into a header on the S9 board (stock boards only have headers on J6, J7 and J8).
+        Optional: <code>ORPHAN_NES_PADS_NEVER=6,7</code> lists headers that are never driven or read.</li>
       <li>Pick the headers before starting the console: <code>ORPHAN_NES_PADS=7,8</code> (or the line <code>7,8</code> in
         <code>/etc/orphan/nespads</code>). The default is J1 and J2; <code>off</code> turns real pads off.</li>
       <li>This panel shows "adapter found" and lights each button as you press it. Real pads and the browser pads work together.</li>
@@ -193,7 +197,7 @@ function showHw() {
   $('hwbtn').hidden = !nes;
   $('hwports').textContent = !hwPorts ? '' : hwPorts === 'off' ? 'OFF' : hwPorts.replace(',', ' + ');
   $('hwports').className = 'pill ' + (hw && hw.present.some(Boolean) ? 'live' : 'off');
-  const prot = '<p class="no">Protected (never driven, hashboards): ' + (hwNever.length ? hwNever.map(n => 'J' + n).join(', ') : 'none') + '</p>';
+  const prot = '<p class="no">Never driven (ORPHAN_NES_PADS_NEVER): ' + (hwNever.length ? hwNever.map(n => 'J' + n).join(', ') : 'none') + '</p>';
   if (!hw) { $('hwstate').innerHTML = '<p class="no">' + (hwPorts === 'off' ? 'Real pads are off (ORPHAN_NES_PADS=off, or a protected connector was picked).'
       : 'No status from the console yet.') + '</p>' + prot; return; }
   $('hwstate').innerHTML = [0, 1].map(i => '<div class="hwpad"><b>Pad ' + (i + 1) + ' on J' + hw.ports[i] + '</b>' +
