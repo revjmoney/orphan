@@ -5,7 +5,9 @@
 #   ORPHAN Remote (CYD): set ORPHAN_CYD=<cyd ip> (or /etc/orphan/cyd) and every picture also goes to its screen
 #   Real NES pads (NES design): an adapter on hashboard connectors J1 / J2 by default; ORPHAN_NES_PADS=7,8
 #   (or /etc/orphan/nespads) picks other connectors, ORPHAN_NES_PADS=off turns them off. Wiring: orphan_nespad.v
+#   ORPHAN_NES_PADS_NEVER=6 (or /etc/orphan/nespads-never) lists hashboard connectors that are never driven (default J6)
 # Games: /opt/orphan-games/roms/<nes|gb|sms> (free homebrew only, see the README). The loaded FPGA design says which.
+import atexit
 import base64
 import glob
 import hashlib
@@ -13,6 +15,7 @@ import http.server
 import json
 import os
 import queue
+import signal
 import socket
 import socketserver
 import struct
@@ -63,7 +66,7 @@ SUB = {'NES1': 0, 'GB01': 1, 'SMS1': 2}[SYS_ID]  # picture type in the WebSocket
 AUDIO_HZ = SYS['audio_hz']
 WBASE = (bus.m._off >> 2) + SLOT * 1024        # word index of the slot in Ardzy's mapped view
 lock = threading.RLock()
-state = {'game': '', 'running': False, 'fps': 0.0, 'error': '', 'cyd': '', 'hwpads': ''}
+state = {'game': '', 'running': False, 'fps': 0.0, 'error': '', 'cyd': '', 'hwpads': '', 'hwnever': []}
 pads = [0, 0]
 clients, clients_lock = {}, threading.Lock()
 raw_clients, raw_lock = set(), threading.Lock()
@@ -301,8 +304,23 @@ def nes_pads_setup():
     if not v and os.path.exists('/etc/orphan/nespads'):
         v = open('/etc/orphan/nespads').read().strip()
     v = (v or '1,2').lower()
+    W(9, 0)                                  # off first: never move the pins while a pad is being driven
+    time.sleep(0.005)                        # (one scan is 1 ms)
+    # connectors that are never driven or read (hashboards): ORPHAN_NES_PADS_NEVER or /etc/orphan/nespads-never,
+    # default J6 (the FPGA itself also starts with J6 protected); "none" protects nothing
+    nv = os.environ.get('ORPHAN_NES_PADS_NEVER', '')
+    if not nv and os.path.exists('/etc/orphan/nespads-never'):
+        nv = open('/etc/orphan/nespads-never').read().strip()
+    nv = (nv or '6').lower()
+    never = set()
+    if nv not in ('none', 'off', '0'):
+        never = {int(x) for x in nv.replace(' ', '').split(',') if x.isdigit() and 1 <= int(x) <= 9}
+        if not never:
+            print('ORPHAN_NES_PADS_NEVER=%r: not understood, protecting J6' % nv)
+            never = {6}
+    W(11, sum(1 << (n - 1) for n in never))
+    state['hwnever'] = sorted(never)
     if v in ('off', '0', 'no'):
-        W(9, 0)
         return 'off'
     try:
         a, b = [int(x) for x in v.replace(' ', '').split(',')[:2]]
@@ -311,7 +329,12 @@ def nes_pads_setup():
     except ValueError:
         print('ORPHAN_NES_PADS=%r: use two different connector numbers 1..9 like 7,8 (or off); keeping J1,J2' % v)
         a, b = 1, 2
+    if a in never or b in never:
+        print('Real NES pads stay OFF: J%s is protected (a hashboard connector, ORPHAN_NES_PADS_NEVER=%s). Pick other '
+              'connectors, or change the protected list if no hashboard is on it.' % (a if a in never else b, nv), flush=True)
+        return 'off'
     W(9, 1 | a << 4 | b << 8)
+    atexit.register(lambda: W(9, 0))         # stop reading (and driving) the headers when this program ends
     return 'J%d,J%d' % (a, b)
 
 
@@ -333,12 +356,14 @@ def pads_watch():
             hp = None
         if hp != last:
             last = hp
-            broadcast(json.dumps({'hwpads': hp, 'hwports': state.get('hwpads', '')}).encode(), opcode=1)
+            broadcast(json.dumps({'hwpads': hp, 'hwports': state.get('hwpads', ''),
+                                  'hwnever': state.get('hwnever', [])}).encode(), opcode=1)
         time.sleep(0.25)
 
 
 def status():
-    return json.dumps({'state': state, 'hwpads': nes_pads_state(), 'hwports': state.get('hwpads', ''), 'games': game_list(), 'audio_hz': AUDIO_HZ, 'system': SYS['name'],
+    return json.dumps({'state': state, 'hwpads': nes_pads_state(), 'hwports': state.get('hwpads', ''),
+                       'hwnever': state.get('hwnever', []), 'games': game_list(), 'audio_hz': AUDIO_HZ, 'system': SYS['name'],
                        'w': SYS['w'], 'h': SYS['h'], 'ext': SYS['ext'], 'roms': ROMS}).encode()
 
 
@@ -399,7 +424,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 q.put(None)
             return
         if self.path == '/adapter.svg':                     # the NES pad adapter diagram
-            body = open(os.path.join(HERE, 'adapter.svg'), 'rb').read()
+            try:
+                body = open(os.path.join(HERE, 'adapter.svg'), 'rb').read()
+            except OSError:
+                self.send_error(404)
+                return
             self.send_response(200)
             self.send_header('Content-Type', 'image/svg+xml')
             self.send_header('Content-Length', str(len(body)))
@@ -436,6 +465,7 @@ def raw_audio_server():
 
 if __name__ == '__main__':
     state['cyd'] = cyd_host()
+    signal.signal(signal.SIGTERM, lambda *a: sys.exit(0))   # so atexit runs when systemd or ardzy stops it
     state['hwpads'] = nes_pads_setup()
     if state['hwpads'] not in ('', 'off'):
         time.sleep(0.01)

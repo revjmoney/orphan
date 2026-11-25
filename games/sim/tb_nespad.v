@@ -1,13 +1,6 @@
 `timescale 1ns / 1ps
 // Test of orphan_nespad against a model of a real NES pad (a 4021: LATCH loads, DATA = A, CLOCK rising shifts).
-//   iverilog -o tb_nespad.vvp tb_nespad.v ../orphan_nes/orphan_nespad.v && vvp tb_nespad.vvp
-module nes_pad_model (input wire latch, input wire clock, input wire [7:0] pressed, output wire data);
-    reg [7:0] r = 8'hFF;
-    always @(posedge clock) if (!latch) r <= {1'b0, r[7:1]};      // serial in tied to GND on a real pad
-    always @(*) if (latch) r = ~pressed;                         // parallel load while LATCH is high
-    assign data = r[0];
-endmodule
-
+//   iverilog -g2012 -o tb_nespad.vvp tb_nespad.v nes_pad_model.v ../orphan_nes/orphan_nespad.v && vvp tb_nespad.vvp
 module tb_nespad;
     reg clk = 0;
     always #5 clk = ~clk;                                        // 100 MHz

@@ -56,7 +56,7 @@ footer{border-top:1px solid #71827140;color:var(--muted);font-size:.78em;letter-
  <p class="lead">Plug an original NES controller into the S9 control board and play the Orphan NES console with it. The FPGA reads
   the pad's own shift register about 1000 times a second, with NES timing. Real pads and the browser pads (keyboard, USB gamepad)
   work together.</p>
- <span class="status">Built and simulated · not yet tried on a board</span>
+ <span class="status">Not tested with a NES controller, yet · built and simulated</span>
 
  <div class="fig"><img src="img/nes-pad-adapter.svg" alt="Adapter wiring: S9 header pin 15 RST to the NES socket LATCH, pin 11 TXD to CLOCK, pin 12 RXD from DATA, pin 16 3.3 V to VCC, pin 1 GND to GND, and pin 5 PLUG tied to pin 9 GND." width="1240" height="540"></div>
 
@@ -66,8 +66,8 @@ footer{border-top:1px solid #71827140;color:var(--muted);font-size:.78em;letter-
  <h2>What you need</h2>
  <ul>
   <li>An S9 control board running Orphan, with the <code>orphan_nes</code> core</li>
-  <li>An original NES controller. Its CD4021 chip runs from 3 V to 15 V, so 3.3 V is fine; some clone pads use other chips
-   and may not run at 3.3 V.</li>
+  <li>An original NES controller. Its CD4021 is a CMOS chip that should run at 3.3 V (not yet checked against the datasheet
+   or on a real pad); some clone pads use other chips and may not run at 3.3 V.</li>
   <li>A 2x9 socket that fits the header on your board (check the pitch with calipers: 2.54 mm or 2.0 mm)</li>
   <li>An NES controller socket: the easiest is the socket end of an NES extension cable</li>
   <li>A multimeter (continuity and DC volts) and a soldering iron</li>
@@ -83,8 +83,8 @@ footer{border-top:1px solid #71827140;color:var(--muted);font-size:.78em;letter-
   <tr><td>1 (or 2, 9, 10, 13, 14)</td><td>GND</td><td>GND</td><td><span class="sw" style="background:#c08a5a"></span>brown</td></tr>
   <tr><td>5</td><td>PLUG</td><td>tie to GND (pin 9) in the adapter</td><td><span class="sw" style="background:#d2ff51"></span>jumper</td></tr>
  </table>
- <p>Leave every other header pin unconnected (18 is EN, driven by the ARM; 3, 4, 6, 7, 8 and 17 are not used). D3 and D4 on the
-  NES socket stay unconnected.</p>
+ <p>Leave every other header pin unconnected: 18 is EN (driven by the ARM), 3 and 4 are the board's I2C bus, 6, 7, 8 and 17
+  are not used by Orphan. D3 and D4 on the NES socket stay unconnected.</p>
  <p><b style="color:var(--lime)">PLUG to GND matters:</b> it tells Orphan an adapter is on this header. The FPGA only drives LATCH
   and CLOCK on a header you picked <i>and</i> whose PLUG pin is low. Without the jumper the pad is never read.</p>
  <p class="note">The wire colours are those of an official NES pad cable. Extension cables and clones use other colours: find each
@@ -92,20 +92,28 @@ footer{border-top:1px solid #71827140;color:var(--muted);font-size:.78em;letter-
 
  <h2>Before you plug a pad in</h2>
  <ol>
-  <li><b>Check the header numbering.</b> The drawing uses the usual 2x9 numbering: pin 1 is the square pad, odd pins in one row,
-   even pins in the other. With the board powered, measure pin 16 to pin 1: it must read <b>3.3 V</b>. If it does not, stop and
-   find the 3.3 V and GND pins on your board first.</li>
+  <li><b>Check the header numbering under load.</b> The drawing uses the usual 2x9 numbering: pin 1 is the square pad, odd pins
+   in one row, even pins in the other. With the board powered, put a 1 k resistor from pin 16 to pin 1 and measure across it: it
+   must stay at <b>3.3 V</b>. A plain voltage check is not enough: while an Orphan design with pull-ups is loaded the signal pins
+   also read about 3.3 V, but a weak pull-up drops to almost 0 V under 1 k. If it does not hold, stop and find the 3.3 V and GND
+   pins on your board first.</li>
   <li><b>Pick a header without a hashboard.</b> Stock boards only have headers fitted on J6, J7 and J8. Never pick a header that
-   has a hashboard on it. J1 to J5 and J9 are bare footprints you can solder a header into (measure pin 16 there too).</li>
-  <li><b>Empty-header test.</b> With no pad plugged in, start the console with your two headers picked and check that it prints
-   <code>no adapter</code> for both pads.</li>
+   has a hashboard on it. <b>J6 is protected by default:</b> the FPGA never drives or reads it, from the moment the console loads.
+   List every connector with a hashboard: <code>ORPHAN_NES_PADS_NEVER=6,8</code> (or <code>6,8</code> in
+   <code>/etc/orphan/nespads-never</code>); a pad picked on a protected connector keeps real pads off. J1 to J5 and J9 are bare
+   footprints you can solder a header into (do the pin 16 check there too).</li>
+  <li><b>Empty-header test</b> (required on J6 to J8). With no pad plugged in, start the console with your two headers picked and
+   check that it prints <code>no adapter</code> for both pads. No board pull-ups were found on these pins (measured on J1, J2 and
+   J4 to J7 of one board), but J6 to J8 have resistors fitted nearby that are not measured yet: a pull-down on PLUG would show up
+   here as "adapter found" with nothing plugged in.</li>
  </ol>
 
  <h2>Turn it on</h2>
  <p>The console reads pads on J1 (pad 1) and J2 (pad 2) unless told otherwise. Pick other headers on the board:</p>
 <pre>ORPHAN_NES_PADS=7,8          # pad 1 on J7, pad 2 on J8
 echo 7,8 &gt; /etc/orphan/nespads
-ORPHAN_NES_PADS=off          # real pads off</pre>
+ORPHAN_NES_PADS=off          # real pads off
+ORPHAN_NES_PADS_NEVER=6,8    # hashboards on J6 and J8: never driven (default: 6)</pre>
  <p>At start the console prints, for example, <code>Real NES pads on J7,J8: pad 1 adapter found, pad 2 no adapter</code>.
   Its web page (port 8000) has an <b>NES pads</b> button: each pad's header, whether an adapter is found, and every button
   lighting up as you press it.</p>
@@ -116,12 +124,14 @@ ORPHAN_NES_PADS=off          # real pads off</pre>
    LATCH high for 12 us, then 8 bits with 6 us clock halves (A, B, Select, Start, Up, Down, Left, Right; low = pressed), a scan
    every 1.002 ms. A read no real pad can give (Up + Down or Left + Right at once) counts as no buttons, so a stuck DATA line
    can not jam a game.</li>
-  <li><b>Any header:</b> a 9-header crossbar in the FPGA, so J1 to J9 can each be pad 1 or pad 2. The FPGA's weak pull-ups are on
-   for all 36 header pins (the board has none).</li>
+  <li><b>Any header:</b> a 9-header crossbar in the FPGA, so J1 to J9 can each be pad 1 or pad 2. A header is driven only while
+   it is picked, its own PLUG pin reads low, and it is not protected. The FPGA's weak pull-ups are on for all 36 header pins.</li>
   <li><b>Registers:</b> HWPADS (word 9 of the NES block): write enable and the two header numbers, read the buttons and which pads
-   are being read. Real pads stay off after the FPGA loads until the console program turns them on.</li>
-  <li><b>Tested</b> in simulation against a model of the pad's 4021 (15 checks). Not yet on a board or with a real pad:
-   reports welcome as <a href="https://github.com/revjmoney/orphan/issues">GitHub issues</a>.</li>
+   are being read. HWNEVER (word 11): the protected headers, J6 after the FPGA loads. Real pads stay off after the FPGA loads until
+   the console program turns them on, and go off again when it exits.</li>
+  <li><b>Tested in simulation:</b> the reader against a model of the pad's 4021 (15 checks) and the header crossbar (13 checks:
+   switching headers mid-scan, PLUG high, a protected J6 with PLUG low). <b>Not tested with a NES controller, yet</b>, and not yet
+   on a board: reports welcome as <a href="https://github.com/revjmoney/orphan/issues">GitHub issues</a>.</li>
  </ul>
  <p class="note">Pad facts (button order, latch and clock behaviour, wire colours, socket layout) are from the NESdev wiki:
   <a href="https://www.nesdev.org/wiki/Standard_controller">Standard controller</a> and

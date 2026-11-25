@@ -66,7 +66,7 @@
 <text x="80" y="378" fill="#d2ff51" font-size="13" font-weight="700" letter-spacing="1">S9 HASHBOARD HEADER (J1..J9)</text>
 <text x="80" y="398" fill="#7d8a7c" font-size="12">seen from above, pin 1 = square pad</text>
 <text x="80" y="470" fill="#7d8a7c" font-size="12">brown rings: other GND pins (2, 10, 13, 14)</text>
-<text x="80" y="490" fill="#7d8a7c" font-size="12">dark pins: leave unconnected (18 = EN, 3/4/6/7/8/17)</text>
+<text x="80" y="490" fill="#7d8a7c" font-size="12">dark pins: leave unconnected (18 = EN, 3/4 = board I2C, 6/7/8/17)</text>
 <circle cx="930" cy="190" r="11" fill="#c08a5a" stroke="#c08a5a" stroke-width="3"/>
 <text x="930" y="217" fill="#e8efe6" font-size="11" text-anchor="middle">GND</text>
 <circle cx="930" cy="250" r="11" fill="#ff5a4f" stroke="#ff5a4f" stroke-width="3"/>
@@ -84,4 +84,5 @@
 <text x="885" y="490" fill="#d2ff51" font-size="13" font-weight="700" letter-spacing="1">NES CONTROLLER SOCKET</text>
 <text x="885" y="510" fill="#7d8a7c" font-size="12">front view, like the console port</text>
 <text x="40" y="528" fill="#56635a" font-size="11">by JMSCNC, makers of RotatoCAM · github.com/revjmoney/orphan</text>
+<text x="1200" y="528" fill="#ffb02e" font-size="11" text-anchor="end">Not tested with a NES controller, yet.</text>
 </svg>

@@ -72,7 +72,7 @@ for n in range(1, 19):
 w('<text x="80" y="378" fill="%s" font-size="13" font-weight="700" letter-spacing="1">S9 HASHBOARD HEADER (J1..J9)</text>' % LIME)
 w('<text x="80" y="398" fill="%s" font-size="12">seen from above, pin 1 = square pad</text>' % DIM)
 w('<text x="80" y="470" fill="%s" font-size="12">brown rings: other GND pins (2, 10, 13, 14)</text>' % DIM)
-w('<text x="80" y="490" fill="%s" font-size="12">dark pins: leave unconnected (18 = EN, 3/4/6/7/8/17)</text>' % DIM)
+w('<text x="80" y="490" fill="%s" font-size="12">dark pins: leave unconnected (18 = EN, 3/4 = board I2C, 6/7/8/17)</text>' % DIM)
 
 # NES socket, front view like the console's port (NESdev wiki layout)
 for k, (x, y) in HOLE.items():
@@ -83,6 +83,7 @@ for k, (x, y) in HOLE.items():
 w('<text x="885" y="490" fill="%s" font-size="13" font-weight="700" letter-spacing="1">NES CONTROLLER SOCKET</text>' % LIME)
 w('<text x="885" y="510" fill="%s" font-size="12">front view, like the console port</text>' % DIM)
 w('<text x="40" y="528" fill="%s" font-size="11">by JMSCNC, makers of RotatoCAM · github.com/revjmoney/orphan</text>' % '#56635a')
+w('<text x="1200" y="528" fill="%s" font-size="11" text-anchor="end">Not tested with a NES controller, yet.</text>' % GOLD)
 w('</svg>')
 root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 for rel in ('docs/nes-pad/adapter.svg', 'site/img/nes-pad-adapter.svg', 'games/orphan_nes/adapter.svg'):

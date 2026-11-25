@@ -36,6 +36,23 @@
   footer { color:var(--dim); font-size:11px; padding:6px 14px; border-top:1px solid var(--line); }
   footer b { color:var(--amber); }
   @media (max-width:760px) { main { grid-template-columns:1fr; height:auto; } aside { border-right:0; border-bottom:1px solid var(--line); } #list { max-height:240px; } }
+  /* real NES pads on the hashboard header */
+  #hwbtn[hidden] { display:none; }
+  #hwdlg { background:#0d130f; color:var(--txt); border:1px solid #587053; border-radius:6px; padding:0; width:min(960px, 94vw);
+           max-height:92vh; box-shadow:0 20px 60px #000; }
+  #hwdlg::backdrop { background:#000a; }
+  .hwhead { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line2); }
+  .hwhead h2 { margin:0; font:700 16px var(--num); letter-spacing:.06em; color:var(--amber); text-transform:uppercase; }
+  .hwhead .key { margin-left:auto; }
+  .hwbody { padding:12px 14px; overflow:auto; max-height:calc(92vh - 50px); }
+  .hwpad { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:6px 0; border-bottom:1px solid #16201a; }
+  .hwpad b { min-width:150px; } .hwpad .ok { color:var(--grn); } .hwpad .no { color:var(--dim); }
+  .btns { display:flex; gap:4px; } .btns i { font:600 11px var(--num); font-style:normal; padding:2px 5px; border:1px solid var(--line2);
+          border-radius:3px; color:var(--dim); } .btns i.on { color:#0c1400; background:var(--amber); border-color:var(--amber); }
+  .hwbody img { width:100%; height:auto; display:block; margin:10px 0; border:1px solid var(--line); }
+  .hwbody ol { margin:6px 0 8px 18px; padding:0; } .hwbody li { margin:3px 0; }
+  .hwbody code { background:#080e0a; border:1px solid var(--line); color:#b8f0c9; padding:0 4px; }
+  .warn { color:#ffb02e; font-weight:600; }
 .bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:4px;padding:3px 10px;font-weight:700;font-size:12px;text-decoration:none;white-space:nowrap;box-shadow:0 0 12px #ffcc2e55;vertical-align:middle}.bmc:hover{color:#000!important;box-shadow:0 0 18px #ffcc2e99}</style>
 </head>
 <body>
@@ -58,11 +75,31 @@
       <button class="key" id="reset">Reset</button>
       <button class="key" id="full">Full screen</button>
       <span class="key" id="fps" style="cursor:default">- fps</span>
+      <button class="key" id="hwbtn" hidden>NES pads</button>
     </div>
     <p class="help"><b>Arrows</b> move · <b>Z</b> = B · <b>X</b> = A · <b>Enter</b> = Start · <b>Right Shift</b> = Select.
       A USB gamepad works too: press a button once so the browser sees it.</p>
   </section>
 </main>
+<dialog id="hwdlg" aria-labelledby="hwtitle">
+  <div class="hwhead"><h2 id="hwtitle">Real NES pads</h2><span id="hwports" class="pill"></span><button class="key" id="hwclose">Close</button></div>
+  <div class="hwbody">
+    <div id="hwstate"></div>
+    <img src="adapter.svg" alt="Adapter wiring: header pin 15 RST to LATCH, 11 TXD to CLOCK, 12 RXD from DATA, 16 3.3 V to VCC, 1 GND to GND, pin 5 PLUG to GND">
+    <p class="warn">3.3 V only: the header pins are not 5 V tolerant. Power the pad from pin 16 (3.3 V), never from 5 V.</p>
+    <p class="warn">Not tested with a NES controller, yet.</p>
+    <ol>
+      <li>Build the adapter as drawn (an NES extension cable's socket end works well: find each wire with a continuity tester).
+        Tie pin 5 (PLUG) to GND: that tells Orphan a pad is plugged in.</li>
+      <li>Plug it into a header on the S9 board. Stock boards only have headers on J6, J7 and J8. Never use a header that has a hashboard on it:
+        J6 is protected by default (never driven); list yours with <code>ORPHAN_NES_PADS_NEVER=6,8</code> (or <code>/etc/orphan/nespads-never</code>).</li>
+      <li>Pick the headers before starting the console: <code>ORPHAN_NES_PADS=7,8</code> (or the line <code>7,8</code> in
+        <code>/etc/orphan/nespads</code>). The default is J1 and J2; <code>off</code> turns real pads off.</li>
+      <li>This panel shows "adapter found" and lights each button as you press it. Real pads and the browser pads work together.</li>
+    </ol>
+    <p>Full guide: <a href="https://revjmoney.github.io/orphan/nes-pad.html" target="_blank" rel="noopener" style="color:var(--amber)">revjmoney.github.io/orphan/nes-pad.html</a></p>
+  </div>
+</dialog>
 <footer><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> <b>[Rev. J. Money - 2026]</b> Orphan Games · Orphan · FPGA Dev Linux for the S9 Control Board · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM. Cores: NES fpganes by Ludvig Strigeus (GPL-2.0); Game Boy VerilogBoy by Wenting Zhang (OHDL 1.0); Master System / Game Gear: MiSTer SMS core (GPL-2.0-or-later, T80 CPU by Daniel Wallner) + jt89 by Jose Tejada (GPL-3.0).</footer>
 <script>
 const $ = id => document.getElementById(id);
@@ -148,17 +185,37 @@ $('pause').onclick = () => send({pause: st.running !== false});
 $('reset').onclick = () => send({reset: 1});
 $('full').onclick = () => { const c = $('screen'); (c.requestFullscreen || c.webkitRequestFullscreen).call(c); };
 
+// ---- real NES pads on the hashboard header (NES design only): live status from main.py
+const BTN = ['A', 'B', 'Sel', 'Sta', 'Up', 'Dn', 'Lt', 'Rt'];
+let hw = null, hwPorts = '', hwNever = [];
+function showHw() {
+  const nes = sysInfo.system === 'NES';
+  $('hwbtn').hidden = !nes;
+  $('hwports').textContent = !hwPorts ? '' : hwPorts === 'off' ? 'OFF' : hwPorts.replace(',', ' + ');
+  $('hwports').className = 'pill ' + (hw && hw.present.some(Boolean) ? 'live' : 'off');
+  const prot = '<p class="no">Protected (never driven, hashboards): ' + (hwNever.length ? hwNever.map(n => 'J' + n).join(', ') : 'none') + '</p>';
+  if (!hw) { $('hwstate').innerHTML = '<p class="no">' + (hwPorts === 'off' ? 'Real pads are off (ORPHAN_NES_PADS=off, or a protected connector was picked).'
+      : 'No status from the console yet.') + '</p>' + prot; return; }
+  $('hwstate').innerHTML = [0, 1].map(i => '<div class="hwpad"><b>Pad ' + (i + 1) + ' on J' + hw.ports[i] + '</b>' +
+    (hw.present[i] ? '<span class="ok">adapter found</span>' : '<span class="no">no adapter</span>') +
+    '<span class="btns">' + BTN.map((n, k) => '<i class="' + (hw.buttons[i] >> k & 1 ? 'on' : '') + '">' + n + '</i>').join('') + '</span></div>').join('') + prot;
+}
+$('hwbtn').onclick = () => { showHw(); $('hwdlg').showModal(); };
+$('hwclose').onclick = () => $('hwdlg').close();
+
 function connect() {
   ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'); ws.binaryType = 'arraybuffer';
   ws.onopen = () => { $('link').textContent = 'FPGA LIVE'; $('link').className = 'pill live'; };
   ws.onclose = () => { $('link').textContent = 'OFFLINE'; $('link').className = 'pill off'; setTimeout(connect, 1500); };
   ws.onmessage = ev => {
     if (typeof ev.data === 'string') { const m = JSON.parse(ev.data);
+      if ('hwpads' in m) { hw = m.hwpads; hwPorts = m.hwports || ''; hwNever = m.hwnever || []; }
+      if (!m.state && !m.games) { showHw(); return; }            // a pad status update only
       if (m.games) games = m.games; if (m.audio_hz) rate = Math.round(m.audio_hz);
       if (m.system) { sysInfo = m; $('sysname').textContent = '[orphan] · ' + m.system + ' in the FPGA, free homebrew'; setScreen(m.w, m.h); }
       if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? st.game.replace(/\.(nes|gb)$/i, '') : 'No game loaded';
         $('pause').textContent = st.running === false ? 'Resume' : 'Pause'; }
-      showList(); return; }
+      showList(); showHw(); return; }
     const type = new DataView(ev.data).getInt16(0, true);
     const sub = new DataView(ev.data).getInt16(2, true);
     if (type === 1) drawFrame(new Uint32Array(ev.data, 4), sub);

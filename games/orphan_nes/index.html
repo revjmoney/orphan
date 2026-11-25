@@ -87,10 +87,12 @@
     <div id="hwstate"></div>
     <img src="adapter.svg" alt="Adapter wiring: header pin 15 RST to LATCH, 11 TXD to CLOCK, 12 RXD from DATA, 16 3.3 V to VCC, 1 GND to GND, pin 5 PLUG to GND">
     <p class="warn">3.3 V only: the header pins are not 5 V tolerant. Power the pad from pin 16 (3.3 V), never from 5 V.</p>
+    <p class="warn">Not tested with a NES controller, yet.</p>
     <ol>
       <li>Build the adapter as drawn (an NES extension cable's socket end works well: find each wire with a continuity tester).
         Tie pin 5 (PLUG) to GND: that tells Orphan a pad is plugged in.</li>
-      <li>Plug it into a header on the S9 board. Stock boards only have headers on J6, J7 and J8; never use a header that has a hashboard on it.</li>
+      <li>Plug it into a header on the S9 board. Stock boards only have headers on J6, J7 and J8. Never use a header that has a hashboard on it:
+        J6 is protected by default (never driven); list yours with <code>ORPHAN_NES_PADS_NEVER=6,8</code> (or <code>/etc/orphan/nespads-never</code>).</li>
       <li>Pick the headers before starting the console: <code>ORPHAN_NES_PADS=7,8</code> (or the line <code>7,8</code> in
         <code>/etc/orphan/nespads</code>). The default is J1 and J2; <code>off</code> turns real pads off.</li>
       <li>This panel shows "adapter found" and lights each button as you press it. Real pads and the browser pads work together.</li>
@@ -185,17 +187,18 @@ $('full').onclick = () => { const c = $('screen'); (c.requestFullscreen || c.web
 
 // ---- real NES pads on the hashboard header (NES design only): live status from main.py
 const BTN = ['A', 'B', 'Sel', 'Sta', 'Up', 'Dn', 'Lt', 'Rt'];
-let hw = null, hwPorts = '';
+let hw = null, hwPorts = '', hwNever = [];
 function showHw() {
   const nes = sysInfo.system === 'NES';
   $('hwbtn').hidden = !nes;
   $('hwports').textContent = !hwPorts ? '' : hwPorts === 'off' ? 'OFF' : hwPorts.replace(',', ' + ');
   $('hwports').className = 'pill ' + (hw && hw.present.some(Boolean) ? 'live' : 'off');
-  if (!hw) { $('hwstate').innerHTML = '<p class="no">' + (hwPorts === 'off' ? 'Real pads are turned off (ORPHAN_NES_PADS=off).'
-      : 'No status from the console yet.') + '</p>'; return; }
+  const prot = '<p class="no">Protected (never driven, hashboards): ' + (hwNever.length ? hwNever.map(n => 'J' + n).join(', ') : 'none') + '</p>';
+  if (!hw) { $('hwstate').innerHTML = '<p class="no">' + (hwPorts === 'off' ? 'Real pads are off (ORPHAN_NES_PADS=off, or a protected connector was picked).'
+      : 'No status from the console yet.') + '</p>' + prot; return; }
   $('hwstate').innerHTML = [0, 1].map(i => '<div class="hwpad"><b>Pad ' + (i + 1) + ' on J' + hw.ports[i] + '</b>' +
     (hw.present[i] ? '<span class="ok">adapter found</span>' : '<span class="no">no adapter</span>') +
-    '<span class="btns">' + BTN.map((n, k) => '<i class="' + (hw.buttons[i] >> k & 1 ? 'on' : '') + '">' + n + '</i>').join('') + '</span></div>').join('');
+    '<span class="btns">' + BTN.map((n, k) => '<i class="' + (hw.buttons[i] >> k & 1 ? 'on' : '') + '">' + n + '</i>').join('') + '</span></div>').join('') + prot;
 }
 $('hwbtn').onclick = () => { showHw(); $('hwdlg').showModal(); };
 $('hwclose').onclick = () => $('hwdlg').close();
@@ -206,7 +209,7 @@ function connect() {
   ws.onclose = () => { $('link').textContent = 'OFFLINE'; $('link').className = 'pill off'; setTimeout(connect, 1500); };
   ws.onmessage = ev => {
     if (typeof ev.data === 'string') { const m = JSON.parse(ev.data);
-      if ('hwpads' in m) { hw = m.hwpads; hwPorts = m.hwports || ''; }
+      if ('hwpads' in m) { hw = m.hwpads; hwPorts = m.hwports || ''; hwNever = m.hwnever || []; }
       if (!m.state && !m.games) { showHw(); return; }            // a pad status update only
       if (m.games) games = m.games; if (m.audio_hz) rate = Math.round(m.audio_hz);
       if (m.system) { sysInfo = m; $('sysname').textContent = '[orphan] · ' + m.system + ' in the FPGA, free homebrew'; setScreen(m.w, m.h); }
