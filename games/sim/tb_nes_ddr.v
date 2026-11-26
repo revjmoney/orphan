@@ -51,6 +51,19 @@ module tb;
   end
   always @(posedge hp_clk) if (hp_rvalid && !hp_rready) begin $display("FAIL: rready low"); $finish; end
 
+
+  // the console's whole life, hashed: every step's memory address, the bytes it got and the pixel (equal hashes
+  // in two runs = the console did exactly the same thing, whatever the cart memory behind it)
+  reg [63:0] trace = 64'd0, trace_f = 64'd0; integer xcol = 0, ti; reg [48:0] tv, tz;
+  always @(posedge dut.nclk) if (dut.run_nes) begin
+    // (unwritten RAM reads X in simulation, 0 on the chip, on both cores alike: X bits count as 0 here)
+    tv = {dut.memory_addr, dut.memory_read_cpu, dut.memory_read_ppu, dut.memory_write,
+          (dut.memory_read_cpu ? dut.memory_din_cpu : 8'd0), (dut.memory_read_ppu ? dut.memory_din_ppu : 8'd0), dut.color};
+    for (ti = 0; ti < 49; ti = ti + 1) tz[ti] = (tv[ti] === 1'b1);
+    trace = (trace * 64'd1099511628211) ^ {15'd0, tz};
+    if (^dut.color === 1'bx) xcol = xcol + 1;
+    if (dut.scanline == 9'd240 && dut.cycle == 9'd0) trace_f <= trace;
+  end
   initial begin
     seed = 1;
     $readmemh(`IMG, cart);
@@ -77,7 +90,7 @@ module tb;
       repeat (20000) @(posedge clk); rd(6, v);
       if (v[15:0] != n) begin
         n = v[15:0]; rd(19, v); rd(20, v2);
-        $display("frame %0d  misses %0d (PRG %0d)  waited %0d clocks = %0d.%02d %% of a frame  t=%0t", n, v[15:0], v[31:16],
+        $display("trace at the frame end %016x  x pixels so far %0d", trace_f, xcol); $display("frame %0d  misses %0d (PRG %0d)  waited %0d clocks = %0d.%02d %% of a frame  t=%0t", n, v[15:0], v[31:16],
                  v2, v2 * 100 / 357368, (v2 * 10000 / 357368) % 100, $time); $fflush;
       end
 `ifdef PADAT
