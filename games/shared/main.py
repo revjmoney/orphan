@@ -9,6 +9,7 @@
 #   optional extra: connectors that are never driven or read (default: none)
 # Games: /opt/orphan-games/roms/<nes|gb|sms> (free homebrew only, see the README). The loaded FPGA design says which.
 import array
+import multiprocessing
 import atexit
 import base64
 import glob
@@ -155,10 +156,12 @@ def frames():
         t = time.time()
         while not (R(6) >> 28) & 1 and time.time() - t < 0.2:
             time.sleep(0.002)
+        tp = time.perf_counter()
         with lock:
             W(4, 0)
             fb = pop(512, FB_WORDS)
             W(0, RUN)                          # capture again
+        state['pop_ms'] = state.get('pop_ms', 0.0) * 0.9 + (time.perf_counter() - tp) * 100
         pic = struct.pack('<hh', 1, SUB) + fb.tobytes()
         broadcast(pic)
         cyd_frame(fb)
@@ -168,9 +171,14 @@ def frames():
             n, t0 = 0, time.time()
             logn = state.get('_logn', 0) + 1
             state['_logn'] = logn
+            cpu = time.thread_time()
+            state['frames_cpu'] = round((cpu - state.get('_fcpu', cpu)) * 100, 1)   # % of one core, this thread
+            state['_fcpu'] = cpu
             if logn % 10 == 0:
-                print('pictures/s: console %.1f, CYD %.1f (%.1f ms per CYD picture)' % (state['fps'], state.get('cyd_fps', 0.0),
-                                                                         state.get('cyd_ms', 0.0)), flush=True)
+                print('pictures/s: console %.1f, CYD %.1f (%.1f ms per CYD picture); read %.1f ms, cpu: frames %s%%, CYD %s%%, '
+                      '%d bytes per CYD picture' % (state['fps'], cyd_stats[0], cyd_stats[1], state.get('pop_ms', 0.0),
+                                                   state.get('frames_cpu', 0), round(cyd_stats[3], 1), cyd_stats[2]),
+                      flush=True)
 
 
 def sound():
@@ -204,7 +212,6 @@ def sound():
 
 
 # ---------------------------------------------------------------- ORPHAN Remote (CYD): RGB565 over TCP 8091
-cyd_q = queue.Queue(maxsize=1)
 
 
 def cyd_host():
@@ -214,17 +221,45 @@ def cyd_host():
     return h
 
 
+# The CYD sender runs in its own process (the board's second core): Python runs one thread at a time, and the
+# frame buffer reads, the browser feed and the CYD encoder no longer fit one core at full speed.
+# Two picture slots in shared memory: the board writes the newest picture into the slot the sender is not reading,
+# the sender always takes the newest one as soon as it is free (a picture it was too slow for is skipped).
+CYD_SLOT = 4 * 12288
+cyd_ctx = multiprocessing.get_context('fork')  # (the child shares this module's state as it is now)
+cyd_slots = cyd_ctx.RawArray('B', 2 * CYD_SLOT)
+cyd_meta = cyd_ctx.RawArray('i', 4)            # [picture number, SUB of slot 0, SUB of slot 1, words]
+cyd_new = cyd_ctx.Event()
+cyd_stats = cyd_ctx.RawArray('d', 4)           # pictures/s, ms per picture, bytes, cpu %
+cyd_on = False
+
+
 def cyd_frame(fb):
-    if not state['cyd']:
+    if not cyd_on:
         return
-    try:
-        cyd_q.get_nowait()                     # the CYD is slower than the console: drop the waiting picture,
-    except queue.Empty:                        # so the newest one always goes next
-        pass
-    try:
-        cyd_q.put_nowait(fb)
-    except queue.Full:
-        pass
+    k = (cyd_meta[0] + 1) & 0x7FFFFFFF
+    b = fb.tobytes()
+    memoryview(cyd_slots).cast('B')[(k & 1) * CYD_SLOT:(k & 1) * CYD_SLOT + len(b)] = b
+    cyd_meta[1 + (k & 1)], cyd_meta[3] = SUB, len(b)
+    cyd_meta[0] = k
+    cyd_new.set()
+
+
+def cyd_take(last):
+    """Wait for a picture newer than `last`, copy it out: (number, SUB, bytes)."""
+    while cyd_meta[0] == last:
+        cyd_new.wait(1)
+        cyd_new.clear()
+    k = cyd_meta[0]
+    off = (k & 1) * CYD_SLOT
+    return k, cyd_meta[1 + (k & 1)], bytes(memoryview(cyd_slots).cast('B')[off:off + cyd_meta[3]])
+
+
+def cyd_process_start():
+    global cyd_on
+    if state['cyd']:
+        cyd_ctx.Process(target=cyd_sender, daemon=True).start()
+        cyd_on = True
 
 
 SH_GB = np.arange(0, 32, 2, dtype=np.uint32)        # bit offsets of the pixels inside one frame buffer word
@@ -283,10 +318,11 @@ def cyd_sender_rect(fb):
 
 
 def cyd_sender():
-    link, kind, checked = None, 'rect', 0.0
-    n, t0 = 0, time.time()
+    global SUB
+    link, kind, checked, last = None, 'rect', 0.0, 0
+    n, t0, cpu0 = 0, time.time(), time.process_time()
     while True:
-        fb = cyd_q.get()
+        last, SUB, fb = cyd_take(last)
         try:
             if kind == 'rect' and time.time() - checked > 30:
                 kind, checked = cyd_stream_kind(state['cyd']), time.time()
@@ -296,14 +332,16 @@ def cyd_sender():
             if link:
                 ts = time.perf_counter()
                 img, scale, x, y, pal = cyd_layout(fb)
-                link.send(img, scale=scale, x=x, y=y, palette=pal)
-                state['cyd_ms'] = state.get('cyd_ms', 0.0) * 0.9 + (time.perf_counter() - ts) * 100
+                nb = link.send(img, scale=scale, x=x, y=y, palette=pal)
+                cyd_stats[2] = cyd_stats[2] * 0.9 + (nb or 0) * 0.1
+                cyd_stats[1] = cyd_stats[1] * 0.9 + (time.perf_counter() - ts) * 100
             else:
                 cyd_sender_rect(fb)
             n += 1
             if time.time() - t0 >= 1:
-                state['cyd_fps'] = round(n / (time.time() - t0), 1)
-                n, t0 = 0, time.time()
+                cyd_stats[0] = n / (time.time() - t0)
+                cyd_stats[3] = (time.process_time() - cpu0) * 100 / (time.time() - t0)
+                n, t0, cpu0 = 0, time.time(), time.process_time()
         except OSError:
             kind, checked, link = 'rect', 0.0, None
             time.sleep(1)
@@ -532,7 +570,8 @@ if __name__ == '__main__':
           flush=True)
     if games:
         load(games[0])
-    for t in (frames, sound, raw_audio_server, cyd_sender, pads_watch):
+    cyd_process_start()                        # before any thread starts (it forks)
+    for t in (frames, sound, raw_audio_server, pads_watch):
         threading.Thread(target=t, daemon=True).start()
     ip = (subprocess.run(['hostname', '-I'], capture_output=True, text=True).stdout.split() or ['<board>'])[0]
     print('Orphan Games: open http://%s:%d in a browser' % (ip, PORT))

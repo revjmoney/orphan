@@ -13,7 +13,8 @@
 WiFiServer control(80);
 WiFiServer graphics(8091);
 WiFiServer gameServer(8092);
-WiFiUDP gameUdp;uint32_t udpBytes=0,udpPackets=0,udpLost=0;   // game stream over UDP 8093 (TCP on this ESP32 tops out ~480 KB/s)
+#include "lwip/sockets.h"
+int udpSock=-1;uint32_t udpBytes=0,udpPackets=0,udpLost=0,udpDropped=0;   // game stream over UDP 8093 (TCP on this ESP32 tops out ~480 KB/s)
 constexpr int GameLanes=4;              // parallel connections: each has its own small lwIP receive window
 WiFiClient gameLane[GameLanes];
 WiFiClient* gameClient=&gameLane[0];   // the lane being read
@@ -354,14 +355,38 @@ void gameStream(){
 //  4 SINK  dropped (link speed test)
 // A lost ROWS packet only leaves old rows on the screen: the sender sees it in the bitmap and sends them again.
 static uint8_t gameGen=0;static uint16_t udpPic=0;static uint64_t udpGot=0;
-static void udpReply(const uint8_t* d,size_t n){gameUdp.beginPacket(gameUdp.remoteIP(),gameUdp.remotePort());gameUdp.write(d,n);gameUdp.endPacket();}
+// UDP 8093 is read by its own task on core 0 (next to the WiFi stack) into a ring of packets, so packets keep being
+// taken off the network while core 1 is busy drawing (lwIP only queues a few, the rest were dropped).
+constexpr int UdpSlots=24,UdpSlotBytes=1472;
+uint8_t* udpRing=nullptr;uint16_t udpLen[UdpSlots];volatile uint32_t udpHead=0,udpTail=0;
+struct sockaddr_in udpFrom;volatile bool udpFromSet=false;
+static void udpTask(void*){
+ for(;;){
+  if(udpHead-udpTail>=UdpSlots){vTaskDelay(1);continue;}           // ring full: leave it in lwIP for a moment
+  struct sockaddr_in from;socklen_t fl=sizeof(from);
+  int n=recvfrom(udpSock,udpRing+(udpHead%UdpSlots)*UdpSlotBytes,UdpSlotBytes,0,(struct sockaddr*)&from,&fl);
+  if(n<=0){vTaskDelay(1);continue;}
+  udpFrom=from;udpFromSet=true;udpLen[udpHead%UdpSlots]=n;__sync_synchronize();udpHead=udpHead+1;
+ }
+}
+void udpStart(){
+ udpRing=(uint8_t*)heap_caps_malloc(UdpSlots*UdpSlotBytes,MALLOC_CAP_8BIT);
+ udpSock=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
+ int big=32768;setsockopt(udpSock,SOL_SOCKET,SO_RCVBUF,&big,sizeof(big));
+ struct sockaddr_in a={};a.sin_family=AF_INET;a.sin_port=htons(8093);a.sin_addr.s_addr=htonl(INADDR_ANY);
+ if(!udpRing || udpSock<0 || bind(udpSock,(struct sockaddr*)&a,sizeof(a))<0){Serial.println("game udp: start failed");return;}
+ xTaskCreatePinnedToCore(udpTask,"udp8093",3072,nullptr,5,nullptr,0);
+}
+static void udpReply(const uint8_t* d,size_t n){if(udpFromSet)sendto(udpSock,d,n,0,(struct sockaddr*)&udpFrom,sizeof(udpFrom));}
 void gameUdpStep(){
  if(!gameFb)return;
- static uint8_t pk[1500];static uint32_t lastPkt=0;
+ static uint32_t lastPkt=0;if(!udpRing)return;
  if(gameWriting && millis()-lastPkt>100)gameEndWrite();   // END lost: let the rest of the firmware draw again
  for(int i=0;i<48;i++){
-  int n=gameUdp.parsePacket();if(n<=0)break;
-  int len=gameUdp.read(pk,sizeof(pk));udpBytes+=len;udpPackets++;lastPkt=millis();
+  if(udpTail==udpHead)break;
+  uint8_t* pk=udpRing+(udpTail%UdpSlots)*UdpSlotBytes;int len=udpLen[udpTail%UdpSlots];
+  struct Done{~Done(){__sync_synchronize();udpTail=udpTail+1;}} done;   // the slot is free again after this pass
+  udpBytes+=len;udpPackets++;lastPkt=millis();
   if(len<4)continue;
   uint8_t type=pk[0],gen=pk[1];uint16_t pic=pk[2]|(pk[3]<<8);
   if(type==1){
@@ -374,6 +399,9 @@ void gameUdpStep(){
    gameMem=pk+5;gameMemLeft=len-5;bool ok=gameRows(len-5);gameMem=nullptr;
    if(ok)udpGot|=1ULL<<(pk[4]&63);
   }else if(type==3 && len>=5){
+   static uint16_t endPic=0xFFFF;static uint8_t endGen=0;
+   if(gen==endGen && pic==endPic){uint8_t r[12]={'K',gameGen,(uint8_t)pic,(uint8_t)(pic>>8)};memcpy(r+4,&udpGot,8);udpReply(r,12);continue;}  // END sent again: just answer
+   endPic=pic;endGen=gen;
    if(pic!=udpPic){udpPic=pic;udpGot=0;}
    int sent=pk[4];for(int k=0;k<sent && k<64;k++)if(!(udpGot>>k&1))udpLost++;
    gameEndWrite();
@@ -400,13 +428,14 @@ String decodeForm(String value){
  }
  return out;
 }
+uint8_t spiMhz=40;                      // panel SPI clock: 40 (safe) or 80 MHz, POST /spi to change (restarts)
 void controlRequest(){
  WiFiClient c=control.available();if(c.fd()<0)return;c.setTimeout(1); // WiFiClient takes seconds
  String request=c.readStringUntil('\n');int length=0;
  for(int n=0;n<30;n++){String header=c.readStringUntil('\n');header.trim();if(!header.length())break;header.toLowerCase();if(header.startsWith("content-length:"))length=header.substring(15).toInt();}
  String body,type="text/plain";int status=200;
  if(request.startsWith("GET /status ")){
-  JsonDocument d;d["online"]=online;d["target"]=target;d["view"]=views[view];d["ip"]=WiFi.localIP().toString();d["heap"]=ESP.getFreeHeap();d["graphics_port"]=8091;d["game_port"]=8092;d["game_bytes"]=gameBytes;d["rssi"]=WiFi.RSSI();d["game_udp"]=8093;d["udp_bytes"]=udpBytes;d["udp_packets"]=udpPackets;d["udp_lost"]=udpLost;d["draw_ms"]=(uint32_t)(gameDrawUs/1000);d["dma_wait_ms"]=(uint32_t)(gameWaitUs/1000);d["channel"]=WiFi.channel();d["scale2"]=true;d["frames"]=frameCount;d["fps"]=frameFps;d["transfer_ms"]=frameTransferMs;if(!isnan(chipTemperature))d["temperature"]=chipTemperature;
+  JsonDocument d;d["online"]=online;d["target"]=target;d["view"]=views[view];d["ip"]=WiFi.localIP().toString();d["heap"]=ESP.getFreeHeap();d["graphics_port"]=8091;d["game_port"]=8092;d["game_bytes"]=gameBytes;d["rssi"]=WiFi.RSSI();d["game_udp"]=8093;d["udp_bytes"]=udpBytes;d["udp_packets"]=udpPackets;d["udp_lost"]=udpLost;d["draw_ms"]=(uint32_t)(gameDrawUs/1000);d["dma_wait_ms"]=(uint32_t)(gameWaitUs/1000);d["channel"]=WiFi.channel();d["scale2"]=true;d["spi_mhz"]=spiMhz;d["frames"]=frameCount;d["fps"]=frameFps;d["transfer_ms"]=frameTransferMs;if(!isnan(chipTemperature))d["temperature"]=chipTemperature;
   d["scene_polls"]=scenePolls;d["scene_tiles_drawn"]=sceneTilesDrawn;d["scene_draw_ms"]=sceneDrawMs;
   serializeJson(d,body);type="application/json";
  }else if(request.startsWith("POST /target ") && length>0 && length<300){
@@ -418,6 +447,11 @@ void controlRequest(){
   char data[64];size_t count=c.readBytes(data,length);data[count]=0;String name=data;name.trim();
   if(count==(size_t)length){for(int i=0;i<5;i++)if(name==views[i])view=i;lastFrame=0;lastPoll=0;redrawScene=true;body="View selected";}
   else{status=400;body="Incomplete body";}
+ }else if(request.startsWith("POST /spi ") && length>0 && length<16){   // body "40" or "80": saved, then restart
+  char data[16];size_t count=c.readBytes(data,length);data[count]=0;int mhz=atoi(data);
+  if(mhz==40||mhz==80){Preferences q;q.begin("orphanremote");q.putUChar("spi",(uint8_t)mhz);q.end();
+   c.print("HTTP/1.1 200 OK\r\nContent-Length: 10\r\nConnection: close\r\n\r\nrestarting");delay(50);c.stop();delay(200);ESP.restart();}
+  status=400;body="Use 40 or 80";
  }else if(request.startsWith("GET /screen ")){       // screenshot: 320 x 240 RGB565, little endian, row by row
   gameEndWrite();
   c.setNoDelay(false);
@@ -449,13 +483,14 @@ void controlRequest(){
  Serial.printf("control: %s body=%d response=%d\n",request.c_str(),length,status);
 }
 void setup(){
- Serial.begin(115200);delay(200);boardInit(1,40000000);title("Connecting with saved WiFi...");
+ {Preferences q;q.begin("orphanremote",true);spiMhz=q.getUChar("spi",40);q.end();if(spiMhz!=80)spiMhz=40;}
+ Serial.begin(115200);delay(200);boardInit(1,spiMhz*1000000u);title("Connecting with saved WiFi...");
  tileSprite.setColorDepth(16);tileSprite.createSprite(TileWidth,TileHeight);
  Preferences p;p.begin("orphanremote",true);target=p.getString("target",target);p.end();
  bool connected=connectSaved();
  Serial.printf("Orphan Remote: WiFi %s; IP %s\n",connected?"connected":"not connected",WiFi.localIP().toString().c_str());
  if(connected)MDNS.begin("orphan-remote");
- control.begin();control.setNoDelay(true);graphics.begin();graphics.setNoDelay(true);gameServer.begin();gameServer.setNoDelay(true);gameUdp.begin(8093);scene();lastPoll=millis();
+ control.begin();control.setNoDelay(true);graphics.begin();graphics.setNoDelay(true);gameServer.begin();gameServer.setNoDelay(true);udpStart();scene();lastPoll=millis();
 }
 void loop(){
  controlRequest();frame();gameStream();

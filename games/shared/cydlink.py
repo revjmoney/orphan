@@ -152,20 +152,28 @@ class CydLinkUdp:
         self.prev, self.layout, self.gen, self.pic = None, None, 0, 0
         self.stale = None                     # rows the CYD may not have (lost packets)
         self.sent_bytes, self.lost = 0, 0
+        self.misses = 0                       # pictures in a row with no answer (the CYD restarted?)
+        self.pending = None                   # (pic, packets, rows, END packet) still waiting for its answer
 
     def close(self):
-        self.prev, self.layout = None, None
+        self.prev, self.layout, self.pending = None, None, None
 
-    def _recv(self, want):
-        end = time.perf_counter() + self.timeout
-        while time.perf_counter() < end:
+    def _recv(self, want, timeout=None):
+        end = time.perf_counter() + (self.timeout if timeout is None else timeout)
+        while True:
+            left = end - time.perf_counter()
+            if left <= 0:
+                return None
             try:
+                self.sock.settimeout(left)               # never block past this wait's own end
                 d, _ = self.sock.recvfrom(64)
             except socket.timeout:
                 return None
             except OSError:
                 return None
             if d[:1] == want and len(d) >= 2 and d[1] == self.gen:
+                if want == b'K' and (len(d) < 4 or struct.unpack_from('<H', d, 2)[0] != self.pic):
+                    continue                             # a late answer to an earlier picture: skip it
                 return d
         return None
 
@@ -178,21 +186,59 @@ class CydLinkUdp:
                 return
         raise OSError('the CYD does not answer on UDP')
 
+    def _finish(self):
+        """Collect the CYD's answer to the picture sent last time (it drew while we encoded this one): sets
+        self.stale to the rows it did not get. END is sent again every 20 ms in case it was lost."""
+        if self.pending is None:
+            return
+        pic, packets, h, endpkt = self.pending
+        self.pending = None
+        reply = self._recv(b'K', 0.03)
+        for _ in range(4):
+            if reply:
+                break
+            self.sock.sendto(endpkt, self.addr)
+            reply = self._recv(b'K', 0.02)
+        stale = np.zeros(h, dtype=bool)
+        if reply is None or len(reply) < 12:
+            for r0, n, _ in packets:                    # no answer: assume nothing arrived
+                stale[r0:r0 + n] = True
+            self.lost += len(packets)
+            self.misses += 1
+            if self.misses >= 3:                        # it forgot the layout (restarted): send MODE again next time
+                self.layout, self.misses = None, 0
+        else:
+            self.misses = 0
+            got = struct.unpack_from('<Q', reply, 4)[0]
+            for i, (r0, n, _) in enumerate(packets):
+                if not got >> i & 1:
+                    stale[r0:r0 + n] = True
+                    self.lost += 1
+        self.stale = stale if self.stale is None or self.stale.shape != stale.shape else self.stale | stale
+
     def send(self, img, scale=0, x=0, y=0, palette=None, hud=False):
+        """Send one picture. Pipelined: the CYD's answer to the previous picture is collected after this one is
+        encoded, so encoding here and drawing there overlap."""
         h, w = img.shape
         pb = img.dtype.itemsize
         pal = b'' if palette is None else np.asarray(palette, dtype='<u2').tobytes()
         layout = (pb, scale, w, h, x, y, pal, hud)
-        if layout != self.layout or self.prev is None or self.prev.shape != img.shape:
-            self._mode(struct.pack('<BBBBHHHHH', pb, scale, 1 if hud else 0, 0, w, h, x, y, len(pal) // 2) + pal)
-            self.layout, self.prev = layout, None
-            changed = np.ones(h, dtype=bool)
-        else:
-            changed = (img != self.prev).any(axis=1) | self.stale
         unit = 2 if scale else 1                       # rows that must travel together
+        same = layout == self.layout and self.prev is not None and self.prev.shape == img.shape
+        changed = (img != self.prev).any(axis=1) if same else np.ones(h, dtype=bool)
+        rows = encode_rows(img) if changed.any() else None
+        self._finish()
+        if not same or self.layout is None:
+            self._mode(struct.pack('<BBBBHHHHH', pb, scale, 1 if hud else 0, 0, w, h, x, y, len(pal) // 2) + pal)
+            self.layout, self.prev, self.stale = layout, None, None
+            changed = np.ones(h, dtype=bool)
+        if self.stale is not None and self.stale.shape == changed.shape:
+            changed = changed | self.stale
+        self.stale = None
         if scale:
             changed = np.repeat(changed.reshape(-1, 2).any(axis=1), 2)
-        rows = encode_rows(img) if changed.any() else []
+        if rows is None and changed.any():
+            rows = encode_rows(img)
         # pack consecutive changed units into packets of at most PACKET bytes
         packets, cur, cur_r0, cur_n, cur_len = [], [], None, 0, 0
         for r0 in range(0, h, unit):
@@ -227,19 +273,9 @@ class CydLinkUdp:
                         pass
                 else:                                    # Linux: a real sleep, so other threads (ROM upload) keep running
                     time.sleep(wait)
-        self.sock.sendto(struct.pack('<BBHB', END, self.gen, self.pic, len(packets)), self.addr)
-        reply = self._recv(b'K')
-        stale = np.zeros(h, dtype=bool)
-        if reply is None or len(reply) < 12 or struct.unpack_from('<H', reply, 2)[0] != self.pic:
-            for r0, n, _ in packets:                    # no answer: assume nothing arrived
-                stale[r0:r0 + n] = True
-            self.lost += len(packets)
-        else:
-            got = struct.unpack_from('<Q', reply, 4)[0]
-            for i, (r0, n, _) in enumerate(packets):
-                if not got >> i & 1:
-                    stale[r0:r0 + n] = True
-                    self.lost += 1
-        self.prev, self.stale = img.copy(), stale
+        endpkt = struct.pack('<BBHB', END, self.gen, self.pic, len(packets))
+        self.sock.sendto(endpkt, self.addr)
+        self.pending = (self.pic, packets, h, endpkt)
+        self.prev = img.copy()
         self.sent_bytes += total
         return total
