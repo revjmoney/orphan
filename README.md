@@ -18,7 +18,7 @@ the FPGA**.
 | ![Orphan TinyLM: Adventure mode](docs/screenshots/tinylm-adventure.png) | ![Orphan Radio](docs/screenshots/radio.png) |
 | **Orphan TinyLM**: a Llama writes stories on the FPGA; Adventure = 4 takes per chapter, you pick | **Orphan Radio**: four tuners and a panadapter, 1 kHz to 49 MHz |
 | ![Master System in the FPGA](docs/screenshots/sms.png) | ![Orphan BTC](docs/screenshots/btc.png) |
-| **Orphan Games**: NES, Game Boy, Master System and Game Gear as FPGA cores | **Orphan BTC**: a real Stratum SHA-256 miner with a coin and earnings panel |
+| **Orphan Games**: NES, Game Boy, Master System, Game Gear and Atari 2600 as FPGA cores | **Orphan BTC**: a real Stratum SHA-256 miner with a coin and earnings panel |
 | ![The Orphan menu](docs/screenshots/menu.png) | ![Orphan Synth](docs/screenshots/synth.png) |
 | The login menu (hotkeys spell MY ORPHAN LIFE) | **Orphan Synth**: 8 voices in the FPGA |
 
@@ -43,6 +43,7 @@ networks ...), 6 starters and tests, and Orphan's own eleven:
 | **Orphan Games: NES** | fpga core | fpganes in the FPGA: CPU, picture, sound, mappers 0 to 4. Real NES controllers plug into the hashboard headers through a 3.3 V adapter: [wiring guide](docs/nes-pad/README.md). |
 | **Orphan Games: Game Boy** | fpga core | VerilogBoy with Orphan's own boot ROM, stereo, carts to 128 KB (MBC1/3/5). |
 | **Orphan Games: Master System + Game Gear** | fpga core | MiSTer's SMS core turned into Verilog with GHDL, T80 Z80, VDP, jt89 sound; `.gg` switches to Game Gear mode. Own test cart included. |
+| **Orphan Games: Atari 2600** | fpga core | A2601 (Retromaster) from MiSTer's Atari 2600 core, turned into Verilog with GHDL: 6507, TIA picture and sound, RIOT. Carts to 32 KB with automatic bank switching (2K, 4K, F8, F6, F4, FA, FE, E0, E7, 3F, UA, DPC) and Superchip RAM; real NES pads work as joysticks. Own test cart included. |
 | **Orphan TinyLM** | fpga + arm | Karpathy's stories15M / stories42M Llama models with every matrix product in the FPGA: 64 lanes, 4 stories per weight pass. Modes: Write, 4 Stories, **Adventure** (4 takes per chapter, you pick), model selector, FPGA vs ARM race. |
 | **Orphan BTC** | fpga + arm | A real Stratum v1 SHA-256 miner on Ardzy's SHA-256 core, ARM-checked shares, coin and earnings panel (honest numbers: it is a lottery miner). The 4 board LEDs breathe in a slow scanner while it mines. |
 | **Orphan KAS** | fpga + arm | A Kaspa (kHeavyHash) miner in the FPGA, verified at 575 kH/s on the S9: overlapped nonce stages, Stratum with ARM-checked shares, live forge dashboard, payouts and estimates; the 4 board LEDs breathe in a slow scanner while it mines. Its own repo: [kas-zynq-fpga-miner](https://github.com/revjmoney/kas-zynq-fpga-miner). |
@@ -108,10 +109,10 @@ turns it into Orphan in place.
   without a browser: `ffplay -nodisp -f s16le -ar 12207 -ch_layout mono -fflags nobuffer tcp://orphan.local:8001`
 - **Synth**: **F** FPGA projects, **Sound toys**, Orphan Synth (terminal keyboard right there; web panel on port 8000).
 - **Games**: copy free homebrew to the board: `.nes` to `/opt/orphan-games/roms/nes`, `.gb` to
-  `/opt/orphan-games/roms/gb`, `.sms` and `.gg` to `/opt/orphan-games/roms/sms`. Then **F**, **Games**, pick the
+  `/opt/orphan-games/roms/gb`, `.sms` and `.gg` to `/opt/orphan-games/roms/sms`, `.bin` / `.a26` to `/opt/orphan-games/roms/a26`. Then **F**, **Games**, pick the
   console; open `http://orphan.local:8000`, pick a game, press **Sound on**. Arrows move, Z / X are the buttons,
   Enter is Start. Free games: nesdev.org and itch.io (NES), Homebrew Hub and gbdev.io (Game Boy), SMS Power (Master
-  System, Game Gear). Check each game's licence before you share it further.
+  System, Game Gear), AtariAge homebrew (Atari 2600; Select and Start are the GAME SELECT and GAME RESET switches). Check each game's licence before you share it further.
 - **TinyLM**: fetch and pack the model files once on a PC (see `lm/orphan_tinylm/README.md`), then load
   `orphan_tinylm` and open port 8000. Start with "Once upon a time, ...": the models only know children's stories.
 - **BTC**: load `orphan_btc`, enter your address and a pool on port 8000, Start mining.
