@@ -139,31 +139,65 @@ def load(name):
 
 
 # ---------------------------------------------------------------- picture + sound
+def double_buffer():
+    """True when the loaded core is the NES with two frame buffers (register 12 answers a hold)."""
+    if SYS_ID != 'NES1':                       # (on the other cores CTRL bit 2 means something else)
+        return False
+    with lock:
+        W(0, RUN | 4)
+        ok = any((R(12) >> 16) & 1 for _ in range(50))
+        W(0, RUN)
+    return ok
+
+
 def frames():
-    """Freeze the frame buffer at a frame start, read the finished picture, let it run again."""
-    n, t0 = 0, time.time()
+    """Read every finished picture. NES with two frame buffers: hold the front buffer, read it, release (60 a
+    second). Older cores: freeze the frame buffer at a frame start, read it, let it run again (30 a second)."""
+    n, t0, dbl, last, nb = 0, time.time(), None, -1, 0
     while True:
         if not state['running']:
             time.sleep(0.1)
+            dbl = None
             continue
-        # capture runs again from the next frame end; wait until it has, then ask to freeze: the frame
-        # after that one is then complete and held (2 frame ends per picture: 30 pictures a second)
-        t = time.time()
-        while (R(6) >> 28) & 1 and time.time() - t < 0.2:
-            time.sleep(0.002)
-        with lock:
-            W(0, RUN | 2)                      # run + freeze at the next frame end
-        t = time.time()
-        while not (R(6) >> 28) & 1 and time.time() - t < 0.2:
-            time.sleep(0.002)
-        tp = time.perf_counter()
-        with lock:
-            W(4, 0)
-            fb = pop(512, FB_WORDS)
-            W(0, RUN)                          # capture again
+        if dbl is None:
+            dbl = double_buffer()
+            print('frame buffer: %s' % ('double (every frame)' if dbl else 'freeze handshake (every other frame)'),
+                  flush=True)
+        if dbl:
+            t = time.time()
+            while (R(12) & 0xFFFF) == last and time.time() - t < 0.2:
+                time.sleep(0.001)
+            tp = time.perf_counter()
+            with lock:
+                W(0, RUN | 4)                      # hold: the newest whole picture stays put while we read it
+                for _ in range(50):
+                    st = R(12)
+                    if (st >> 16) & 1:
+                        break
+                last = st & 0xFFFF
+                W(4, 0)
+                fb = pop(512, FB_WORDS)
+                W(0, RUN)
+        else:
+            # capture runs again from the next frame end; wait until it has, then ask to freeze: the frame
+            # after that one is then complete and held (2 frame ends per picture: 30 pictures a second)
+            t = time.time()
+            while (R(6) >> 28) & 1 and time.time() - t < 0.2:
+                time.sleep(0.002)
+            with lock:
+                W(0, RUN | 2)                      # run + freeze at the next frame end
+            t = time.time()
+            while not (R(6) >> 28) & 1 and time.time() - t < 0.2:
+                time.sleep(0.002)
+            tp = time.perf_counter()
+            with lock:
+                W(4, 0)
+                fb = pop(512, FB_WORDS)
+                W(0, RUN)                          # capture again
         state['pop_ms'] = state.get('pop_ms', 0.0) * 0.9 + (time.perf_counter() - tp) * 100
-        pic = struct.pack('<hh', 1, SUB) + fb.tobytes()
-        broadcast(pic)
+        nb += 1
+        if not dbl or nb & 1:                  # the browser stream stays at 30 a second (board CPU)
+            broadcast(struct.pack('<hh', 1, SUB) + fb.tobytes())
         cyd_frame(fb)
         n += 1
         if time.time() - t0 >= 1:
@@ -277,7 +311,7 @@ def cyd_layout(fb):
     if SUB == 3:
         px = ((w >> SH_GG) & 4095).reshape(-1)[:160 * 144]
         return GG565[px].reshape(144, 160), 1, 40, 12, None
-    px = ((w >> SH_6) & 63).astype(np.uint8).reshape(-1)
+    px = cydlink.unpack6(fb, 256 * 240)
     if SUB == 2:
         return px[:256 * 192].reshape(192, 256), 0, 32, 24, SMS565
     return px[:256 * 240].reshape(240, 256), 0, 32, 0, RGB565

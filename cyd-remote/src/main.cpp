@@ -362,17 +362,20 @@ uint8_t* udpRing=nullptr;uint16_t udpLen[UdpSlots];volatile uint32_t udpHead=0,u
 struct sockaddr_in udpFrom;volatile bool udpFromSet=false;
 static void udpTask(void*){
  for(;;){
-  if(udpHead-udpTail>=UdpSlots){vTaskDelay(1);continue;}           // ring full: leave it in lwIP for a moment
+  // always take packets out of lwIP (its buffers are shared with TCP: left full, /status and /screen stall);
+  // when the ring is full (core 1 busy elsewhere) the packet is dropped and the board resends what is missing
+  static uint8_t spill[UdpSlotBytes];
+  bool full=udpHead-udpTail>=UdpSlots;
   struct sockaddr_in from;socklen_t fl=sizeof(from);
-  int n=recvfrom(udpSock,udpRing+(udpHead%UdpSlots)*UdpSlotBytes,UdpSlotBytes,0,(struct sockaddr*)&from,&fl);
+  int n=recvfrom(udpSock,full?spill:udpRing+(udpHead%UdpSlots)*UdpSlotBytes,UdpSlotBytes,0,(struct sockaddr*)&from,&fl);
   if(n<=0){vTaskDelay(1);continue;}
+  if(full){udpDropped++;continue;}
   udpFrom=from;udpFromSet=true;udpLen[udpHead%UdpSlots]=n;__sync_synchronize();udpHead=udpHead+1;
  }
 }
 void udpStart(){
  udpRing=(uint8_t*)heap_caps_malloc(UdpSlots*UdpSlotBytes,MALLOC_CAP_8BIT);
  udpSock=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
- int big=32768;setsockopt(udpSock,SOL_SOCKET,SO_RCVBUF,&big,sizeof(big));
  struct sockaddr_in a={};a.sin_family=AF_INET;a.sin_port=htons(8093);a.sin_addr.s_addr=htonl(INADDR_ANY);
  if(!udpRing || udpSock<0 || bind(udpSock,(struct sockaddr*)&a,sizeof(a))<0){Serial.println("game udp: start failed");return;}
  xTaskCreatePinnedToCore(udpTask,"udp8093",3072,nullptr,5,nullptr,0);
@@ -435,7 +438,7 @@ void controlRequest(){
  for(int n=0;n<30;n++){String header=c.readStringUntil('\n');header.trim();if(!header.length())break;header.toLowerCase();if(header.startsWith("content-length:"))length=header.substring(15).toInt();}
  String body,type="text/plain";int status=200;
  if(request.startsWith("GET /status ")){
-  JsonDocument d;d["online"]=online;d["target"]=target;d["view"]=views[view];d["ip"]=WiFi.localIP().toString();d["heap"]=ESP.getFreeHeap();d["graphics_port"]=8091;d["game_port"]=8092;d["game_bytes"]=gameBytes;d["rssi"]=WiFi.RSSI();d["game_udp"]=8093;d["udp_bytes"]=udpBytes;d["udp_packets"]=udpPackets;d["udp_lost"]=udpLost;d["draw_ms"]=(uint32_t)(gameDrawUs/1000);d["dma_wait_ms"]=(uint32_t)(gameWaitUs/1000);d["channel"]=WiFi.channel();d["scale2"]=true;d["spi_mhz"]=spiMhz;d["frames"]=frameCount;d["fps"]=frameFps;d["transfer_ms"]=frameTransferMs;if(!isnan(chipTemperature))d["temperature"]=chipTemperature;
+  JsonDocument d;d["online"]=online;d["target"]=target;d["view"]=views[view];d["ip"]=WiFi.localIP().toString();d["heap"]=ESP.getFreeHeap();d["graphics_port"]=8091;d["game_port"]=8092;d["game_bytes"]=gameBytes;d["rssi"]=WiFi.RSSI();d["game_udp"]=8093;d["udp_bytes"]=udpBytes;d["udp_packets"]=udpPackets;d["udp_lost"]=udpLost;d["udp_dropped"]=udpDropped;d["draw_ms"]=(uint32_t)(gameDrawUs/1000);d["dma_wait_ms"]=(uint32_t)(gameWaitUs/1000);d["channel"]=WiFi.channel();d["scale2"]=true;d["spi_mhz"]=spiMhz;d["frames"]=frameCount;d["fps"]=frameFps;d["transfer_ms"]=frameTransferMs;if(!isnan(chipTemperature))d["temperature"]=chipTemperature;
   d["scene_polls"]=scenePolls;d["scene_tiles_drawn"]=sceneTilesDrawn;d["scene_draw_ms"]=sceneDrawMs;
   serializeJson(d,body);type="application/json";
  }else if(request.startsWith("POST /target ") && length>0 && length<300){

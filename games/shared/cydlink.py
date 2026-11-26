@@ -40,11 +40,56 @@ def _msg(kind, payload=b''):
     return struct.pack('<BI', kind, len(payload)) + payload
 
 
+def _load_fast():
+    """cydfast.c compiled on the board (gcc), through ctypes; None where there is no compiler (the PC bench)."""
+    if os.name == 'nt':
+        return None
+    try:
+        import ctypes
+        import subprocess
+        src = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cydfast.c')
+        so = '/tmp/cydfast-%d.so' % int(os.path.getmtime(src))
+        if not os.path.exists(so):
+            subprocess.run(['gcc', '-O2', '-shared', '-fPIC', '-o', so + '.tmp', src], check=True, timeout=60,
+                           capture_output=True)
+            os.replace(so + '.tmp', so)
+        lib = ctypes.CDLL(so)
+        lib.unpack6.restype = None
+        lib.enc8.restype = ctypes.c_int
+        return lib
+    except Exception as e:                    # no gcc, or it failed: numpy does it (slower)
+        print('cydlink: fast path off (%s)' % e, flush=True)
+        return None
+
+
+_fast = _load_fast()
+
+
+def unpack6(fb, npix):
+    """Frame buffer bytes (5 pixels of 6 bits per 32-bit word, pixel 0 in [5:0]) -> uint8 array of npix pixels."""
+    nw = len(fb) // 4
+    if _fast is not None:
+        out = np.empty(nw * 5, dtype=np.uint8)
+        src = np.frombuffer(fb, dtype=np.uint32)
+        _fast.unpack6(src.ctypes.data, nw, out.ctypes.data)
+        return out[:npix]
+    w = np.frombuffer(fb, dtype=np.uint32)[:, None]
+    return ((w >> np.arange(0, 30, 6, dtype=np.uint32)) & 63).astype(np.uint8).reshape(-1)[:npix]
+
+
 def encode_rows(rows):
     """rows: (n, w) uint8 (palette index) or uint16 (RGB565). Returns one bytes object per row, each
     u8 encoding (0 raw, 1 runs) + u16 length + data; runs are (u8 count-1, value) pairs, never crossing a row."""
     n, w = rows.shape
     pb = rows.dtype.itemsize
+    if _fast is not None and pb == 1:
+        img = np.ascontiguousarray(rows)
+        out = np.empty(n * (3 + 2 * w), dtype=np.uint8)
+        off = np.empty(n + 1, dtype=np.int32)
+        _fast.enc8(img.ctypes.data, n, w, out.ctypes.data, off.ctypes.data)
+        blob = memoryview(out[:int(off[n])].tobytes())
+        o = off.tolist()
+        return [blob[o[r]:o[r + 1]] for r in range(n)]
     flat = rows.reshape(-1)
     brk = np.empty(flat.size, dtype=bool)
     brk[0] = True
@@ -58,16 +103,29 @@ def encode_rows(rows):
     runs_per_row = np.bincount(starts // w, minlength=n)
     first = np.concatenate(([0], np.cumsum(runs_per_row)))
     raw = rows.astype('<u2' if pb == 2 else 'u1', copy=False)
-    out = []
-    for r in range(n):
-        k = int(runs_per_row[r])
-        if k * (1 + pb) < w * pb:
-            data = rec[first[r]:first[r] + k].tobytes()
-            out.append(struct.pack('<BH', 1, len(data)) + data)
-        else:
-            data = raw[r].tobytes()
-            out.append(struct.pack('<BH', 0, len(data)) + data)
-    return out
+    # every row as u8 enc + u16 length + data, built in one gather (no Python loop per row)
+    use_runs = runs_per_row * (1 + pb) < w * pb
+    dlen = np.where(use_runs, runs_per_row * (1 + pb), w * pb)
+    hdr = np.empty((n, 3), dtype=np.uint8)
+    hdr[:, 0] = use_runs
+    hdr[:, 1] = dlen & 255
+    hdr[:, 2] = dlen >> 8
+    runb = rec.view(np.uint8)
+    rawb = raw.reshape(-1).view(np.uint8)
+    src = np.concatenate((hdr.reshape(-1), runb, rawb))
+    base_run, base_raw = 3 * n, 3 * n + runb.size
+    dsrc = np.where(use_runs, base_run + first[:-1] * (1 + pb), base_raw + np.arange(n) * (w * pb))
+    seg_src = np.empty(2 * n, dtype=np.intp)
+    seg_len = np.empty(2 * n, dtype=np.intp)
+    seg_src[0::2], seg_len[0::2] = np.arange(n) * 3, 3
+    seg_src[1::2], seg_len[1::2] = dsrc, dlen
+    ends = np.cumsum(seg_len)
+    total = int(ends[-1])
+    idx = np.arange(total, dtype=np.intp) + np.repeat(seg_src - (ends - seg_len), seg_len)
+    blob = memoryview(src[idx].tobytes())
+    rend = ends[1::2]
+    rstart = np.concatenate(([0], rend[:-1]))
+    return [blob[int(a):int(b)] for a, b in zip(rstart, rend)]
 
 
 class CydLink:

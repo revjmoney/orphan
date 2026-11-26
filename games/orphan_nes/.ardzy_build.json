@@ -1,23 +1,23 @@
 {
  "orphan_nes.bit": {
   "board": "s9",
-  "sha256": "0608ed204d2f29e9030d29acc0a27ba91cec6e92a2737444934b8e6d440bc74f",
-  "date": "2026-11-24 23:54",
+  "sha256": "56c698a4de64f38d272d1e5abd0d4f93124f2c8b093198c34e73d6ad9a8e1ac6",
+  "date": "2026-11-25 20:24",
   "report": {
    "board": "s9",
    "board_name": "Antminer S9",
    "part": "xc7z010clg400-1",
    "top": "top",
-   "seconds": 289,
-   "date": "2026-11-24 23:54",
+   "seconds": 221,
+   "date": "2026-11-25 20:24",
    "used": {
-    "LUT": 3915,
-    "FF": 3206,
-    "BRAM": 43,
+    "LUT": 3954,
+    "FF": 3284,
+    "BRAM": 55,
     "DSP": 2,
     "LUT_RAM": 14,
     "SRL": 1,
-    "CARRY": 310,
+    "CARRY": 314,
     "BUFG": 3,
     "MMCM_PLL": 1
    },
@@ -31,12 +31,12 @@
    "pins": 47,
    "clocks": {
     "clk": {
-     "fmax": 141.54,
+     "fmax": 114.22,
      "need": 100.0,
      "pass": true
     },
     "u_nes.nclk": {
-     "fmax": 54.06,
+     "fmax": 52.58,
      "need": 21.51,
      "pass": true
     }
@@ -47,53 +47,48 @@
     {
      "clock": "clk",
      "cross": false,
-     "start": "u_pads.u_rd.div[0]",
-     "end": "u_pads.u_rd.tick",
-     "delay": 7.07,
-     "levels": 7,
-     "logic_ns": 1.72,
-     "route_ns": 5.32,
+     "start": "u_nes.sw_s2[14]",
+     "end": "u_nes.sw_s2[14]",
+     "delay": 8.76,
+     "levels": 15,
+     "logic_ns": 2.49,
+     "route_ns": 6.23,
      "steps": [
       {
-       "net": "u_pads.u_rd.div[0]",
+       "net": "u_nes.sw_s2[14]",
        "ns": 0.31,
-       "src": "orphan_nespad.v:37"
-      },
-      {
-       "net": "(logic)",
-       "ns": 0.33,
-       "src": "orphan_nespad.v:47"
-      },
-      {
-       "net": "u_pads.u_rd.tick",
-       "ns": 2.17,
-       "src": "orphan_nespad.v:39"
+       "src": "orphan_nes_block.v:266"
       }
      ]
     },
     {
      "clock": "u_nes.nclk",
      "cross": false,
-     "start": "u_nes.nes.cpu.AddrBus[0]",
+     "start": "u_nes.nes.cpu.AddrBus[1]",
      "end": "u_nes.memory_dout[7]",
-     "delay": 18.5,
-     "levels": 18,
-     "logic_ns": 4.9,
-     "route_ns": 13.54,
+     "delay": 19.02,
+     "levels": 21,
+     "logic_ns": 5.79,
+     "route_ns": 13.15,
      "steps": [
       {
-       "net": "u_nes.nes.cpu.AddrBus[0]",
-       "ns": 0.94,
+       "net": "u_nes.nes.cpu.AddrBus[1]",
+       "ns": 1.37,
        "src": "MicroCode.v:4"
       },
       {
-       "net": "u_nes.nes.addr[7]",
-       "ns": 0.95,
+       "net": "u_nes.nes.addr[1]",
+       "ns": 1.48,
        "src": "nes.v:263"
       },
       {
+       "net": "u_nes.nes.cpu.AluR[7]",
+       "ns": 0.33,
+       "src": "cpu.v:51"
+      },
+      {
        "net": "u_nes.memory_dout[7]",
-       "ns": 2.16,
+       "ns": 2.48,
        "src": "nes.v:259"
       }
      ]
@@ -101,34 +96,39 @@
     {
      "clock": "posedge clk -> posedge u_nes.nclk",
      "cross": true,
-     "start": "u_nes.mapper_flags[10]",
-     "end": "u_nes.mapper_flags[10]",
-     "delay": 1.61,
+     "start": "u_nes.mapper_flags[12]",
+     "end": "u_nes.mapper_flags[12]",
+     "delay": 1.74,
      "levels": 0,
      "logic_ns": 0.45,
-     "route_ns": 1.16,
+     "route_ns": 1.29,
      "steps": [
       {
-       "net": "u_nes.mapper_flags[10]",
-       "ns": 1.16,
-       "src": "orphan_nes_block.v:61"
+       "net": "u_nes.mapper_flags[12]",
+       "ns": 1.29,
+       "src": "orphan_nes_block.v:68"
       }
      ]
     },
     {
      "clock": "posedge u_nes.nclk -> posedge clk",
      "cross": true,
-     "start": "lvl[7]",
-     "end": "lvl[7]",
-     "delay": 4.6,
-     "levels": 7,
-     "logic_ns": 1.79,
-     "route_ns": 2.79,
+     "start": "lvl[6]",
+     "end": "lvl[6]$legal661",
+     "delay": 5.24,
+     "levels": 6,
+     "logic_ns": 1.63,
+     "route_ns": 3.59,
      "steps": [
       {
-       "net": "lvl[7]",
-       "ns": 0.62,
-       "src": "orphan_nes_block.v:216"
+       "net": "lvl[6]",
+       "ns": 1.24,
+       "src": "orphan_nes_block.v:241"
+      },
+      {
+       "net": "lvl[6]$legal661",
+       "ns": 0.0,
+       "src": ""
       },
       {
        "net": "(logic)",

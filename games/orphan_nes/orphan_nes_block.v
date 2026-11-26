@@ -9,6 +9,7 @@
 //
 // The ARM's view (word index in the slot):
 //   0 CTRL      [0] run (0 = console held in reset)   [1] freeze the frame buffer at the next frame start
+//               [2] hold: the newest whole picture stays readable (double buffer, every frame; see 12 FRONT)
 //   1 PADS      [7:0] pad 1, [15:8] pad 2; bit 0 A, 1 B, 2 Select, 3 Start, 4 Up, 5 Down, 6 Left, 7 Right
 //   2 MAPPER    iNES mapper flags (see games.py): {has_chr_ram, mirroring, chr_size, prg_size, mapper}
 //   3 UP_ADDR   write: next cart byte address ([16] = 1 for CHR, else PRG; [15:0] byte); read: upload done count
@@ -25,6 +26,12 @@
 //  11 HWNEVER   write/read: [8:0] connectors (bit n-1 = Jn) that are never driven or read, whatever else is set.
 //               After the FPGA loads: none (disconnect every hashboard before loading this core).
 //               The console sees PADS | these buttons, so browser and real pads work together.
+//  12 FRONT     read: [15:0] whole pictures finished into the front buffer, [16] hold acknowledged (the front
+//               buffer is now the one 512..767 reads and the console will not touch it), [17] that buffer.
+//               Double buffer: the console draws into one buffer while the other holds the last whole picture;
+//               they swap at every frame end unless the ARM holds. To read every frame (60 a second): wait for
+//               [15:0] to change, set CTRL[2], wait for [16], read 12288 words, clear CTRL[2].
+//               (An older core reads 0 here: [16] never comes, use the freeze handshake.)
 //   512..767    write: 4 cart bytes (little endian) at UP_ADDR, UP_ADDR += 4  (wait for UP_ADDR read == writes)
 //   512..767    read:  frame buffer word at FB_ADDR, FB_ADDR += 1: 5 pixels of 6 bits, pixel 0 in [5:0]
 //                      (256 x 240 pixels = 12288 words, NES palette index; the panel turns it into colour)
@@ -56,7 +63,7 @@ module orphan_nes_block #(parameter [3:0] SLOT = 4'd1) (
     BUFG u_bn (.I(n_o), .O(nclk));
 
     // ---------------------------------------------------------------- bus side registers
-    reg [1:0]  ctrl = 2'd0;
+    reg [2:0]  ctrl = 3'd0;
     reg [15:0] pads = 16'd0;
     reg [31:0] mapper_flags = 32'd0;
     reg [16:0] up_addr = 17'd0;
@@ -68,7 +75,7 @@ module orphan_nes_block #(parameter [3:0] SLOT = 4'd1) (
     reg [10:0] au_rd = 11'd0;
 
     // ---------------------------------------------------------------- console side: inputs from the bus
-    reg [1:0] ctrl_s1 = 0, ctrl_s2 = 0;
+    reg [2:0] ctrl_s1 = 0, ctrl_s2 = 0;
     reg [15:0] pads_s1 = 0, pads_s2 = 0;
     reg [15:0] pads_all = 16'd0;                  // browser pads | real pads, registered in clk before crossing
     always @(posedge clk) pads_all <= pads | hw_pads;
@@ -82,6 +89,7 @@ module orphan_nes_block #(parameter [3:0] SLOT = 4'd1) (
     end
     wire run = ctrl_s2[0] & locked;
     wire freeze = ctrl_s2[1];
+    wire hold = ctrl_s2[2];
 
     // ---------------------------------------------------------------- the console
     reg  [1:0] nes_ce = 2'd0;
@@ -175,21 +183,28 @@ module orphan_nes_block #(parameter [3:0] SLOT = 4'd1) (
         if (rd_ppu) memory_din_ppu <= rd_src == 2'd0 ? q_prg : rd_src == 2'd1 ? q_chr : q_ram;
     end
 
-    // ---------------------------------------------------------------- picture: 5 pixels per word, freeze-able
-    (* ram_style = "block" *) reg [29:0] fb [0:12287];
+    // ---------------------------------------------------------------- picture: 5 pixels per word, two buffers
+    // wb = the buffer being drawn, front = the other one (the last whole picture). At a frame end they swap if the
+    // frame was captured and the ARM is not holding the front. The old freeze handshake still works on top.
+    (* ram_style = "block" *) reg [29:0] fb0 [0:12287];
+    (* ram_style = "block" *) reg [29:0] fb1 [0:12287];
     reg [13:0] fb_wa = 14'd0;
     reg [29:0] pix = 30'd0;
     reg [2:0]  npix = 3'd0;
     reg        cap = 1'b1, frozen = 1'b0;
-    reg [15:0] frames = 16'd0;
+    reg [15:0] frames = 16'd0, swaps = 16'd0;
     reg        fb_we = 1'b0;
     reg [29:0] fb_wd = 30'd0;
+    reg        wb = 1'b0, front = 1'b1, hold_ack = 1'b0, rd_bank = 1'b1;
     always @(posedge nclk) begin
         fb_we <= 1'b0;
+        if (!hold) hold_ack <= 1'b0;
+        else if (!hold_ack) begin hold_ack <= 1'b1; rd_bank <= front; end
         if (run_nes) begin
             if (scanline == 9'd240 && cycle == 9'd0) begin          // the visible picture just ended
                 frames <= frames + 1'b1;
                 fb_wa <= 14'd0; npix <= 3'd0; cap <= !freeze; frozen <= freeze;
+                if (cap && !hold) begin front <= wb; wb <= ~wb; swaps <= swaps + 1'b1; end
             end
             if (scanline < 9'd240 && cycle >= 9'd1 && cycle <= 9'd256 && cap) begin
                 if (npix == 3'd4) begin
@@ -201,9 +216,19 @@ module orphan_nes_block #(parameter [3:0] SLOT = 4'd1) (
         end
         if (fb_we) fb_wa <= fb_wa + 1'b1;
     end
-    always @(posedge nclk) if (fb_we) fb[fb_wa] <= fb_wd;
-    reg [29:0] fbq = 30'd0;
-    always @(posedge clk) fbq <= fb[fb_rd];
+    always @(posedge nclk) if (fb_we && !wb) fb0[fb_wa] <= fb_wd;
+    always @(posedge nclk) if (fb_we && wb) fb1[fb_wa] <= fb_wd;
+    // bus side: read the held buffer while the hold is acknowledged, else the front (freeze handshake)
+    reg ha_s1 = 0, ha_s2 = 0, rb_s1 = 1, rb_s2 = 1, fr1_s1 = 1, fr1_s2 = 1;
+    always @(posedge clk) begin ha_s1 <= hold_ack; ha_s2 <= ha_s1; rb_s1 <= rd_bank; rb_s2 <= rb_s1;
+                                fr1_s1 <= front; fr1_s2 <= fr1_s1; end
+    wire rd_sel = ha_s2 ? rb_s2 : fr1_s2;
+    reg [29:0] fbq0 = 30'd0, fbq1 = 30'd0;
+    reg        rd_sel_q = 1'b0;
+    always @(posedge clk) fbq0 <= fb0[fb_rd];
+    always @(posedge clk) fbq1 <= fb1[fb_rd];
+    always @(posedge clk) rd_sel_q <= rd_sel;
+    wire [29:0] fbq = rd_sel_q ? fbq1 : fbq0;
 
     // ---------------------------------------------------------------- sound: average over 448 clocks (47.95 kHz)
     (* ram_style = "block" *) reg [31:0] au [0:2047];
@@ -236,26 +261,26 @@ module orphan_nes_block #(parameter [3:0] SLOT = 4'd1) (
     function [15:0] g16(input [15:0] b); g16 = b ^ (b >> 1); endfunction
     function [15:0] b16(input [15:0] g); integer i; begin b16[15] = g[15];
         for (i = 14; i >= 0; i = i - 1) b16[i] = b16[i + 1] ^ g[i]; end endfunction
-    reg [15:0] fr_g = 0, aw_g = 0;
-    always @(posedge nclk) begin fr_g <= g16(frames); aw_g <= g16({5'd0, au_wa}); end
-    reg [15:0] fr_s1 = 0, fr_s2 = 0, aw_s1 = 0, aw_s2 = 0;
+    reg [15:0] fr_g = 0, aw_g = 0, sw_g = 0;
+    always @(posedge nclk) begin fr_g <= g16(frames); aw_g <= g16({5'd0, au_wa}); sw_g <= g16(swaps); end
+    reg [15:0] fr_s1 = 0, fr_s2 = 0, aw_s1 = 0, aw_s2 = 0, sw_s1 = 0, sw_s2 = 0;
     reg ack_s1 = 0, ack_s2 = 0, frz_s1 = 0, frz_s2 = 0;
     always @(posedge clk) begin
-        fr_s1 <= fr_g; fr_s2 <= fr_s1; aw_s1 <= aw_g; aw_s2 <= aw_s1;
+        fr_s1 <= fr_g; fr_s2 <= fr_s1; aw_s1 <= aw_g; aw_s2 <= aw_s1; sw_s1 <= sw_g; sw_s2 <= sw_s1;
         ack_s1 <= up_ack; ack_s2 <= ack_s1; frz_s1 <= frozen; frz_s2 <= frz_s1;
     end
-    wire [15:0] fr_b = b16(fr_s2), aw_b = b16(aw_s2);
+    wire [15:0] fr_b = b16(fr_s2), aw_b = b16(aw_s2), sw_b = b16(sw_s2);
     reg ack_last = 1'b0;
     always @(posedge clk) begin ack_last <= ack_s2; if (ack_s2 != ack_last) up_count <= up_count + 1'b1; end
 
     // ---------------------------------------------------------------- registers
     always @(posedge clk) begin
-        if (!rstn) begin ctrl <= 2'd0; hw_enable <= 1'b0; hw_port1 <= 4'd1; hw_port2 <= 4'd2; hw_never <= 9'h000; end
+        if (!rstn) begin ctrl <= 3'd0; hw_enable <= 1'b0; hw_port1 <= 4'd1; hw_port2 <= 4'd2; hw_never <= 9'h000; end
         else if (bus_we && sel) begin
             if (idx[9]) begin
                 if (!idx[8]) begin up_data <= bus_wdata; up_a <= up_addr; up_addr <= up_addr + 17'd4; up_req <= ~up_req; end
             end else case (idx)
-                10'd0: ctrl <= bus_wdata[1:0];
+                10'd0: ctrl <= bus_wdata[2:0];
                 10'd1: pads <= bus_wdata[15:0];
                 10'd2: mapper_flags <= bus_wdata;
                 10'd3: up_addr <= bus_wdata[16:0];
@@ -273,7 +298,7 @@ module orphan_nes_block #(parameter [3:0] SLOT = 4'd1) (
             else if (idx[9:8] == 2'b10) begin bus_rdata <= {2'b00, fbq}; fb_rd <= (fb_rd == 14'd12287) ? 14'd0 : fb_rd + 1'b1; end
             else if (idx[9:8] == 2'b11) begin bus_rdata <= auq; au_rd <= au_rd + 1'b1; end
             else case (idx)
-                10'd0: bus_rdata <= {30'd0, ctrl};
+                10'd0: bus_rdata <= {29'd0, ctrl};
                 10'd1: bus_rdata <= {16'd0, pads};
                 10'd2: bus_rdata <= mapper_flags;
                 10'd3: bus_rdata <= {16'd0, up_count};
@@ -283,6 +308,7 @@ module orphan_nes_block #(parameter [3:0] SLOT = 4'd1) (
                 10'd9: bus_rdata <= {7'd0, hw_enable, 6'd0, hw_drive, hw_pads};
                 10'd10: bus_rdata <= {24'd0, hw_port2, hw_port1};
                 10'd11: bus_rdata <= {23'd0, hw_never};
+                10'd12: bus_rdata <= {14'd0, rb_s2, ha_s2, sw_b};
                 default: bus_rdata <= 32'd0;
             endcase
         end
