@@ -33,8 +33,8 @@ it runs: `{fpga core}`, `{arm linux}` or `{fpga + arm}`. Every project has a des
 translucent cards). Click a project for its quick start and wiring; **Load** starts it and opens its own page in a new
 tab. Ardzy's upload, program output and register tools are still there ("Ardzy inside").
 
-**36 FPGA projects**: Ardzy's 19 examples (LED strips, steppers, VGA, audio, RISC-V, an FM transmitter, neural
-networks ...), 6 starters and tests, and Orphan's own eleven:
+**37 FPGA projects**: Ardzy's 19 examples (LED strips, steppers, VGA, audio, RISC-V, an FM transmitter, neural
+networks ...), 6 starters and tests, and Orphan's own twelve:
 
 | Project | Runs | What |
 |---|---|---|
