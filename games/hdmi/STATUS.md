@@ -2,9 +2,7 @@
 
 Rev paused this work to focus on the CYD frame rate. Nothing here is built or wired into any project.
 
-- Design: F:\s9-research\docs\superpowers\specs\2026-11-25-hdmi-out-design.md (approved)
-- Plan: F:\s9-research\docs\superpowers\plans\2026-11-25-hdmi-out.md (8 tasks, Task 1 in progress)
-- Diagrams: F:\s9-research\docs\hdmi\ (hdmi-wiring.svg, hdmi-plug-id.svg)
+- Design and plan (8 tasks, Task 1 in progress) are in the development notes, not in this repo yet.
 
 Where it stopped (Task 1):
 - hdl-util/hdmi (Sameer Puri, MIT OR Apache-2.0, commit 517e214) copied into hdl-util/, serializer.sv left out,
