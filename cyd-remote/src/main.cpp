@@ -14,7 +14,8 @@ WiFiServer control(80);
 WiFiServer graphics(8091);
 WiFiServer gameServer(8092);
 #include "lwip/sockets.h"
-int udpSock=-1;uint32_t udpBytes=0,udpPackets=0,udpLost=0,udpDropped=0;   // game stream over UDP 8093 (TCP on this ESP32 tops out ~480 KB/s)
+int udpSock=-1,udpTxSock=-1;   // replies go out on their own socket: the receive task sits in recvfrom on udpSock
+uint32_t udpBytes=0,udpPackets=0,udpLost=0,udpDropped=0;   // game stream over UDP 8093 (TCP on this ESP32 tops out ~480 KB/s)
 constexpr int GameLanes=4;              // parallel connections: each has its own small lwIP receive window
 WiFiClient gameLane[GameLanes];
 WiFiClient* gameClient=&gameLane[0];   // the lane being read
@@ -375,12 +376,12 @@ static void udpTask(void*){
 }
 void udpStart(){
  udpRing=(uint8_t*)heap_caps_malloc(UdpSlots*UdpSlotBytes,MALLOC_CAP_8BIT);
- udpSock=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
+ udpSock=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);udpTxSock=socket(AF_INET,SOCK_DGRAM,IPPROTO_UDP);
  struct sockaddr_in a={};a.sin_family=AF_INET;a.sin_port=htons(8093);a.sin_addr.s_addr=htonl(INADDR_ANY);
  if(!udpRing || udpSock<0 || bind(udpSock,(struct sockaddr*)&a,sizeof(a))<0){Serial.println("game udp: start failed");return;}
- xTaskCreatePinnedToCore(udpTask,"udp8093",3072,nullptr,5,nullptr,0);
+ xTaskCreatePinnedToCore(udpTask,"udp8093",3072,nullptr,5,nullptr,1);  // core 1: on core 0 it slowed the WiFi driver (more packets lost)
 }
-static void udpReply(const uint8_t* d,size_t n){if(udpFromSet)sendto(udpSock,d,n,0,(struct sockaddr*)&udpFrom,sizeof(udpFrom));}
+static void udpReply(const uint8_t* d,size_t n){if(udpFromSet)sendto(udpTxSock,d,n,0,(struct sockaddr*)&udpFrom,sizeof(udpFrom));}
 void gameUdpStep(){
  if(!gameFb)return;
  static uint32_t lastPkt=0;if(!udpRing)return;
@@ -402,10 +403,14 @@ void gameUdpStep(){
    gameMem=pk+5;gameMemLeft=len-5;bool ok=gameRows(len-5);gameMem=nullptr;
    if(ok)udpGot|=1ULL<<(pk[4]&63);
   }else if(type==3 && len>=5){
-   static uint16_t endPic=0xFFFF;static uint8_t endGen=0;
-   if(gen==endGen && pic==endPic){uint8_t r[12]={'K',gameGen,(uint8_t)pic,(uint8_t)(pic>>8)};memcpy(r+4,&udpGot,8);udpReply(r,12);continue;}  // END sent again: just answer
-   endPic=pic;endGen=gen;
+   // the last few pictures' answers: an END sent again (the board does when an answer is late) gets the same
+   // answer and changes nothing else (the board may already be sending the next picture)
+   static uint16_t endPic[4]={0xFFFF,0xFFFF,0xFFFF,0xFFFF};static uint8_t endGen[4];static uint64_t endGot[4];static int endN=0;
+   bool again=false;
+   for(int k=0;k<4;k++)if(endPic[k]==pic && endGen[k]==gen){uint8_t r[12]={'K',gameGen,(uint8_t)pic,(uint8_t)(pic>>8)};memcpy(r+4,&endGot[k],8);udpReply(r,12);again=true;break;}
+   if(again)continue;
    if(pic!=udpPic){udpPic=pic;udpGot=0;}
+   endPic[endN]=pic;endGen[endN]=gen;endGot[endN]=udpGot;endN=(endN+1)&3;
    int sent=pk[4];for(int k=0;k<sent && k<64;k++)if(!(udpGot>>k&1))udpLost++;
    gameEndWrite();
    uint32_t now=millis();float fps=lastFrame?1000.0f/(now-lastFrame):0;
