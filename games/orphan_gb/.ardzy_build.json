@@ -1,23 +1,23 @@
 {
  "orphan_gb.bit": {
   "board": "s9",
-  "sha256": "eb38fba5c8b48df7def90ad73155d57eac178ff16757c77c62b5f4173288c816",
-  "date": "2026-11-22 11:12",
+  "sha256": "f2d9043613a185601c25670ba1f4034b94110b9e315c77d931d179212c7edaf9",
+  "date": "2026-11-25 23:01",
   "report": {
    "board": "s9",
    "board_name": "Antminer S9",
    "part": "xc7z010clg400-1",
    "top": "top",
-   "seconds": 197,
-   "date": "2026-11-22 11:12",
+   "seconds": 210,
+   "date": "2026-11-25 23:01",
    "used": {
-    "LUT": 3502,
-    "FF": 2587,
+    "LUT": 3614,
+    "FF": 2686,
     "BRAM": 48,
     "DSP": 3,
     "LUT_RAM": 23,
     "SRL": 1,
-    "CARRY": 274,
+    "CARRY": 289,
     "BUFG": 6,
     "MMCM_PLL": 1
    },
@@ -28,30 +28,30 @@
     "DSP": 80,
     "PINS": 100
    },
-   "pins": 11,
+   "pins": 47,
    "clocks": {
     "u_gb.c33": {
      "fmax": 1043.84,
      "need": 33.56,
      "pass": true
     },
-    "u_gb.u_boy.sound.sound_ch1.octo_freq_out": {
-     "fmax": 618.81,
+    "u_gb.u_boy.sound.sound_ch2.octo_freq_out": {
+     "fmax": 533.9,
      "need": 100.0,
      "pass": true
     },
-    "u_gb.u_boy.sound.sound_ch2.octo_freq_out": {
-     "fmax": 572.41,
+    "u_gb.u_boy.sound.sound_ch1.octo_freq_out": {
+     "fmax": 572.08,
      "need": 100.0,
      "pass": true
     },
     "clk": {
-     "fmax": 149.08,
+     "fmax": 151.56,
      "need": 100.0,
      "pass": true
     },
     "u_gb.gclk": {
-     "fmax": 75.51,
+     "fmax": 74.31,
      "need": 4.2,
      "pass": true
     }
@@ -72,28 +72,28 @@
       {
        "net": "u_gb.graw",
        "ns": 0.34,
-       "src": "orphan_gb_block.v:40"
+       "src": "orphan_gb_block.v:54"
       }
      ]
     },
     {
-     "clock": "u_gb.u_boy.sound.sound_ch1.octo_freq_out",
+     "clock": "u_gb.u_boy.sound.sound_ch2.octo_freq_out",
      "cross": false,
-     "start": "u_gb.u_boy.sound.sound_ch1.duty_counter[0]",
-     "end": "u_gb.u_boy.sound.sound_ch1.duty_counter[0]",
-     "delay": 1.62,
+     "start": "u_gb.u_boy.sound.sound_ch2.duty_counter[0]",
+     "end": "u_gb.u_boy.sound.sound_ch2.duty_counter[0]",
+     "delay": 1.87,
      "levels": 3,
      "logic_ns": 1.21,
-     "route_ns": 0.4,
+     "route_ns": 0.66,
      "steps": [
       {
-       "net": "u_gb.u_boy.sound.sound_ch1.duty_counter[0]",
+       "net": "u_gb.u_boy.sound.sound_ch2.duty_counter[0]",
        "ns": 0.18,
        "src": "sound_square.v:77"
       },
       {
        "net": "(logic)",
-       "ns": 0.2,
+       "ns": 0.46,
        "src": "sound_square.v:80"
       },
       {
@@ -104,17 +104,17 @@
      ]
     },
     {
-     "clock": "u_gb.u_boy.sound.sound_ch2.octo_freq_out",
+     "clock": "u_gb.u_boy.sound.sound_ch1.octo_freq_out",
      "cross": false,
-     "start": "u_gb.u_boy.sound.sound_ch2.duty_counter[0]",
-     "end": "u_gb.u_boy.sound.sound_ch2.duty_counter[0]",
+     "start": "u_gb.u_boy.sound.sound_ch1.duty_counter[0]",
+     "end": "u_gb.u_boy.sound.sound_ch1.duty_counter[0]",
      "delay": 1.75,
      "levels": 3,
      "logic_ns": 1.21,
      "route_ns": 0.53,
      "steps": [
       {
-       "net": "u_gb.u_boy.sound.sound_ch2.duty_counter[0]",
+       "net": "u_gb.u_boy.sound.sound_ch1.duty_counter[0]",
        "ns": 0.18,
        "src": "sound_square.v:77"
       },
@@ -133,43 +133,53 @@
     {
      "clock": "clk",
      "cross": false,
-     "start": "u_gb.fr_s2[12]",
-     "end": "u_gb (logic)",
-     "delay": 6.71,
-     "levels": 13,
-     "logic_ns": 2.19,
-     "route_ns": 4.49,
+     "start": "u_pads.u_rd.step[1]",
+     "end": "u_pads.u_rd.step[1]$legal1177",
+     "delay": 6.6,
+     "levels": 10,
+     "logic_ns": 2.74,
+     "route_ns": 3.83,
      "steps": [
       {
-       "net": "u_gb.fr_s2[12]",
-       "ns": 0.46,
-       "src": "orphan_gb_block.v:198"
+       "net": "u_pads.u_rd.step[1]",
+       "ns": 0.44,
+       "src": "orphan_nespad.v:38"
       },
       {
-       "net": "u_gb (logic)",
-       "ns": 0.02,
+       "net": "u_pads.u_rd.step[1]$legal1177",
+       "ns": 0.0,
        "src": ""
+      },
+      {
+       "net": "(logic)",
+       "ns": 0.47,
+       "src": "orphan_nespad.v:49"
       }
      ]
     },
     {
      "clock": "u_gb.gclk",
      "cross": false,
-     "start": "u_gb.u_boy.cpu.control.ct_op[0]",
-     "end": "u_gb.u_boy.cpu.alu_result[6]",
-     "delay": 13.24,
-     "levels": 13,
-     "logic_ns": 4.0,
-     "route_ns": 9.21,
+     "start": "u_gb.u_boy.cpu.rf_rd_sel_ex[0]",
+     "end": "u_gb.u_boy.cpu.alu_result[5]",
+     "delay": 13.46,
+     "levels": 15,
+     "logic_ns": 4.23,
+     "route_ns": 9.18,
      "steps": [
       {
-       "net": "u_gb.u_boy.cpu.control.ct_op[0]",
-       "ns": 1.05,
-       "src": ""
+       "net": "u_gb.u_boy.cpu.rf_rd_sel_ex[0]",
+       "ns": 1.76,
+       "src": "cpu.v:128"
       },
       {
-       "net": "u_gb.u_boy.cpu.alu_result[6]",
-       "ns": 1.19,
+       "net": "u_gb.u_boy.cpu.rf_rd_raw[1]",
+       "ns": 0.33,
+       "src": "cpu.v:246"
+      },
+      {
+       "net": "u_gb.u_boy.cpu.alu_result[5]",
+       "ns": 1.16,
        "src": "cpu.v:76"
       }
      ]
@@ -177,33 +187,33 @@
     {
      "clock": "posedge clk -> posedge u_gb.gclk",
      "cross": true,
-     "start": "u_gb.cart[1]",
-     "end": "u_gb.cart[1]",
-     "delay": 1.89,
-     "levels": 0,
-     "logic_ns": 0.45,
-     "route_ns": 1.44,
+     "start": "u_gb.up_data[4]",
+     "end": "u_gb.up_data[4]",
+     "delay": 1.4,
+     "levels": 1,
+     "logic_ns": 0.6,
+     "route_ns": 0.8,
      "steps": [
       {
-       "net": "u_gb.cart[1]",
-       "ns": 1.44,
-       "src": "orphan_gb_block.v:48"
+       "net": "u_gb.up_data[4]",
+       "ns": 0.78,
+       "src": "orphan_gb_block.v:64"
       }
      ]
     },
     {
-     "clock": "posedge u_gb.gclk -> posedge $techmap251219\\u_gb.u_boy.ppu.oam_u.0.5.WCLK",
+     "clock": "posedge u_gb.gclk -> posedge $techmap256290\\u_gb.u_boy.ppu.oam_u.0.5.WCLK",
      "cross": true,
-     "start": "u_gb.u_boy.cpu_a[1]",
-     "end": "u_gb.u_boy.cpu_a[1]",
-     "delay": 8.3,
-     "levels": 11,
-     "logic_ns": 3.1,
-     "route_ns": 4.92,
+     "start": "u_gb.u_boy.cpu_a[7]",
+     "end": "u_gb.u_boy.cpu_a[7]",
+     "delay": 7.4,
+     "levels": 8,
+     "logic_ns": 2.41,
+     "route_ns": 4.28,
      "steps": [
       {
-       "net": "u_gb.u_boy.cpu_a[1]",
-       "ns": 0.76,
+       "net": "u_gb.u_boy.cpu_a[7]",
+       "ns": 1.06,
        "src": "timer.v:20"
       }
      ]
@@ -212,21 +222,21 @@
      "clock": "posedge u_gb.gclk -> posedge clk",
      "cross": true,
      "start": "lvl[7]",
-     "end": "lvl[7]",
-     "delay": 4.72,
-     "levels": 7,
-     "logic_ns": 1.82,
-     "route_ns": 2.89,
+     "end": "lvl[7]$legal3439",
+     "delay": 5.26,
+     "levels": 6,
+     "logic_ns": 1.64,
+     "route_ns": 3.62,
      "steps": [
       {
        "net": "lvl[7]",
-       "ns": 0.49,
+       "ns": 1.21,
        "src": "orphan_leds.v:23"
       },
       {
-       "net": "(logic)",
-       "ns": 0.02,
-       "src": "orphan_leds.v:96"
+       "net": "lvl[7]$legal3439",
+       "ns": 0.0,
+       "src": ""
       }
      ]
     }

@@ -3,7 +3,7 @@
 #   Web page + WebSocket on port 8000: game list, the picture, sound, keyboard / gamepad
 #   raw s16le mono sound (47.95 kHz) on TCP 8001 for ffplay
 #   ORPHAN Remote (CYD): set ORPHAN_CYD=<cyd ip> (or /etc/orphan/cyd) and every picture also goes to its screen
-#   Real NES pads (NES design): an adapter on hashboard connectors J1 / J2 by default; ORPHAN_NES_PADS=7,8
+#   Real NES pads (NES and Game Boy designs): an adapter on hashboard connectors J1 / J2 by default; ORPHAN_NES_PADS=7,8
 #   (or /etc/orphan/nespads) picks other connectors, ORPHAN_NES_PADS=off turns them off. Wiring: orphan_nespad.v
 #   DISCONNECT EVERY HASHBOARD before using real pads. ORPHAN_NES_PADS_NEVER=6,7 (or /etc/orphan/nespads-never) is an
 #   optional extra: connectors that are never driven or read (default: none)
@@ -67,6 +67,7 @@ SYS = SYSTEMS[SYS_ID]
 ROMS = os.environ.get('ORPHAN_ROMS', '/opt/orphan-games/roms/' + SYS['dir'])
 FB_WORDS = SYS['words']
 RUN = 1                                        # CTRL value while running (+4 = Game Gear mode)
+HW_PAD_DESIGNS = ('NES1', 'GB01')               # designs with orphan_nespad (real NES pads on J1..J9)
 SUB = {'NES1': 0, 'GB01': 1, 'SMS1': 2}[SYS_ID]  # picture type in the WebSocket frame (3 = Game Gear)
 AUDIO_HZ = SYS['audio_hz']
 WBASE = (bus.m._off >> 2) + SLOT * 1024        # word index of the slot in Ardzy's mapped view
@@ -426,8 +427,8 @@ def ws_recv(rf):
 
 
 def nes_pads_setup():
-    """Real NES pads on the hashboard connectors (NES design only): which connector is pad 1 and pad 2."""
-    if SYS_ID != 'NES1':
+    """Real NES pads on the hashboard connectors (NES and Game Boy designs): which connector is pad 1 and pad 2."""
+    if SYS_ID not in HW_PAD_DESIGNS or R(10) == 0:   # register 10 reads 0 on a design without the pad reader
         return ''
     v = os.environ.get('ORPHAN_NES_PADS', '')
     if not v and os.path.exists('/etc/orphan/nespads'):
@@ -467,7 +468,7 @@ def nes_pads_setup():
 
 
 def nes_pads_state():
-    if SYS_ID != 'NES1' or state.get('hwpads') in ('', 'off'):
+    if SYS_ID not in HW_PAD_DESIGNS or state.get('hwpads') in ('', 'off'):
         return None
     r, ports = R(9), R(10)
     return {'ports': [ports & 15, ports >> 4 & 15], 'present': [bool(r >> 16 & 1), bool(r >> 17 & 1)],
@@ -491,7 +492,7 @@ def pads_watch():
 
 def status():
     return json.dumps({'state': state, 'hwpads': nes_pads_state(), 'hwports': state.get('hwpads', ''),
-                       'hwnever': state.get('hwnever', []), 'games': game_list(), 'audio_hz': AUDIO_HZ, 'system': SYS['name'],
+                       'hwnever': state.get('hwnever', []), 'games': game_list(), 'audio_hz': AUDIO_HZ, 'system': SYS['name'], 'hwpad_design': SYS_ID in HW_PAD_DESIGNS,
                        'w': SYS['w'], 'h': SYS['h'], 'ext': SYS['ext'], 'roms': ROMS}).encode()
 
 

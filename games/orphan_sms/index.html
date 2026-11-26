@@ -189,12 +189,11 @@ $('pause').onclick = () => send({pause: st.running !== false});
 $('reset').onclick = () => send({reset: 1});
 $('full').onclick = () => { const c = $('screen'); (c.requestFullscreen || c.webkitRequestFullscreen).call(c); };
 
-// ---- real NES pads on the hashboard header (NES design only): live status from main.py
+// ---- real NES pads on the hashboard header (NES and Game Boy designs): live status from main.py
 const BTN = ['A', 'B', 'Sel', 'Sta', 'Up', 'Dn', 'Lt', 'Rt'];
 let hw = null, hwPorts = '', hwNever = [];
 function showHw() {
-  const nes = sysInfo.system === 'NES';
-  $('hwbtn').hidden = !nes;
+  $('hwbtn').hidden = !(sysInfo.hwpad_design || sysInfo.system === 'NES');
   $('hwports').textContent = !hwPorts ? '' : hwPorts === 'off' ? 'OFF' : hwPorts.replace(',', ' + ');
   $('hwports').className = 'pill ' + (hw && hw.present.some(Boolean) ? 'live' : 'off');
   const prot = '<p class="no">Never driven (ORPHAN_NES_PADS_NEVER): ' + (hwNever.length ? hwNever.map(n => 'J' + n).join(', ') : 'none') + '</p>';

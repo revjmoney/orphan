@@ -14,6 +14,14 @@
 //   3 UP_ADDR   write: next ROM byte address (0 .. 128 KB); read: uploads done
 //   4 FB_ADDR   frame buffer read pointer      5 AU_ADDR  audio read pointer
 //   6 STATUS    [15:0] frames, [27:16] audio write pointer, [28] frozen     7 ID "GB01"     8 LEVEL
+//   9 HWPADS    real NES pads on hashboard connectors (orphan_nespad.v), the same as the NES block
+//               write: [0] enable, [7:4] pad 1's connector, [11:8] pad 2's connector (1..9 = J1..J9)
+//                      after reset: OFF (main.py turns it on), pad 1 on J1, pad 2 on J2
+//               read:  [15:0] their buttons (pad 1 [7:0], pad 2 [15:8]), [17:16] pads being read, [24] enable
+//                      The Game Boy sees PADS | pad 1 | pad 2: browser and either real pad play together.
+//  10 HWPADS2   read: [3:0] pad 1 connector, [7:4] pad 2 connector
+//  11 HWNEVER   write/read: [8:0] connectors (bit n-1 = Jn) never driven or read. After the FPGA loads: none.
+//  12 CPUSTATE  read: [0] done, [1] fault (VerilogBoy's CPU flags; was register 9)
 //   512..767    write: 4 ROM bytes at UP_ADDR, +4;  read: frame buffer word, +1: 16 pixels of 2 bits, pixel 0 in
 //               [1:0]; 160 x 144 = 1440 words; 0 = lightest
 //   768..1023   read: audio word, +1: {right, left} signed 16-bit, 48.23 kHz
@@ -25,7 +33,13 @@ module orphan_gb_block #(parameter [3:0] SLOT = 4'd1) (
     input  wire        bus_we,
     input  wire        bus_re,
     output reg  [31:0] bus_rdata = 32'd0,
-    output wire [7:0]  level
+    output wire [7:0]  level,
+    input  wire [15:0] hw_pads,     // buttons from real NES pads (orphan_nespad), bus clock
+    input  wire [1:0]  hw_drive,    // pads being read
+    output reg         hw_enable = 1'b0,
+    output reg  [3:0]  hw_port1 = 4'd1,
+    output reg  [3:0]  hw_port2 = 4'd2,
+    output reg  [8:0]  hw_never = 9'h000     // optional: main.py sets it from ORPHAN_NES_PADS_NEVER
 );
     wire sel = (bus_addr[15:12] == SLOT);
     wire [9:0] idx = bus_addr[11:2];
@@ -56,10 +70,12 @@ module orphan_gb_block #(parameter [3:0] SLOT = 4'd1) (
     // ---------------------------------------------------------------- Game Boy side
     reg [1:0] ctrl_s1 = 0, ctrl_s2 = 0;
     reg [7:0] pads_s1 = 0, pads_s2 = 0;
+    reg [7:0] pads_all = 8'd0;                    // browser | real pad 1 | real pad 2, registered in clk before crossing
+    always @(posedge clk) pads_all <= pads | hw_pads[7:0] | hw_pads[15:8];
     reg [9:0] cart_s1 = 0, cart_s2 = 0;
     reg up_r1 = 0, up_r2 = 0, up_r3 = 0;
     always @(posedge gclk) begin
-        ctrl_s1 <= ctrl; ctrl_s2 <= ctrl_s1; pads_s1 <= pads; pads_s2 <= pads_s1;
+        ctrl_s1 <= ctrl; ctrl_s2 <= ctrl_s1; pads_s1 <= pads_all; pads_s2 <= pads_s1;
         cart_s1 <= cart; cart_s2 <= cart_s1; up_r1 <= up_req; up_r2 <= up_r1; up_r3 <= up_r2;
     end
     reg rst_gb = 1'b1;
@@ -206,7 +222,7 @@ module orphan_gb_block #(parameter [3:0] SLOT = 4'd1) (
 
     // ---------------------------------------------------------------- registers
     always @(posedge clk) begin
-        if (!rstn) ctrl <= 2'd0;
+        if (!rstn) begin ctrl <= 2'd0; hw_enable <= 1'b0; hw_port1 <= 4'd1; hw_port2 <= 4'd2; hw_never <= 9'h000; end
         else if (bus_we && sel) begin
             if (idx[9]) begin
                 if (!idx[8]) begin up_data <= bus_wdata; up_a <= up_addr; up_addr <= up_addr + 17'd4; up_req <= ~up_req; end
@@ -217,6 +233,10 @@ module orphan_gb_block #(parameter [3:0] SLOT = 4'd1) (
                 10'd3: up_addr <= bus_wdata[16:0];
                 10'd4: fb_rd <= bus_wdata[10:0];
                 10'd5: au_rd <= bus_wdata[10:0];
+                10'd9: begin hw_enable <= bus_wdata[0];
+                             hw_port1 <= (bus_wdata[7:4] >= 4'd1 && bus_wdata[7:4] <= 4'd9) ? bus_wdata[7:4] : 4'd1;
+                             hw_port2 <= (bus_wdata[11:8] >= 4'd1 && bus_wdata[11:8] <= 4'd9) ? bus_wdata[11:8] : 4'd2; end
+                10'd11: hw_never <= bus_wdata[8:0];
                 default: ;
             endcase
         end
@@ -232,7 +252,10 @@ module orphan_gb_block #(parameter [3:0] SLOT = 4'd1) (
                 10'd6: bus_rdata <= {3'd0, frz_s2, aw_b[11:0], fr_b};
                 10'd7: bus_rdata <= 32'h47423031;                  // "GB01"
                 10'd8: bus_rdata <= {16'd0, lvl};
-                10'd9: bus_rdata <= {30'd0, fault, done};
+                10'd9: bus_rdata <= {7'd0, hw_enable, 6'd0, hw_drive, hw_pads};
+                10'd10: bus_rdata <= {24'd0, hw_port2, hw_port1};
+                10'd11: bus_rdata <= {23'd0, hw_never};
+                10'd12: bus_rdata <= {30'd0, fault, done};
                 default: bus_rdata <= 32'd0;
             endcase
         end
