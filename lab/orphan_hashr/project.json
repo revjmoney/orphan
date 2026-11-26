@@ -1,0 +1,25 @@
+{
+  "id": "HSR1",
+  "title": "ORPHAN H4SHR-CH3KR: S9 hashboard tester",
+  "category": "Test and measurement",
+  "branch": "mining",
+  "level": "advanced",
+  "summary": "Test an Antminer S9 hashboard (BM1387) on the S9 control board: finds the board on any J header, talks to its PIC voltage controller, powers the chain only when you click (and only while you renew the timer), counts and addresses the 63 chips, shows where the chain breaks, reads the board temperatures, and draws all 63 chips (21 rows of 3) with per-chip and per-row clocks and an OFF (minimum clock) for each. Safety: 9.40 V ceiling, power off above 90 C board temp, without a temperature reading, on any crash. by JMSCNC, makers of RotatoCAM.",
+  "quickstart": [
+    "Hashboard on any J header (J6-J8 are fitted on stock boards), its 12 V from a PSU that also feeds the control board, a fan blowing through the heatsinks.",
+    "Load orphan_hashr: hashrd (C++) starts and its page opens on port 8000. SCAN finds the board, PIC INFO reads its controller (no voltage yet).",
+    "POWER ON only while you are there: it starts at 9.0 V, counts the chips and reads the temps. Renew the timer or it powers off by itself.",
+    "Click a chip or a row label to change its clock or switch it OFF (minimum clock). START MINING mines on your pool (3 % dev fee, opt-out). POWER OFF when done."
+  ],
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "HASHR: the 9 headers' EN/RST/SWAP control, TX/RST gating, pin levels (board detection) + 2 I2C masters for the PICs",
+    "2": "Dispatcher (hr_disp): chain senders on J6, J7, J8 paced like Bitmain, reply collectors, one nonce FIFO; per chain SRC picks ARM staging or the builder",
+    "3": "Work builder (hr_build): extranonce2, coinbase double SHA-256, merkle fold, header, midstate; feeds the chains",
+    "4": "Work builder job memory: two job banks of 512 words",
+    "5": "LED scanner (orphan_larson): the 4 LEDs breathe in a slow scanner while mining",
+    "15": "Fan (orphan_fan)"
+  },
+  "runs": "fpga + arm"
+}

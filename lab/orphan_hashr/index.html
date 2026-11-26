@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- [orphan] ORPHAN H4SHR-CH3KR: hashboard tester and miner page (S9 BM1387 and L3+ BM1485 boards). by JMSCNC, makers of RotatoCAM. [Rev. J. Money - 2026] GPL-3.0-or-later. -->
+<title>H4SHR-CH3KR · JMSCNC</title>
+<style>
+:root{color-scheme:dark;--ink:#e8efe6;--muted:#a3afa2;--lime:#d2ff51;--red:#ff5c5c;--amber:#ffcf5c;--line:#364239;--panel:#101613d0;--mono:Consolas,"IBM Plex Mono",monospace}
+*{box-sizing:border-box}
+html,body{margin:0;background:#080a0c;color:var(--ink);font:14px/1.35 var(--mono)}
+a{color:var(--ink)}
+button,select,input{font:inherit;color:var(--ink);background:#141b16;border:1px solid var(--line);padding:.42em .7em;border-radius:3px}
+button{cursor:pointer}
+button:hover{color:var(--lime);border-color:var(--lime)}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--lime);outline-offset:2px}
+button.primary{background:linear-gradient(#e1ff8a,#a5cb37);border-color:var(--lime);color:#131a06;font-weight:700}
+button.danger{background:linear-gradient(#ff8a8a,#c93434);border-color:#ff9c9c;color:#1a0505;font-weight:700}
+#rain{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:14px 16px 24px}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:10px}
+h1{margin:0;font:900 2.1em/1 Impact,"Arial Black",sans-serif;letter-spacing:.02em}
+h1 span{color:var(--lime)}
+.sub{color:var(--muted);font-size:.85em}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pill{color:var(--lime);font-size:.83em;border:1px solid #596e3e;background:#152112;padding:.4em .65em;white-space:nowrap}
+.coffee{display:inline-block;color:#1a1200;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:3px;padding:.4em .7em;font-weight:700;white-space:nowrap;text-decoration:none}
+/* tabs */
+.tabs{display:flex;flex-wrap:wrap;gap:4px;margin:12px 0 0;border-bottom:1px solid var(--line)}
+.tabs button{border:1px solid var(--line);border-bottom:0;border-radius:3px 3px 0 0;background:#0e1410;color:var(--muted);padding:.5em .95em;letter-spacing:.06em;text-transform:uppercase;font-size:.85em}
+.tabs button[aria-selected=true]{background:#1a2814;color:var(--lime);border-color:#596e3e}
+.tab[hidden]{display:none}
+/* boxes: their width comes from the grid, never from the number inside (Rev 2026-11-25) */
+.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(168px,100%),1fr));gap:8px;margin:12px 0}
+.metric{background:var(--panel);border:1px solid var(--line);padding:.55em .7em;min-width:0}
+.metric small{display:block;color:var(--muted);font-size:.72em;text-transform:uppercase;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.metric strong{display:block;font-size:1.55em;font-weight:400;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.metric.hot strong{color:var(--red)}
+.metric.good strong{color:var(--lime)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);padding:.6em .7em;margin-top:8px}
+.bar label{color:var(--muted);font-size:.85em}
+.bar input[type=number]{width:5.4em}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:12px;margin-top:12px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);padding:.7em;margin-top:12px}
+h2{margin:0 0 .6em;font-size:1em;color:var(--lime);text-transform:uppercase;letter-spacing:.11em}
+/* overview cards, one per header */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));gap:8px}
+.card{background:#0c120e;border:1px solid var(--line);padding:.6em .7em;min-width:0}
+.card h3{margin:0 0 .4em;font-size:1em;display:flex;justify-content:space-between;gap:8px}
+.card h3 b{color:var(--lime)}
+.card dl{margin:0}
+.card.on{border-color:#596e3e}
+.card.hot{border-color:var(--red)}
+.board{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+@media(max-width:700px){.board{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.row{border:1px solid #26302a;padding:4px;display:flex;flex-direction:column;gap:4px}
+.row button.rl{padding:.15em .3em;font-size:.75em;color:var(--muted);text-align:left}
+.chip{border:1px solid #2c3a30;background:#0d1310;padding:.3em .35em;text-align:left;font-size:.78em;line-height:1.2;width:100%;border-radius:2px;font-variant-numeric:tabular-nums}
+.chip b{display:block;font-size:1.05em}
+.chip.answering{border-color:#6c8f2a;background:#16210f;color:var(--lime)}
+.chip.missing{border-color:#8d3030;background:#260e0e;color:var(--red)}
+.chip.off{border-color:#454d47;background:#151816;color:#8b948d}
+.chip.unknown{color:#5d685f}
+.chip.weak{border-color:#8a6d1f;background:#2a230c;color:var(--amber)}
+#board3{grid-template-columns:repeat(8,minmax(0,1fr))}
+@media(max-width:700px){#board3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.chip.sel,.row.sel{outline:2px solid var(--amber);outline-offset:1px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.8em;margin-top:8px}
+.legend i{display:inline-block;width:.9em;height:.9em;margin-right:.35em;vertical-align:-1px;border:1px solid}
+dl{display:grid;grid-template-columns:auto 1fr;gap:.25em .7em;margin:0 0 .7em}
+dt{color:var(--muted)}dd{margin:0;font-variant-numeric:tabular-nums;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#status{min-height:1.6em;margin-top:8px;padding:.4em .6em;border-left:2px solid var(--lime);background:#112017}
+#status.err{border-color:var(--red);background:#2a1010}
+#log{height:420px;overflow:auto;background:#0a0e0b;border:1px solid var(--line);padding:.5em;font-size:.82em;white-space:pre-wrap}
+#oLog{background:#0a0e0b;border:1px solid var(--line);padding:.5em;font-size:.82em;white-space:pre-wrap;min-height:6.5em}
+#log .good,#oLog .good{color:var(--lime)}#log .stats,#oLog .stats{color:#8fd3ff}#log .warn,#oLog .warn{color:var(--amber)}#log .error,#oLog .error{color:var(--red)}
+.mline{font-variant-numeric:tabular-nums;margin:.2em 0}
+.mline b{color:var(--lime);font-weight:400}
+footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;color:var(--muted);font-size:.8em;margin-top:14px}
+</style>
+</head>
+<body>
+<canvas id="rain" aria-hidden="true"></canvas>
+<div class="wrap">
+<header>
+  <div><h1>H4SHR<span>-CH3KR</span></h1><div class="sub">Hashboard tester and miner · S9 (BM1387) and L3+ (BM1485) boards · Orphan FPGA</div></div>
+  <div class="tools"><a class="coffee" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">☕ Buy me a coffee</a><span id="orphan-fan"></span><button id="motion" type="button" aria-pressed="true">FX on</button><span class="pill" id="conn">CONNECTING</span></div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+  <button role="tab" data-tab="s9" aria-selected="false">S9 boards</button>
+  <button role="tab" data-tab="l3" aria-selected="false">L3+ boards</button>
+  <button role="tab" data-tab="mining" aria-selected="false">Mining</button>
+  <button role="tab" data-tab="fan" aria-selected="false">Fan &amp; power</button>
+  <button role="tab" data-tab="log" aria-selected="false">Log</button>
+</nav>
+<div id="status" role="status">Ready.</div>
+
+<!-- ============================== OVERVIEW ============================== -->
+<div class="tab" id="tab-overview" role="tabpanel">
+  <section class="metrics" aria-label="Totals">
+    <div class="metric good"><small>S9 hashrate (SHA-256)</small><strong id="oS9">-</strong></div>
+    <div class="metric good"><small>L3+ hashrate (Scrypt)</small><strong id="oL3">-</strong></div>
+    <div class="metric"><small>Shares ok / rejected</small><strong id="oShares">-</strong></div>
+    <div class="metric"><small>Invalid nonces</small><strong id="oInv">-</strong></div>
+    <div class="metric"><small>Hottest board / chip °C</small><strong id="oHot">-</strong></div>
+    <div class="metric"><small>Fan duty / rpm</small><strong id="oFan">-</strong></div>
+    <div class="metric"><small>Boards on</small><strong id="oOn">-</strong></div>
+    <div class="metric"><small>Network in / out kB/s</small><strong id="mNet">-</strong></div>
+  </section>
+  <section class="panel" aria-label="Boards"><h2>Boards</h2><div class="cards" id="oCards"></div></section>
+  <section class="panel" aria-label="Mining status"><h2>Mining</h2><div id="oMine"></div></section>
+  <section class="panel" aria-label="Recent log"><h2>Recent</h2><div id="oLog"></div></section>
+</div>
+
+<!-- ============================== S9 BOARDS ============================== -->
+<div class="tab" id="tab-s9" role="tabpanel" hidden>
+  <section class="bar" aria-label="Board">
+    <label for="bSel">Board</label><select id="bSel" title="Every header with a chain"></select>
+    <label for="kSel">Type</label><select id="kSel" title="What is plugged into this header. POWER ON is refused until it is set."><option value="unknown">?</option><option value="s9">S9 (BM1387)</option><option value="l3p">L3+ (BM1485)</option></select><button id="bKind">SET TYPE</button>
+    <button id="bScan">SCAN</button>
+    <button id="bPic">PIC INFO</button>
+  </section>
+  <section class="metrics" aria-label="Selected S9 board">
+    <div class="metric"><small>Header</small><strong id="mHeader">-</strong></div>
+    <div class="metric"><small>PIC</small><strong id="mPic">-</strong></div>
+    <div class="metric"><small>Power</small><strong id="mPower">OFF</strong></div>
+    <div class="metric"><small>Volts set / read</small><strong id="mVolts">-</strong></div>
+    <div class="metric"><small>Board °C (each sensor)</small><strong id="mPcb">-</strong></div>
+    <div class="metric"><small>Chip °C (each sensor)</small><strong id="mChip">-</strong></div>
+    <div class="metric"><small>Chips answering</small><strong id="mChips">- / 63</strong></div>
+    <div class="metric"><small>Auto-off in</small><strong id="mTimer">-</strong></div>
+  </section>
+  <section class="bar" aria-label="S9 power and clocks">
+    <label for="volts">Volts</label><input id="volts" type="number" step="0.05" min="8.6" max="9.4" value="9.00">
+    <button id="bOn" class="primary">POWER ON</button>
+    <button id="bOff" class="danger">POWER OFF</button>
+    <button id="bHold" title="Power stage on, chips in reset, 2 minutes: for measuring the chain voltage">HOLD 2 MIN</button>
+    <button id="bVolts">SET VOLTS</button>
+    <label for="allMhz">All chips</label><select id="allMhz"></select><button id="bAll">SET ALL</button>
+  </section>
+  <section class="bar" aria-label="Tests">
+    <span class="sub">TESTS</span>
+    <button id="bPat" title="Bitmain's factory pattern test: 8 known works per chip">PATTERNS</button>
+    <button id="bKat" title="Genesis header and 5 ntime-rolled headers, every nonce re-hashed">KAT</button>
+    <button id="bSkot" title="Skot's bm1387_scripts replayed byte for byte">SKOT</button>
+    <button id="bDiag" title="Powers the board: TX/RX normal and swapped, EN on and off">DIAG</button>
+    <button id="bRst" title="Powers the board: which RST level really resets the chips">RSTPROBE</button>
+  </section>
+  <div class="grid">
+    <section class="panel" aria-label="Chip diagram" style="margin-top:0">
+      <h2>Chip map · 21 rows x 3 (address order)</h2>
+      <div class="board" id="board"></div>
+      <div class="legend"><span><i style="background:#16210f;border-color:#6c8f2a"></i>answering</span><span><i style="background:#260e0e;border-color:#8d3030"></i>missing / bad</span><span><i style="background:#151816;border-color:#454d47"></i>off (200 MHz)</span><span><i style="background:#0d1310;border-color:#2c3a30"></i>unknown (power off)</span></div>
+    </section>
+    <aside class="panel" aria-label="Selection" style="margin-top:0">
+      <h2 id="selTitle">Select a chip or a row</h2>
+      <dl id="selInfo"></dl>
+      <div class="bar" style="border:0;padding:0;background:none">
+        <select id="selMhz"></select><button id="bSelSet">SET CLOCK</button>
+        <button id="bSelOff">OFF</button><button id="bSelOn">ON</button>
+      </div>
+      <p class="sub">OFF = minimum clock (200 MHz), results ignored. Chips can't be unpowered one by one: the 21 rows are in series. A row may not run more than 25 % away from the board average.</p>
+    </aside>
+  </div>
+</div>
+
+<!-- ============================== L3+ BOARDS ============================== -->
+<div class="tab" id="tab-l3" role="tabpanel" hidden>
+  <section class="bar" aria-label="L3+ power">
+    <label for="bSel3">L3+ board</label><select id="bSel3" title="Headers set to L3+ (set the type in the S9 boards tab or on the Overview)"></select>
+    <label for="l3Mhz">Clock</label><select id="l3Mhz" title="Stock 384 MHz; no voltage is set on an L3+ board"></select>
+    <button id="bOn3" class="primary">POWER ON</button>
+    <button id="bOff3" class="danger">POWER OFF</button>
+  </section>
+  <section class="panel" aria-label="L3+ boards" id="l3Panel">
+    <h2>L3+ boards (Scrypt)</h2>
+    <div class="cards" id="l3Cards"></div>
+    <p class="sub">L3+ boards run at their PIC's own voltage (stock never sets one) and cut out at 86 °C. A header becomes an L3+
+      header with Type = L3+ and SET TYPE. Before the first L3+ board goes on this control board: check its cable pinout.</p>
+  </section>
+  <section class="bar" aria-label="L3+ clocks and chip test">
+    <label for="allMhz3">All chips</label><select id="allMhz3"></select><button id="bAll3">SET ALL</button>
+    <span class="sub">CHIP TEST</span>
+    <select id="t3Secs" title="How long the board hashes the test work. About 14 nonces per chip in 120 s at 384 MHz."><option value="60">60 s</option><option value="120" selected>120 s</option><option value="300">300 s</option><option value="600">600 s</option></select>
+    <button id="bTest3" title="The selected L3+ board hashes the genesis block; the ARM re-checks every nonce with scrypt and counts each chip. Stop L3+ mining first (S9 mining can go on).">CHIP TEST</button>
+    <button id="bTest3Stop">STOP TEST</button>
+    <span class="sub" id="t3Status"></span>
+  </section>
+  <div class="grid">
+    <section class="panel" aria-label="L3+ chip diagram" style="margin-top:0">
+      <h2 id="map3Title">Chip map · 24 rows x 3 (address order)</h2>
+      <div class="board" id="board3"></div>
+      <div class="legend"><span><i style="background:#16210f;border-color:#6c8f2a"></i>answering / test ok</span><span><i style="background:#2a230c;border-color:#8a6d1f"></i>weak (test)</span><span><i style="background:#260e0e;border-color:#8d3030"></i>missing / dead / bad</span><span><i style="background:#151816;border-color:#454d47"></i>off (100 MHz)</span><span><i style="background:#0d1310;border-color:#2c3a30"></i>unknown (power off)</span></div>
+    </section>
+    <aside class="panel" aria-label="L3+ selection" style="margin-top:0">
+      <h2 id="sel3Title">Select a chip or a row</h2>
+      <dl id="sel3Info"></dl>
+      <div class="bar" style="border:0;padding:0;background:none">
+        <select id="sel3Mhz"></select><button id="bSel3Set">SET CLOCK</button>
+        <button id="bSel3Off">OFF</button><button id="bSel3On">ON</button>
+      </div>
+      <p class="sub">Works are held for about a second while the clocks change, then each chip's cores are opened again and a fresh work goes out. OFF = the lowest clock (100 MHz); the miner and the chip test count those chips out. A row of 3 may not run more than 25 % away from the board average. The map shows the last chip test until the board powers off; chip numbers are 0..71 (address = 3 x chip).</p>
+    </aside>
+  </div>
+</div>
+
+<!-- ============================== MINING ============================== -->
+<div class="tab" id="tab-mining" role="tabpanel" hidden>
+  <section class="panel" aria-label="S9 mining">
+    <h2>S9 · SHA-256 <span id="mState" class="sub"></span> <span id="mDev" class="pill" hidden>DEV FEE SLICE</span></h2>
+    <div class="bar" style="border:0;padding:0;background:none;margin:0">
+      <label for="pool">Pool</label><input id="pool" size="38" value="stratum+tcp://americas.mining-dutch.nl:9996">
+      <label for="user">Wallet / worker</label><input id="user" size="20" value="revjmoney.s9bench">
+      <label for="pass">Password</label><input id="pass" size="6" value="x">
+      <label><input id="devfee" type="checkbox" checked> 3 % dev fee</label>
+      <button id="bMine" class="primary">START MINING</button><button id="bMineStop">STOP</button>
+    </div>
+    <div class="bar" style="border:0;padding:0;background:none">
+      <label for="plan">Mode</label><select id="plan"><option value="pool">Pool</option><option value="solo">Solo</option><option value="alternate">Pool / solo alternating</option></select>
+      <label for="planMin">every</label><input id="planMin" type="number" min="5" max="1440" step="5" value="60" style="width:5em"><label>minutes</label>
+      <label for="soloPool">Solo pool</label><input id="soloPool" size="38" value="stratum+tcp://americas.mining-dutch.nl:9996">
+      <label for="soloUser">Solo worker</label><input id="soloUser" size="16" value="revjmoney.solo">
+      <label for="soloPass">Password</label><input id="soloPass" size="6" value="x">
+      <button id="bPlan">SET MODE</button><span id="planNow" class="pill">-</span>
+    </div>
+    <section class="metrics" aria-label="S9 mining numbers">
+      <div class="metric good"><small>GH/s</small><strong id="mGhs">-</strong></div>
+      <div class="metric"><small>Valid / invalid</small><strong id="mValid">-</strong></div>
+      <div class="metric"><small>Stale / dupes</small><strong id="mStale">-</strong></div>
+      <div class="metric"><small>Shares ok / rejected</small><strong id="mShares">-</strong></div>
+      <div class="metric"><small>Pool difficulty</small><strong id="mDiff">-</strong></div>
+      <div class="metric"><small>Boards</small><strong id="mBoards">-</strong></div>
+      <div class="metric"><small>Connected</small><strong id="mConn">-</strong></div>
+      <div class="metric"><small>Network difficulty</small><strong id="mNet2">-</strong></div>
+      <div class="metric"><small>Block</small><strong id="mHeight">-</strong></div>
+      <div class="metric"><small>Best share</small><strong id="mBest">-</strong></div>
+      <div class="metric"><small>Last share</small><strong id="mLastShare">-</strong></div>
+      <div class="metric"><small>Jobs / shares sent</small><strong id="mJobs">-</strong></div>
+    </section>
+    <div class="sub" id="mLast"></div>
+    <p class="sub">The FPGA builds every work from the pool's job; the ARM re-hashes every nonce before a share goes out.
+      Solo: on Mining-Dutch the solo worker must be set to Solo in your dashboard (Workers). Alternating starts with a solo
+      turn and runs day and night. The 3 % dev fee mines 3 minutes of every 100 to the developer's account (it keeps the
+      soldering iron hot); untick it to switch it off.</p>
+  </section>
+  <section class="panel" aria-label="L3+ mining">
+    <h2>L3+ · Scrypt <span id="sState" class="sub"></span> <span id="sDev" class="pill" hidden>DEV FEE SLICE</span></h2>
+    <div class="bar" style="border:0;padding:0;background:none;margin:0">
+      <label for="sPool">Pool</label><input id="sPool" size="38" value="stratum+tcp://americas.mining-dutch.nl:8888">
+      <label for="sUser">Worker</label><input id="sUser" size="20" value="revjmoney.l3hashr">
+      <label for="sPass">Password</label><input id="sPass" size="6" value="x">
+      <button id="bSMine" class="primary">START L3+ MINING</button><button id="bSMineStop">STOP</button>
+    </div>
+    <section class="metrics" aria-label="L3+ mining numbers">
+      <div class="metric good"><small>MH/s</small><strong id="sMhs">-</strong></div>
+      <div class="metric"><small>Valid / invalid</small><strong id="sValid">-</strong></div>
+      <div class="metric"><small>Shares ok / rejected</small><strong id="sShares">-</strong></div>
+      <div class="metric"><small>Pool difficulty</small><strong id="sDiff">-</strong></div>
+    </section>
+    <p class="sub">Every L3+ nonce is re-hashed with scrypt on the ARM before a share goes out. Mining-Dutch picks the Scrypt
+      coin from your dashboard. MH/s is an estimate until the chips' ticket scale is confirmed on the bench.</p>
+  </section>
+</div>
+
+<!-- ============================== FAN & POWER ============================== -->
+<div class="tab" id="tab-fan" role="tabpanel" hidden>
+  <section class="metrics" aria-label="Fans">
+    <div class="metric"><small>Fan duty</small><strong id="mDuty">-</strong></div>
+    <div class="metric"><small>Fan 1 rpm</small><strong id="mFan1">-</strong></div>
+    <div class="metric"><small>Fan 2 rpm</small><strong id="mFan2">-</strong></div>
+    <div class="metric"><small>Fan mode</small><strong id="fanMode">-</strong></div>
+  </section>
+  <section class="bar" aria-label="Fan">
+    <label for="fanLo">Curve from</label><input id="fanLo" type="number" min="20" max="85" step="1" value="30" style="width:4em">
+    <label for="fanHi">°C to</label><input id="fanHi" type="number" min="25" max="90" step="1" value="60" style="width:4em"><label>°C</label>
+    <button id="bFanCurve" title="20 % at the first temperature, a straight line to 100 % at the second">CURVE</button>
+    <label for="fanPct">Manual</label><input id="fanPct" type="range" min="20" max="100" step="5" value="50" style="width:140px"><b id="fanPctV">50 %</b>
+  </section>
+  <p class="sub">The curve runs the fan until a slider moves (this one or the FAN slider at the top); CURVE goes back to it.
+    Without a temperature reading for 10 s the fan goes to 100 % by itself.</p>
+  <section class="bar" aria-label="Power timer">
+    <label><input id="timerOn" type="checkbox" checked> Auto-off after</label><input id="timerMin" type="number" min="1" max="1440" step="1" value="10" style="width:5em"><label>min</label>
+    <button id="bTimer">SET TIMER</button>
+    <button id="bRenew">RENEW TIMER</button>
+  </section>
+  <p class="sub">The power timer turns every board off when nobody renews it. Off: the temperature cuts (S9 90 °C, L3+ 86 °C),
+    the no-temperature cut and the PIC heartbeat still guard the boards.</p>
+</div>
+
+<!-- ============================== LOG ============================== -->
+<div class="tab" id="tab-log" role="tabpanel" hidden>
+  <section class="panel" aria-label="Log"><h2>Log</h2><div id="log"></div></section>
+</div>
+
+<footer><span><a class="coffee" style="padding:.1em .5em" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">☕ Buy me a coffee</a> · © 2026 Rev. J. Money · <a href="https://jmscnc.com">JMSCNC</a> / <a href="https://rotatocam.com">RotatoCAM</a> · protocol facts: Bitmain bmminer and L3+ cgminer (GPL)</span><span>Orphan FPGA Dev Linux</span></footer>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+let S=null,seq=0,sel=null,busyOp=false,board='',fanSeen=0,planSeen=0,timerSeen=0;
+const KN={s9:'S9',l3p:'L3+'};
+function say(t,err){const s=$('status');s.textContent=t;s.className=err?'err':''}
+async function post(op,extra){
+  if(busyOp&&op!=='power_off'&&op!=='renew'){say('Busy, wait for the last action.',1);return}
+  busyOp=op!=='power_off'&&op!=='renew';
+  say(op.replace('_',' ').toUpperCase()+' ...');
+  try{
+    const r=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.assign({op},board?{board}:{},extra||{}))});
+    const j=await r.json();
+    const name=op.replace('_',' ').toUpperCase();
+    say(j.ok?name+': '+(j.msg||'OK'):name+': '+(j.why||'failed'),!j.ok);
+  }catch(e){say('No answer from the board: '+e,1)}
+  busyOp=false;poll();
+}
+// tabs (the open one is remembered)
+function showTab(t){if(!$('tab-'+t))t='overview';
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+  document.querySelectorAll('.tab').forEach(p=>p.hidden=p.id!=='tab-'+t);
+  try{localStorage.setItem('hashrTab',t)}catch(e){}
+  if(t==='log'){const L=$('log');L.scrollTop=L.scrollHeight}}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+{let t='overview';try{t=localStorage.getItem('hashrTab')||'overview'}catch(e){}showTab(t)}
+function fillMhz(el,table,val){if(el.options.length)return;for(const m of table){const o=document.createElement('option');o.value=m;o.textContent=m+' MHz';el.appendChild(o)}el.value=val}
+function buildBoard(){
+  const b=$('board');b.innerHTML='';
+  for(let r=0;r<21;r++){
+    const row=document.createElement('div');row.className='row';row.id='row'+r;
+    const rl=document.createElement('button');rl.className='rl';rl.textContent='ROW '+(r+1);rl.onclick=()=>select('row',r);row.appendChild(rl);
+    for(let k=0;k<3;k++){const i=3*r+k;const c=document.createElement('button');c.className='chip unknown';c.id='chip'+i;c.onclick=()=>select('chip',i);row.appendChild(c)}
+    b.appendChild(row);
+  }
+}
+function select(kind,i){sel={kind,i};render()}
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dash=v=>v==null?'-':v;
+function rate(h){return h>=1e12?(h/1e12).toFixed(2)+' TH/s':h>=1e9?(h/1e9).toFixed(1)+' GH/s':h>=1e6?(h/1e6).toFixed(1)+' MH/s':h>0?(h/1e3).toFixed(1)+' kH/s':'-'}
+function render(){
+  if(!S)return;const B=S.board;
+  const M=S.mine||{},mining=M.state&&M.state!=='stopped';
+  const L=S.l3||[],SM=S.smine||{},smining=SM.state&&SM.state!=='stopped';
+  const F=S.fan||{},rpm=F.rpm||[];
+  const spin=rpm.map((r,i)=>({r,i})).filter(f=>f.r>0);   // the fan headers whose tach reports (six on the S9 board)
+  const N=S.net||{};
+  const ago=s=>s==null?'-':s<60?Math.round(s)+' s':s<3600?Math.floor(s/60)+' min':(s/3600).toFixed(1)+' h';
+  const big=d=>!d?'-':d>=1e12?(d/1e12).toFixed(2)+' T':d>=1e9?(d/1e9).toFixed(2)+' G':d>=1e6?(d/1e6).toFixed(2)+' M':d>=1e3?(d/1e3).toFixed(1)+' k':d.toFixed(1);
+  const mm=s=>Math.floor(s/60)+' min';
+  // ---------------- overview
+  const own=b=>b.chips!=null||b.header!==B.header?b:Object.assign({},b,{chips:B.chips_answering,mhz:B.mhz,pcb_c:B.pcb_c,chip_c:B.chip_c});   // an older hashrd sends no per-header numbers
+  const hdrs=(S.boards||[]).filter(b=>b.chain||b.kind).map(own);
+  const onB=hdrs.filter(b=>b.power==='on');
+  $('oS9').textContent=mining?rate(M.ghs*1e9):'-';
+  $('oL3').textContent=smining?rate(SM.mhs*1e6):'-';
+  $('oShares').textContent=(mining||smining)?((M.accepted||0)+(SM.accepted||0))+' / '+((M.rejected||0)+(SM.rejected||0)):'-';
+  const inv=(M.invalid||0)+(SM.invalid||0);$('oInv').textContent=(mining||smining)?inv:'-';$('oInv').parentNode.className='metric'+(inv>0?' hot':'');
+  let hp=-1,hc=-1;for(const b of onB){if(b.pcb_c!=null)hp=Math.max(hp,b.pcb_c);if(b.chip_c!=null)hc=Math.max(hc,b.chip_c)}
+  if(hp<0&&B.power==='on'){hp=B.pcb_c??-1;hc=B.chip_c??-1}
+  $('oHot').textContent=hp<0?'-':hp+' / '+(hc<0?'-':hc);$('oHot').parentNode.className='metric'+(hp>=75||hc>=85?' hot':'');
+  $('oFan').textContent=F.applied!=null?F.applied+' % / '+(spin.length?spin[0].r:'-'):'-';
+  $('oOn').textContent=onB.length+' of '+hdrs.length;
+  $('mNet').textContent=N.rx_kbs!=null?N.rx_kbs.toFixed(1)+' / '+N.tx_kbs.toFixed(1):'-';
+  const ghs={};for(const b of (M.boards||[]))ghs[b.header]=b.ghs;
+  $('oCards').innerHTML=hdrs.length?hdrs.map(b=>{const on=b.power==='on',l3=b.kind==='l3p';
+      const hot=on&&((b.pcb_c??0)>=(l3?80:75)||(b.chip_c??0)>=(l3?95:85));
+      const hr=on&&!l3&&ghs[b.header]!=null?rate(ghs[b.header]*1e9):on&&l3&&smining?'(L3+ miner)':'-';
+      return '<div class="card'+(on?' on':'')+(hot?' hot':'')+'"><h3><span>'+esc(b.header)+' · '+(KN[b.kind]||'type ?')+'</span><b>'+esc(b.power.toUpperCase())+'</b></h3><dl>'+
+        '<dt>Chips</dt><dd>'+(on?b.chips+' / '+(l3?72:63):'-')+'</dd><dt>Clock</dt><dd>'+(on&&b.mhz?b.mhz+' MHz':'-')+'</dd>'+
+        '<dt>Board / chip</dt><dd>'+(on?dash(b.pcb_c)+' / '+dash(b.chip_c)+' °C':'-')+'</dd><dt>Hashrate</dt><dd>'+hr+'</dd>'+
+        (b.plugged?'':'<dt>Plug</dt><dd>empty</dd>')+'</dl></div>'}).join(''):'<span class="sub">No hashboard found. SCAN in the S9 boards tab.</span>';
+  const timerTxt=S.timer_on===false?'power timer off':S.timer_left_s==null?'':'auto-off in '+mm(S.timer_left_s);
+  $('oMine').innerHTML=
+    '<div class="mline">S9 SHA-256: <b>'+esc(mining?M.state:'stopped')+'</b>'+(mining?' · '+esc(M.user||'')+' · '+esc((M.plan||'pool').toUpperCase())+(M.dev_slice?' · DEV FEE SLICE':' · '+esc((M.leg||'pool').toUpperCase())+' turn'+(M.leg_left_s>=0?' ('+mm(M.leg_left_s)+' left)':''))+' · diff '+esc(M.difficulty||'-')+' · last share '+(M.last_share_s!=null?ago(M.last_share_s)+' ago':'-'):'')+'</div>'+
+    '<div class="mline">L3+ Scrypt: <b>'+esc(smining?SM.state:'stopped')+'</b>'+(smining?' · '+esc(SM.user||'')+' · diff '+esc(SM.difficulty||'-'):'')+'</div>'+
+    '<div class="mline sub">'+esc(timerTxt)+(F.mode?' · fan '+(F.mode==='manual'?'manual '+F.duty+' %':'curve '+F.lo+' to '+F.hi+' °C'):'')+'</div>';
+  // ---------------- S9 tab
+  $('mHeader').textContent=B.header||'none';
+  $('mPic').textContent=B.pic_version==null?'-':'0x'+B.pic_version.toString(16).padStart(2,'0');
+  $('mPower').textContent=B.power.toUpperCase();$('mPower').parentNode.className='metric'+(B.power==='on'?' good':'');
+  $('mVolts').textContent=(B.volts_set==null?'-':B.volts_set.toFixed(2))+' / '+(B.volts_read==null?'-':B.volts_read.toFixed(2));
+  const list=(a,one)=>a&&a.length?a.map(t=>t==null?'-':t).join(' / '):(one==null?'-':one);
+  $('mPcb').textContent=list(B.pcb_temps,B.pcb_c);$('mPcb').parentNode.className='metric'+(B.pcb_c>=75?' hot':'');
+  $('mChip').textContent=list(B.chip_temps,B.chip_c);$('mChip').parentNode.className='metric'+(B.chip_c>=90?' hot':'');
+  $('mChips').textContent=B.chips_answering+' / 63';$('mChips').parentNode.className='metric'+(B.power==='on'&&B.chips_answering===63?' good':(B.power==='on'?' hot':''));
+  $('mTimer').textContent=S.timer_on===false?'OFF':S.timer_left_s==null?'-':Math.floor(S.timer_left_s/60)+':'+String(S.timer_left_s%60).padStart(2,'0');
+  fillMhz($('allMhz'),S.mhz_table,400);fillMhz($('selMhz'),S.mhz_table,400);
+  const on=B.power==='on';
+  $('bOn').disabled=B.power!=='off';$('bHold').disabled=B.power!=='off';$('bRenew').disabled=!on&&!L.some(x=>x.power==='on');$('bAll').disabled=!on;$('bVolts').disabled=!on;
+  for(const id of ['bSelSet','bSelOff','bSelOn'])$(id).disabled=!on||!sel;
+  for(const c of S.chips){const e=$('chip'+c.i);e.className='chip '+c.state;e.innerHTML='<b>'+c.i+'</b>'+(c.mhz?c.mhz+' MHz':'·')+(c.nonces?'<br>'+c.nonces+' n':'');e.title='chip '+c.i+' (address 0x'+c.addr.toString(16)+'), row '+(c.row+1)+', '+c.state+(c.nonces?', '+c.nonces+' valid nonces':'')}
+  const bs=$('bSel'),opts=(S.boards||[]).filter(b=>b.chain);
+  const want=opts.map(b=>b.header+' '+b.power+' '+b.kind).join('|');
+  if(bs.dataset.k!==want){bs.dataset.k=want;bs.innerHTML='';for(const b of opts){const o=document.createElement('option');o.value=b.header;o.textContent=b.header+' '+(KN[b.kind]||'?')+(b.plugged?'':' (empty)')+(b.power!=='off'?' · '+b.power.toUpperCase():'');bs.appendChild(o)}
+    if(!board&&B.header)board=B.header;if(board)bs.value=board;if(!board&&bs.value)board=bs.value}
+  const cur=(S.boards||[]).find(b=>b.header===(board||B.header))||{};
+  if(document.activeElement!==$('kSel'))$('kSel').value=cur.kind||'unknown';
+  for(const id of ['bPat','bKat','bSkot'])$(id).disabled=!on||mining;
+  for(const id of ['bDiag','bRst'])$(id).disabled=B.power!=='off';
+  for(let r=0;r<21;r++)$('row'+r).classList.toggle('sel',!!sel&&sel.kind==='row'&&sel.i===r);
+  document.querySelectorAll('.chip.sel').forEach(e=>e.classList.remove('sel'));
+  if(sel&&sel.kind==='chip')$('chip'+sel.i).classList.add('sel');
+  const info=$('selInfo');
+  if(!sel){$('selTitle').textContent='Select a chip or a row';info.innerHTML=''}
+  else if(sel.kind==='chip'){const c=S.chips[sel.i];$('selTitle').textContent='Chip '+c.i;
+    info.innerHTML='<dt>State</dt><dd>'+c.state+'</dd><dt>Address</dt><dd>0x'+c.addr.toString(16).padStart(2,'0')+'</dd><dt>Row</dt><dd>'+(c.row+1)+'</dd><dt>Clock</dt><dd>'+(c.mhz?c.mhz+' MHz':'-')+'</dd><dt>Valid nonces</dt><dd>'+(c.nonces||0)+'</dd>'}
+  else{const r=S.rows[sel.i];$('selTitle').textContent='Row '+(sel.i+1);
+    info.innerHTML='<dt>Chips</dt><dd>'+r.chips.join(', ')+'</dd><dt>Mean clock</dt><dd>'+(r.mean_mhz?Math.round(r.mean_mhz)+' MHz':'-')+'</dd>'}
+  // ---------------- L3+ tab
+  if(!$('l3Mhz').options.length){for(const m of [100,200,300,350,375,384,400,425,450,475,500,525,550]){const o=document.createElement('option');o.value=m;o.textContent=m+' MHz';$('l3Mhz').appendChild(o)}$('l3Mhz').value=384}
+  const l3h=(S.boards||[]).filter(b=>b.kind==='l3p'),s3=$('bSel3'),w3=l3h.map(b=>b.header+' '+b.power).join('|');
+  if(s3.dataset.k!==w3){const keep=s3.value;s3.dataset.k=w3;s3.innerHTML='';for(const b of l3h){const o=document.createElement('option');o.value=b.header;o.textContent=b.header+(b.power!=='off'?' · '+b.power.toUpperCase():'');s3.appendChild(o)}if(keep)s3.value=keep}
+  const sel3=l3h.find(b=>b.header===s3.value);
+  $('bOn3').disabled=!sel3||sel3.power!=='off';$('bOff3').disabled=!sel3||sel3.power==='off';
+  $('l3Cards').innerHTML=l3h.length?l3h.map(b=>{const x=L.find(y=>y.header===b.header)||{},on=b.power==='on';
+      return '<div class="card'+(on?' on':'')+'"><h3><span>'+esc(b.header)+' · L3+</span><b>'+esc(b.power.toUpperCase())+'</b></h3><dl>'+
+        '<dt>Chips</dt><dd>'+(on?b.chips+' / 72':'-')+'</dd><dt>Clock</dt><dd>'+(on&&b.mhz?b.mhz+' MHz':'-')+'</dd>'+
+        '<dt>Board / chip</dt><dd>'+(on?dash(b.pcb_c)+' / '+dash(b.chip_c)+' °C':'-')+'</dd>'+
+        '<dt>Auto-off</dt><dd>'+(x.timer_left_s!=null?mm(x.timer_left_s):'-')+'</dd>'+
+        (x.last_off?'<dt>Last off</dt><dd title="'+esc(x.last_off)+'">'+esc(x.last_off)+'</dd>':'')+'</dl></div>'}).join(''):'<span class="sub">No header is set to L3+ yet.</span>';
+  renderL3Chips(L,l3h,s3.value,smining);
+  // ---------------- mining tab
+  $('mState').textContent=M.state?'· '+M.state+(M.pool?' · '+M.pool+' as '+M.user:''):'';
+  $('mDev').hidden=!M.dev_slice;
+  $('mGhs').textContent=mining?M.ghs.toFixed(1):'-';
+  $('mValid').textContent=mining?M.valid+' / '+M.invalid:'-';$('mValid').parentNode.className='metric'+(M.invalid>0?' hot':'');
+  $('mStale').textContent=mining?M.stale+' / '+M.dupes:'-';
+  $('mShares').textContent=mining?M.accepted+' / '+M.rejected:'-';
+  $('mDiff').textContent=M.difficulty?M.difficulty:'-';
+  $('mBoards').textContent=(M.boards||[]).map(b=>b.header+' '+b.ghs.toFixed(0)+' GH/s').join(' · ')||'-';
+  $('mLast').textContent=(M.last_event||'')+(M.dev_slice&&M.slice_left_s>0?'  (dev fee slice ends in '+Math.floor(M.slice_left_s/60)+':'+String(M.slice_left_s%60).padStart(2,'0')+')':'');
+  $('mConn').textContent=mining?ago(M.connected_s):'-';
+  $('mNet2').textContent=mining?big(M.net_diff):'-';
+  $('mHeight').textContent=mining&&M.height!=null?M.height:'-';
+  $('mBest').textContent=mining?big(M.best_share):'-';
+  $('mLastShare').textContent=mining&&M.last_share_s!=null?ago(M.last_share_s)+' ago':'-';
+  $('mJobs').textContent=mining?M.jobs+' / '+M.submitted:'-';
+  $('bMine').disabled=!on||mining;$('bMineStop').disabled=!mining;
+  if(!planSeen&&M.plan){planSeen=1;$('plan').value=M.plan;$('planMin').value=M.leg_min||60;
+    if(M.solo_pool)$('soloPool').value=M.solo_pool;if(M.solo_user)$('soloUser').value=M.solo_user}
+  $('planNow').textContent=(M.plan||'pool').toUpperCase()+(mining?': '+(M.dev_slice?'DEV FEE':(M.leg||'pool').toUpperCase()+' turn'+(M.leg_left_s>=0?', '+mm(M.leg_left_s)+' left':'')):'');
+  if(document.activeElement!==$('devfee'))$('devfee').checked=M.devfee!==false;
+  $('sState').textContent=SM.state?'· '+SM.state+(SM.pool?' · '+SM.pool+' as '+SM.user:''):'';
+  $('sDev').hidden=!SM.dev_slice;
+  $('sMhs').textContent=smining?SM.mhs.toFixed(1):'-';
+  $('sValid').textContent=smining?SM.valid+' / '+SM.invalid:'-';
+  $('sShares').textContent=smining?SM.accepted+' / '+SM.rejected:'-';
+  $('sDiff').textContent=smining?SM.difficulty:'-';
+  $('bSMine').disabled=smining||!L.some(x=>x.power==='on');$('bSMineStop').disabled=!smining;
+  // ---------------- fan & power tab
+  const ft=(k,el)=>{const f=spin[k];$(el).textContent=f?f.r:(rpm.length?'no tach':'-');$(el).previousElementSibling.textContent=f?'Fan rpm (tach '+(f.i+1)+')':'Fan '+(k+1)+' rpm'};
+  ft(0,'mFan1');ft(1,'mFan2');
+  $('mDuty').textContent=F.applied!=null?F.applied+' %'+(F.watchdog?' WD':''):'-';
+  $('fanMode').textContent=F.mode==='manual'?'MANUAL '+F.duty+' %':F.mode==='curve'?'CURVE '+F.lo+'-'+F.hi+' °C':'-';
+  if(!fanSeen&&F.lo!=null){fanSeen=1;$('fanLo').value=F.lo;$('fanHi').value=F.hi}
+  if(document.activeElement!==$('fanPct')&&F.duty!=null){$('fanPct').value=F.duty;$('fanPctV').textContent=F.duty+' %'}
+  if(!timerSeen&&S.timer_min!=null){timerSeen=1;$('timerOn').checked=S.timer_on!==false;$('timerMin').value=S.timer_min}
+}
+function addLog(entries){const L=$('log');for(const e of entries){const d=document.createElement('div');d.className=e.level;d.textContent=new Date(e.t*1000).toLocaleTimeString()+'  '+e.msg;L.appendChild(d);seq=Math.max(seq,e.seq)}
+  while(L.children.length>2000)L.removeChild(L.firstChild);
+  if(entries.length){L.scrollTop=L.scrollHeight;const o=$('oLog');o.innerHTML='';for(const d of [...L.children].slice(-6))o.appendChild(d.cloneNode(true))}}
+async function poll(){try{const r=await fetch('/api/state?since='+seq+(board?'&board='+board:''),{cache:'no-store'});S=await r.json();addLog(S.log);$('conn').textContent='BOARD ONLINE';render()}catch(e){$('conn').textContent='OFFLINE'}}
+$('bSel').onchange=()=>{board=$('bSel').value;sel=null;poll()};
+$('bMine').onclick=()=>post('mine_start',{pool:$('pool').value.trim(),user:$('user').value.trim(),password:$('pass').value.trim()});
+$('bMineStop').onclick=()=>post('mine_stop');
+$('bTimer').onclick=()=>post('timer',{on:$('timerOn').checked,minutes:+$('timerMin').value});
+$('bPlan').onclick=()=>post('plan',{mode:$('plan').value,minutes:+$('planMin').value,solo_pool:$('soloPool').value.trim(),solo_user:$('soloUser').value.trim(),solo_password:$('soloPass').value.trim()});
+$('bFanCurve').onclick=()=>post('fan',{mode:'curve',lo:+$('fanLo').value,hi:+$('fanHi').value});
+let fanT=0;$('fanPct').oninput=()=>{$('fanPctV').textContent=$('fanPct').value+' %';clearTimeout(fanT);fanT=setTimeout(()=>post('fan',{mode:'manual',pct:+$('fanPct').value}),300)};
+$('devfee').onchange=()=>post('devfee',{on:$('devfee').checked});
+$('bPat').onclick=()=>post('patterns',{count:8});
+$('bKat').onclick=()=>post('kat');
+$('bSkot').onclick=()=>post('skot');
+$('bDiag').onclick=()=>{const v=parseFloat($('volts').value);if(confirm('DIAG powers the board at '+v.toFixed(2)+' V for about 25 s. Only while you are at the bench.'))post('diag',{volts:v})};
+$('bRst').onclick=()=>{const v=parseFloat($('volts').value);if(confirm('RSTPROBE powers the board at '+v.toFixed(2)+' V for about 15 s. Only while you are at the bench.'))post('rstprobe',{volts:v})};
+$('bScan').onclick=()=>post('scan');
+$('bPic').onclick=()=>post('pic_info');
+$('bKind').onclick=()=>post('kind',{kind:$('kSel').value});
+$('bSMine').onclick=()=>post('smine_start',{pool:$('sPool').value.trim(),user:$('sUser').value.trim(),password:$('sPass').value.trim()});
+$('bSMineStop').onclick=()=>post('smine_stop');
+$('bOn').onclick=()=>{const k=$('kSel').value;
+  if(k==='unknown'){say('Pick the board type (S9 or L3+) and SET TYPE first.',1);return}
+  if(k==='l3p'){say('That header is an L3+ board: power it from the L3+ boards tab.',1);return}
+  const v=parseFloat($('volts').value);if(!(v>=8.6&&v<=9.4)){say('Volts must be 8.60 to 9.40.',1);return}
+  if(confirm('Power the hashboard chain at '+v.toFixed(2)+' V?\n\nOnly while you are at the bench. It powers off by itself if the timer is not renewed, above 90 C, or without a temperature reading.'))post('power_on',{volts:v})};
+$('bOff').onclick=()=>post('power_off');
+$('bOn3').onclick=()=>{const h=$('bSel3').value;if(!h)return;
+  if(confirm('Power the L3+ board on '+h+' at '+$('l3Mhz').value+' MHz (its PIC sets the voltage)?\n\nOnly while you are at the bench. It powers off by itself if the timer is not renewed, at 86 C, or without a temperature reading.'))post('power_on',{board:h,mhz:+$('l3Mhz').value})};
+$('bOff3').onclick=()=>{const h=$('bSel3').value;if(h)post('power_off',{board:h})};
+$('bHold').onclick=()=>{const v=parseFloat($('volts').value);if(confirm('Switch the power stage on at '+v.toFixed(2)+' V for 2 minutes (chips held in reset) so you can measure?'))post('hold',{volts:v,seconds:120})};
+$('bRenew').onclick=()=>post('renew');
+$('bAll').onclick=()=>post('set_all',{mhz:+$('allMhz').value});
+$('bVolts').onclick=()=>{const v=parseFloat($('volts').value);post('set_volts',{volts:v})};
+$('bSelSet').onclick=()=>sel&&post(sel.kind==='chip'?'set_chip':'set_row',sel.kind==='chip'?{chip:sel.i,mhz:+$('selMhz').value}:{row:sel.i,mhz:+$('selMhz').value});
+$('bSelOff').onclick=()=>sel&&post(sel.kind==='chip'?'set_chip':'set_row',sel.kind==='chip'?{chip:sel.i,off:true}:{row:sel.i,off:true});
+$('bSelOn').onclick=()=>sel&&post(sel.kind==='chip'?'set_chip':'set_row',sel.kind==='chip'?{chip:sel.i,mhz:+$('selMhz').value}:{row:sel.i,mhz:+$('selMhz').value});
+// 0/1 rain (FX)
+let fx=true;try{fx=localStorage.getItem('hashrFx')!=='off'}catch(e){}
+function setFx(on){fx=on;$('motion').textContent=on?'FX on':'FX off';$('motion').setAttribute('aria-pressed',on);$('rain').hidden=!on;try{localStorage.setItem('hashrFx',on?'on':'off')}catch(e){}}
+$('motion').onclick=()=>setFx(!fx);
+const cv=$('rain'),cx=cv.getContext('2d');let drops=[];
+function sizeRain(){cv.width=innerWidth;cv.height=innerHeight;drops=Array.from({length:Math.ceil(innerWidth/22)},()=>Math.random()*innerHeight/16)}
+function rain(){if(fx&&!matchMedia('(prefers-reduced-motion: reduce)').matches){cx.fillStyle='rgba(8,10,12,.18)';cx.fillRect(0,0,cv.width,cv.height);cx.fillStyle='#2f5a1e';cx.font='14px Consolas,monospace';
+  drops.forEach((y,i)=>{cx.fillText(Math.random()<.5?'0':'1',i*22,y*16);drops[i]=y*16>cv.height&&Math.random()>.975?0:y+1})}setTimeout(()=>requestAnimationFrame(rain),70)}
+addEventListener('resize',sizeRain);sizeRain();setFx(fx);rain();
+// ---------------- L3+ chip map, clocks and chip test
+const L3MHZ=[100,150,200,250,275,300,325,350,375,384,400,425,450,475,500,525,550,575,600,625,650];
+let sel3=null;
+function buildBoard3(){
+  const b=$('board3');b.innerHTML='';
+  for(let r=0;r<24;r++){
+    const row=document.createElement('div');row.className='row';row.id='row3_'+r;
+    const rl=document.createElement('button');rl.className='rl';rl.textContent='ROW '+(r+1);rl.onclick=()=>{sel3={kind:'row',i:r};render()};row.appendChild(rl);
+    for(let k=0;k<3;k++){const i=3*r+k;const c=document.createElement('button');c.className='chip unknown';c.id='c3_'+i;c.onclick=()=>{sel3={kind:'chip',i};render()};row.appendChild(c)}
+    b.appendChild(row);
+  }
+}
+function renderL3Chips(L,l3h,hdr,smining){
+  for(const id of ['allMhz3','sel3Mhz'])fillMhz($(id),L3MHZ,384);
+  const x=L.find(y=>y.header===hdr)||{},on=x.power==='on',t=x.test||null,testing=t&&t.state==='running';
+  const anyTest=L.some(y=>y.test&&y.test.state==='running');
+  $('map3Title').textContent='Chip map · '+(hdr||'-')+' · 24 rows x 3 (address order)'+(t&&t.state!=='none'?' · chip test '+t.state:'');
+  const cm=x.cmhz||[],co=x.coff||[],nn=x.nonces||[],tv=(t&&t.valid)||[],tb=(t&&t.bad)||[],vd=(t&&t.verdict)||[];
+  for(let i=0;i<72;i++){
+    const e=$('c3_'+i);let st='unknown';
+    if(on){
+      if(vd.length&&!testing)st={ok:'answering',few:'answering',weak:'weak',dead:'missing',bad:'missing',off:'off'}[vd[i]]||'answering';
+      else if(co[i])st='off';
+      else st=i<(x.chips||0)?'answering':'missing';
+    }
+    e.className='chip '+st+(sel3&&((sel3.kind==='chip'&&sel3.i===i)||(sel3.kind==='row'&&Math.floor(i/3)===sel3.i))?' sel':'');
+    const n=t&&tv.length?tv[i]:nn[i];
+    e.innerHTML='<b>'+i+'</b>'+(on&&cm[i]?(co[i]?'OFF':cm[i]+' MHz'):'·')+(on&&n?'<br>'+n+' n':'')+(on&&tb[i]?' <span style="color:var(--red)">'+tb[i]+' bad</span>':'');
+    e.title='chip '+i+' (address 0x'+(3*i).toString(16)+'), row '+(Math.floor(i/3)+1)+(on?', '+(co[i]?'OFF':cm[i]+' MHz'):'')+
+      (nn[i]?', '+nn[i]+' valid nonces mining':'')+(tv.length?', test: '+tv[i]+' good, '+(tb[i]||0)+' bad'+(vd[i]?', '+vd[i]:''):'');
+  }
+  for(let r=0;r<24;r++)$('row3_'+r).classList.toggle('sel',!!(sel3&&sel3.kind==='row'&&sel3.i===r));
+  // test status line
+  let ts='';
+  if(t&&t.state==='running')ts=hdr+' testing: '+t.left_s+' s left, '+t.total+' nonces ('+t.invalid+' bad), '+(t.mhs||0).toFixed(0)+' MH/s';
+  else if(t&&t.state!=='none'){const c={};for(const v of vd)c[v]=(c[v]||0)+1;
+    ts=hdr+' chip test '+t.state+': '+(t.mhs||0).toFixed(0)+' MH/s, '+t.total+' nonces ('+t.invalid+' bad) · '+Object.entries(c).map(([k,n])=>n+' '+k).join(', ')+(c.few?' · too few nonces per chip, run it longer':'');}
+  else if(anyTest){const y=L.find(z=>z.test&&z.test.state==='running');ts=y.header+' is testing';}
+  $('t3Status').textContent=ts;
+  // selection
+  const info=$('sel3Info');
+  if(!sel3){$('sel3Title').textContent='Select a chip or a row';info.innerHTML=''}
+  else if(sel3.kind==='chip'){const i=sel3.i;$('sel3Title').textContent='Chip '+i+' · '+(hdr||'-');
+    info.innerHTML='<dt>Address</dt><dd>0x'+(3*i).toString(16)+'</dd><dt>Row</dt><dd>'+(Math.floor(i/3)+1)+'</dd><dt>Clock</dt><dd>'+(on?(co[i]?'OFF (100 MHz)':cm[i]+' MHz'):'-')+'</dd>'+
+      '<dt>Nonces (mining)</dt><dd>'+dash(nn[i])+'</dd>'+(tv.length?'<dt>Test</dt><dd>'+tv[i]+' good, '+(tb[i]||0)+' bad'+(vd[i]?' · '+esc(vd[i]):'')+'</dd>':'');}
+  else{const r=sel3.i,ix=[3*r,3*r+1,3*r+2];$('sel3Title').textContent='Row '+(r+1)+' · '+(hdr||'-');
+    info.innerHTML='<dt>Chips</dt><dd>'+ix.join(', ')+'</dd><dt>Clocks</dt><dd>'+(on?ix.map(i=>co[i]?'OFF':cm[i]).join(' / '):'-')+'</dd>'+
+      '<dt>Nonces (mining)</dt><dd>'+ix.map(i=>nn[i]||0).join(' / ')+'</dd>'+(tv.length?'<dt>Test good / bad</dt><dd>'+ix.map(i=>tv[i]+'/'+(tb[i]||0)).join('  ')+'</dd>':'');}
+  for(const id of ['bSel3Set','bSel3Off','bSel3On'])$(id).disabled=!on||!sel3||testing;
+  $('bAll3').disabled=!on||testing;
+  $('bTest3').disabled=!on||smining||anyTest;
+  $('bTest3').title=smining?'Stop L3+ mining first (the test feeds the board its own work)':'The selected L3+ board hashes the genesis block; the ARM re-checks every nonce with scrypt and counts each chip.';
+  $('bTest3Stop').disabled=!anyTest;
+}
+const h3=()=>$('bSel3').value;
+$('bAll3').onclick=()=>post('set_all',{board:h3(),mhz:+$('allMhz3').value});
+$('bSel3Set').onclick=()=>sel3&&post(sel3.kind==='chip'?'set_chip':'set_row',Object.assign({board:h3(),mhz:+$('sel3Mhz').value},sel3.kind==='chip'?{chip:sel3.i}:{row:sel3.i}));
+$('bSel3Off').onclick=()=>sel3&&post(sel3.kind==='chip'?'set_chip':'set_row',Object.assign({board:h3(),off:true},sel3.kind==='chip'?{chip:sel3.i}:{row:sel3.i}));
+$('bSel3On').onclick=()=>sel3&&post(sel3.kind==='chip'?'set_chip':'set_row',Object.assign({board:h3(),mhz:+$('sel3Mhz').value},sel3.kind==='chip'?{chip:sel3.i}:{row:sel3.i}));
+$('bTest3').onclick=()=>post('l3test',{board:h3(),seconds:+$('t3Secs').value});
+$('bTest3Stop').onclick=()=>post('l3test_stop');
+buildBoard();buildBoard3();poll();setInterval(poll,1000);
+</script>
+<script>(function(){var s=document.createElement('script');s.src='http://'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+on: power on chips 63 mhz 200 pcb -1 chip -1 timer 583
+J6 power on chips 63 mhz 200 pcb 23 chip 29 timer 581
+builder_test: 10 s, 3418 nonces, 0 valid (0.0/s), 3417 invalid (0 valid byte-swapped), 1 other, works built 4240 sent 4237, stalls 0
+per chip: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  invalid: jid 11 chip 52 nonce d333c9e9 tag 00010000 tag2 00000000 -> no en2 up to 13
+  invalid: jid 13 chip 18 nonce 49a96cca tag 00010000 tag2 00000002 -> no en2 up to 15
+  invalid: jid 13 chip 38 nonce 9b191a42 tag 00010000 tag2 00000002 -> no en2 up to 15
+  invalid: jid 14 chip 17 nonce 4635e457 tag 00010000 tag2 00000003 -> no en2 up to 16
+off
+J6 power off chips 0 mhz 200 pcb 25 chip 35 timer -1

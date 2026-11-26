@@ -1,0 +1,5 @@
+patterns: 63 of 63 chips found all 8, 504 works sent, 62 copies, 593 other, 0 outside their slice, 0.9 s
+per chip: 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8
+off
+J6 power off chips 0 mhz 400 pcb 32 chip 40 timer -1
+fan applied 20 % watchdog ok

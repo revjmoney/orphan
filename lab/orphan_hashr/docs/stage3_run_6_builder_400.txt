@@ -1,0 +1,7 @@
+on: power on chips 63 mhz 400 pcb 29 chip 39 timer 583
+J6 power on chips 63 mhz 400 pcb 29 chip 39 timer 583
+builder_test: 30 s, 19929 nonces, 19927 valid (664.2/s), 0 invalid (0 valid byte-swapped), 2 other, works built 25426 sent 25423, stalls 0
+per chip: 295 296 309 315 283 302 319 309 303 309 308 322 335 291 319 333 326 324 321 339 297 300 302 321 308 318 310 296 334 326 304 337 345 327 370 329 306 285 331 302 312 318 321 327 332 310 297 317 328 331 339 330 329 309 303 304 314 338 318 310 314 312 308
+J6 power on chips 63 mhz 400 pcb 33 chip 50 timer 552
+fan applied 42 % watchdog ok
+chain sent 38362 nonces 30473 frames 33283 crc_err 2 rx_ovf 2199 works 2

@@ -1,0 +1,93 @@
+=== 22:22:37 power on J6 9.40 V 400 MHz
+on: power on chips 63 mhz 400 pcb -1 chip -1 timer 583
+J6 power on chips 63 mhz 400 pcb 23 chip 29 timer 581
+=== 22:23:00 patterns
+patterns: 63 of 63 chips found all 8, 504 works sent, 62 copies, 461 other, 0 outside their slice, 0.9 s
+=== 22:23:02 mine 10 min
+mining on stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench (3 % dev fee on)
+--- minute 1 22:24:03
+mining stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench: 2836.6 GH/s, valid 39627, invalid 0, stale 29, dupes 0, shares 0 sent, 0 accepted, 0 rejected, difficulty 65536, jobs 3, dev fee on
+  J6: 2836.6 GH/s, valid 39627, invalid 0
+  last: authorized as revjmoney.s9bench
+J6 power on chips 63 mhz 400 pcb 35 chip 52 timer 599
+--- minute 2 22:25:03
+mining stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench: 2887.4 GH/s, valid 80023, invalid 0, stale 29, dupes 0, shares 0 sent, 0 accepted, 0 rejected, difficulty 65536, jobs 5, dev fee on
+  J6: 2887.4 GH/s, valid 80023, invalid 0
+  last: authorized as revjmoney.s9bench
+J6 power on chips 63 mhz 400 pcb 36 chip 54 timer 599
+--- minute 3 22:26:03
+mining stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench: 2893.5 GH/s, valid 120495, invalid 0, stale 33, dupes 0, shares 2 sent, 2 accepted, 0 rejected, difficulty 32768, jobs 8, dev fee on
+  J6: 2893.5 GH/s, valid 120495, invalid 0
+  last: authorized as revjmoney.s9bench
+J6 power on chips 63 mhz 400 pcb 37 chip 55 timer 599
+--- minute 4 22:27:03
+mining stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench: 2855.2 GH/s, valid 160428, invalid 0, stale 33, dupes 0, shares 3 sent, 3 accepted, 0 rejected, difficulty 32768, jobs 10, dev fee on
+  J6: 2855.2 GH/s, valid 160428, invalid 0
+  last: authorized as revjmoney.s9bench
+J6 power on chips 63 mhz 400 pcb 37 chip 56 timer 599
+--- minute 5 22:28:04
+mining stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench: 2875.8 GH/s, valid 200661, invalid 0, stale 39, dupes 0, shares 8 sent, 8 accepted, 0 rejected, difficulty 16384, jobs 12, dev fee on
+  J6: 2875.8 GH/s, valid 200661, invalid 0
+  last: authorized as revjmoney.s9bench
+J6 power on chips 63 mhz 400 pcb 37 chip 56 timer 599
+--- minute 6 22:29:04
+mining stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench: 2871.0 GH/s, valid 240839, invalid 0, stale 39, dupes 0, shares 10 sent, 10 accepted, 0 rejected, difficulty 16384, jobs 13, dev fee on
+  J6: 2871.0 GH/s, valid 240839, invalid 0
+  last: authorized as revjmoney.s9bench
+J6 power on chips 63 mhz 400 pcb 37 chip 56 timer 599
+--- minute 7 22:30:04
+mining stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench: 2874.0 GH/s, valid 281035, invalid 0, stale 45, dupes 0, shares 13 sent, 13 accepted, 0 rejected, difficulty 8192, jobs 16, dev fee on
+  J6: 2874.0 GH/s, valid 281035, invalid 0
+  last: authorized as revjmoney.s9bench
+J6 power on chips 63 mhz 400 pcb 37 chip 56 timer 599
+--- minute 8 22:31:04
+mining stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench: 2874.7 GH/s, valid 321236, invalid 0, stale 52, dupes 0, shares 21 sent, 21 accepted, 0 rejected, difficulty 4096, jobs 19, dev fee on
+  J6: 2874.7 GH/s, valid 321236, invalid 0
+  last: authorized as revjmoney.s9bench
+J6 power on chips 63 mhz 400 pcb 37 chip 56 timer 599
+--- minute 9 22:32:04
+mining stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench: 2856.5 GH/s, valid 361193, invalid 0, stale 58, dupes 0, shares 29 sent, 29 accepted, 0 rejected, difficulty 2048, jobs 22, dev fee on
+  J6: 2856.5 GH/s, valid 361193, invalid 0
+  last: authorized as revjmoney.s9bench
+J6 power on chips 63 mhz 400 pcb 37 chip 56 timer 599
+--- minute 10 22:33:04
+mining stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench: 2861.9 GH/s, valid 401216, invalid 0, stale 58, dupes 0, shares 46 sent, 46 accepted, 0 rejected, difficulty 2048, jobs 24, dev fee on
+  J6: 2861.9 GH/s, valid 401216, invalid 0
+  last: authorized as revjmoney.s9bench
+J6 power on chips 63 mhz 400 pcb 37 chip 56 timer 599
+=== 22:33:04 mine stop
+mining stopped
+stopped stratum+tcp://americas.mining-dutch.nl:9996 as revjmoney.s9bench: 2861.8 GH/s, valid 401270, invalid 0, stale 58, dupes 0, shares 46 sent, 46 accepted, 0 rejected, difficulty 2048, jobs 24, dev fee on
+=== 22:33:04 kat
+KAT ntime+0: 0 valid nonces, 0 other
+KAT ntime+1: 0 valid nonces, 0 other
+KAT ntime+2: 0 valid nonces, 0 other
+KAT ntime+3: 0 valid nonces, 0 other
+KAT ntime+4: 0 valid nonces, 0 other
+KAT ntime+5: 126 valid nonces, 0 other
+(the genesis nonce itself never comes back: it names core 124, which a BM1387 does not have)
+=== 22:33:14 skot
+SKOT busy works: 998 frames, 257 nonces, 0 CRC errors
+SKOT job 74: 62 frames, 62 nonces, first 5f275ce0
+SKOT job 75: 63 frames, 63 nonces, first 0b683c06
+=== 22:33:17 power off
+off
+J6 power off chips 0 mhz 400 pcb 35 chip 47 timer -1
+fan applied 20 % watchdog ok
+=== 22:33:19 diag (powers the board)
+DIAG normal  EN=1: RX idle high 50/50, 1 chip replies, 1 frames, 3 CRC errors
+DIAG normal  EN=0: RX idle high 50/50, 1 chip replies, 1 frames, 0 CRC errors
+DIAG SWAPPED EN=1: RX idle high 0/50, 0 chip replies, 0 frames, 0 CRC errors
+DIAG SWAPPED EN=0: RX idle high 0/50, 0 chip replies, 0 frames, 0 CRC errors
+=== 22:33:47 rstprobe (powers the board)
+RSTPROBE before: 63 at 115.7k, 0 at 1.5625M
+RSTPROBE pulse 0 then 1: 63 at 115.7k, 0 at 1.5625M
+RSTPROBE pulse 1 then 0: 0 at 115.7k, 0 at 1.5625M
+a real reset leaves the chips answering at 115.7k
+=== 22:34:04 hold 15 s (powers the board)
+HOLD: DC-DC on, chips held in reset for 15 s: measure the chain voltage now (POWER OFF ends it sooner)
+J6 power off chips 0 mhz 400 pcb 35 chip 47 timer -1
+=== 22:34:27 done
+off
+J6 power off chips 0 mhz 400 pcb 35 chip 47 timer -1
+fan applied 20 % watchdog FIRED

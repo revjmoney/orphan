@@ -1,0 +1,14 @@
+# built on the board
+app
+cpp/hashrd
+cpp/hashrd.new
+cpp/test_work
+cpp/test_hashrd
+cpp/test_stratum
+cpp/test_devfee
+cpp/test_miner
+cpp/test_fleet
+cpp/test_http
+cpp/test_cyd
+cpp/*.local.json
+*.local.json

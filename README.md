@@ -33,8 +33,8 @@ it runs: `{fpga core}`, `{arm linux}` or `{fpga + arm}`. Every project has a des
 translucent cards). Click a project for its quick start and wiring; **Load** starts it and opens its own page in a new
 tab. Ardzy's upload, program output and register tools are still there ("Ardzy inside").
 
-**35 FPGA projects**: Ardzy's 19 examples (LED strips, steppers, VGA, audio, RISC-V, an FM transmitter, neural
-networks ...), 6 starters and tests, and Orphan's own ten:
+**36 FPGA projects**: Ardzy's 19 examples (LED strips, steppers, VGA, audio, RISC-V, an FM transmitter, neural
+networks ...), 6 starters and tests, and Orphan's own eleven:
 
 | Project | Runs | What |
 |---|---|---|
@@ -44,8 +44,9 @@ networks ...), 6 starters and tests, and Orphan's own ten:
 | **Orphan Games: Game Boy** | fpga core | VerilogBoy with Orphan's own boot ROM, stereo, carts to 128 KB (MBC1/3/5). |
 | **Orphan Games: Master System + Game Gear** | fpga core | MiSTer's SMS core turned into Verilog with GHDL, T80 Z80, VDP, jt89 sound; `.gg` switches to Game Gear mode. Own test cart included. |
 | **Orphan TinyLM** | fpga + arm | Karpathy's stories15M / stories42M Llama models with every matrix product in the FPGA: 64 lanes, 4 stories per weight pass. Modes: Write, 4 Stories, **Adventure** (4 takes per chapter, you pick), model selector, FPGA vs ARM race. |
-| **Orphan BTC** | fpga + arm | A real Stratum v1 SHA-256 miner on Ardzy's SHA-256 core, ARM-checked shares, coin and earnings panel (honest numbers: it is a lottery miner). |
-| **Orphan KAS** | fpga + arm | A Kaspa (kHeavyHash) miner in the FPGA, verified at 575 kH/s on the S9: overlapped nonce stages, Stratum with ARM-checked shares, live forge dashboard, payouts and estimates. Its own repo: [kas-zynq-fpga-miner](https://github.com/revjmoney/kas-zynq-fpga-miner). |
+| **Orphan BTC** | fpga + arm | A real Stratum v1 SHA-256 miner on Ardzy's SHA-256 core, ARM-checked shares, coin and earnings panel (honest numbers: it is a lottery miner). The 4 board LEDs breathe in a slow scanner while it mines. |
+| **Orphan KAS** | fpga + arm | A Kaspa (kHeavyHash) miner in the FPGA, verified at 575 kH/s on the S9: overlapped nonce stages, Stratum with ARM-checked shares, live forge dashboard, payouts and estimates; the 4 board LEDs breathe in a slow scanner while it mines. Its own repo: [kas-zynq-fpga-miner](https://github.com/revjmoney/kas-zynq-fpga-miner). |
+| **H4SHR-CH3KR** | fpga + arm | Hashboard tester and miner for Antminer **S9 (BM1387)** and **L3+ (BM1485, Scrypt)** boards on the S9 control board: finds each board, reads its PIC, counts and maps every chip, per-chip clocks and chip tests, temperatures, fan curve or manual, power timer. Mines on any of J6 to J8 at once with its own FPGA work builder and dispatcher (SHA-256 at 2+ TH/s per S9 board) and a Scrypt miner for the L3+ boards; pool, solo or alternating. C++ daemon (`hashrd`), tabbed web page on port 8000. 3 % dev fee, opt-out. |
 | **SPEKTOR / INJEKTOR 3000** | fpga + arm | ORPHAN LOGIC LAB: a 16-channel 100 MSa/s logic analyzer on any of the 36 header pins, 4-stage trigger, UART / I2C / SPI dekoders, meetrz, VCD for PulseView, probe builder pages, terminal drawer. INJEKTOR: INTERSEKTOR, a UART man-in-the-middle bridge (pass, rewrite, drop, inject, hand-edit bytes live). |
 | **MIMIK** | fpga + arm | ORPHAN LOGIC LAB chip emulator: the FPGA answers as an I2C chip at the chip's own speed. EEPROMs (24C02 .. 24C256, page writes, WP, write-cycle ACK polling) and sensors that report whatever you set (TMP102, LM75, MLX90614 IR, SRF02, TF-Luna, HMC5883L, QMC5883L, MPU-6050, BH1750): sliders or sine / ramp / noise, live bus log with a hit map, hex editor. Chip models are plugins. |
 | **Orphan Graphics Toys** | fpga + arm | A raycaster, colour waves, XOR fields and the Game of Life drawn by the FPGA. |

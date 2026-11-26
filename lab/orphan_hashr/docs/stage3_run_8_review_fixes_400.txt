@@ -1,0 +1,12 @@
+on: power on chips 63 mhz 400 pcb -1 chip -1 timer 583
+J6 power on chips 63 mhz 400 pcb 24 chip 29 timer 581
+builder_test: 30 s, 19927 nonces, 19927 valid (664.2/s), 0 invalid (0 valid byte-swapped), 0 other, works built 25425 sent 25422, stalls 0
+per chip: 295 296 309 315 283 302 319 309 303 309 308 322 335 291 319 333 326 324 321 339 297 300 302 321 308 318 310 296 334 326 304 337 345 327 370 329 306 285 331 302 312 318 321 327 332 310 297 317 328 331 339 330 329 309 303 304 314 338 318 310 314 312 308
+patterns: 63 of 63 chips found all 8, 504 works sent, 62 copies, 461 other, 0 outside their slice, 0.9 s
+per chip: 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8 8
+J6 power on chips 63 mhz 400 pcb 33 chip 50 timer 548
+fan applied 42 % watchdog ok
+chain sent 26154 nonces 21471 frames 24890 crc_err 1 rx_ovf 3103 works 0
+off
+J6 power off chips 0 mhz 400 pcb 33 chip 50 timer -1
+fan applied 20 % watchdog ok

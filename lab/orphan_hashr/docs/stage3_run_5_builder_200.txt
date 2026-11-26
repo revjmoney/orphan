@@ -1,0 +1,9 @@
+on: power on chips 63 mhz 200 pcb -1 chip -1 timer 583
+J6 power on chips 63 mhz 200 pcb 23 chip 29 timer 581
+builder_test: 30 s, 9999 nonces, 9997 valid (333.2/s), 0 invalid (0 valid byte-swapped), 2 other, works built 12714 sent 12711, stalls 0
+per chip: 151 139 166 157 139 141 152 159 168 166 161 153 184 146 165 179 169 149 166 157 161 154 148 168 141 158 162 142 161 156 163 181 166 172 191 150 140 142 175 152 169 166 165 161 159 155 144 160 184 172 164 168 161 136 152 148 148 176 152 149 156 154 148
+J6 power on chips 63 mhz 200 pcb 29 chip 39 timer 550
+fan applied 20 % watchdog ok
+chain sent 12825 nonces 10256 frames 11217 crc_err 1 rx_ovf 647 works 2
+off
+J6 power off chips 0 mhz 200 pcb 29 chip 39 timer -1

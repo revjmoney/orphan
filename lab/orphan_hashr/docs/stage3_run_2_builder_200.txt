@@ -1,0 +1,5 @@
+builder_test: 30 s, 9972 nonces, 0 valid (0.0/s), 9972 invalid (0 valid byte-swapped), 0 other, works built 12714 sent 12711, stalls 0
+per chip: 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+J6 power on chips 63 mhz 200 pcb 29 chip 39 timer 537
+fan applied 20 % watchdog ok
+chain sent 12825 nonces 10240 frames 11265 crc_err 1 rx_ovf 649 works 2

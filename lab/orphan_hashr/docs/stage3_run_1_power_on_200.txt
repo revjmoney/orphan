@@ -1,0 +1,5 @@
+on: power on chips 63 mhz 200 pcb -1 chip -1 timer 583
+J6 power on chips 63 mhz 200 pcb -1 chip -1 timer 583
+fan applied 100 % watchdog FIRED
+chain sent 0 nonces 0 frames 232 crc_err 1 rx_ovf 0 works 0
+  14:29:52 hashrd up: fans low, nothing powered

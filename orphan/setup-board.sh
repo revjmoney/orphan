@@ -24,7 +24,7 @@ if [ -n "${1:-}" ]; then
 	fi
 fi
 for src in "$REPO/radio/orphan_radio" "$REPO/radio-work/orphan_radio" "$REPO/synth/orphan_synth" "$REPO/synth-work/orphan_synth" \
-           "$REPO/games/orphan_nes" "$REPO/games-work/orphan_nes" "$REPO/games/orphan_gb" "$REPO/games-work/orphan_gb" "$REPO/games/orphan_sms" "$REPO/games-work/orphan_sms" "$REPO/toys/orphan_toys" "$REPO/toys-work/orphan_toys" "$REPO/miners/orphan_btc" "$REPO/miners-work/orphan_btc" "$REPO/miners/orphan_kas" "$REPO/kas-work/repo/orphan_kas"            "$REPO/lm/orphan_tinylm" "$REPO/lm-work/orphan_tinylm" "$REPO/lab/orphan_spektor" "$REPO/lab-work/orphan_spektor" "$REPO/lab/orphan_mimik" "$REPO/lab-work/orphan_mimik"; do
+           "$REPO/games/orphan_nes" "$REPO/games-work/orphan_nes" "$REPO/games/orphan_gb" "$REPO/games-work/orphan_gb" "$REPO/games/orphan_sms" "$REPO/games-work/orphan_sms" "$REPO/toys/orphan_toys" "$REPO/toys-work/orphan_toys" "$REPO/miners/orphan_btc" "$REPO/miners-work/orphan_btc" "$REPO/miners/orphan_kas" "$REPO/kas-work/repo/orphan_kas"            "$REPO/lm/orphan_tinylm" "$REPO/lm-work/orphan_tinylm" "$REPO/lab/orphan_spektor" "$REPO/lab-work/orphan_spektor" "$REPO/lab/orphan_mimik" "$REPO/lab-work/orphan_mimik" "$REPO/lab/orphan_hashr" "$REPO/lab-work/orphan_hashr"; do
 	[ -d "$src" ] || continue
 	name=$(basename "$src")
 	mkdir -p "$P/$name"

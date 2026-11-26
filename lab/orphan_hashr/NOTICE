@@ -1,0 +1,13 @@
+H4SHR-CH3KR (orphan_hashr) by JMSCNC, makers of RotatoCAM. [Rev. J. Money - 2026] GPL-3.0-or-later.
+
+Protocol facts (no code copied):
+  BM1387 command framing, CRC5, registers, clock table (freq_pll_1385), PIC commands, voltage formula, bring-up order
+  and temperature sensor access come from Bitmain's bmminer for the Antminer S9 (driver-btm-c5.c / driver-btm-c5.h),
+  GPL-3.0, https://github.com/bitmaintech/bmminer-mix
+
+blocks.py and the ardzy_bus / ardzy_info modules come from Ardzy by chryso (GPL-3.0),
+https://github.com/chrysovalantischryso/ardzy
+
+The CYD screen font (cpp/font_dejavu.hpp) is DejaVu Sans Mono and DejaVu Sans Mono Bold, baked to bitmaps.
+DejaVu fonts: Bitstream Vera Fonts copyright (c) 2003 Bitstream, Inc., with the DejaVu changes in the public domain;
+used under the Bitstream Vera licence (https://dejavu-fonts.github.io/License.html).
