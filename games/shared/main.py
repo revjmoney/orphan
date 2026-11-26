@@ -61,6 +61,11 @@ bus = Bus()
 W = lambda i, v: bus.wr(SLOT, i, v)    # noqa: E731
 R = lambda i: bus.rd(SLOT, i)          # noqa: E731
 SYS_ID = R(7).to_bytes(4, 'big').decode('ascii', 'replace')
+NES_DDR = SYS_ID == 'NES2'                     # the NES with its cart in the DDR (big carts, all mappers):
+if NES_DDR:                                    # otherwise the same as NES1
+    SYS_ID = 'NES1'
+    import nesddr
+    cart_store = nesddr.CartStore()
 if SYS_ID not in SYSTEMS:
     raise SystemExit('The FPGA holds no Orphan Games console (found %r). Load orphan_nes, orphan_gb or orphan_sms first.' % SYS_ID)
 SYS = SYSTEMS[SYS_ID]
@@ -106,8 +111,8 @@ def load(name):
             reg2, parts = cart['cart'], ((0x00000, cart['rom']),)
             info = 'mapper %d, ROM %d KB' % (cart['mbc'], cart['kb'])
         else:
-            cart = nesrom.parse(open(path, 'rb').read())
-            reg2, parts = cart['flags'], ((0x00000, cart['prg']), (0x10000, cart['chr']))
+            cart = nesrom.parse(open(path, 'rb').read(), ddr=NES_DDR)
+            reg2, parts = cart['flags'], (() if NES_DDR else ((0x00000, cart['prg']), (0x10000, cart['chr'])))
             info = 'mapper %d, PRG %d KB, CHR %d KB' % (cart['mapper'], cart['prg_kb'], cart['chr_kb'])
     except (OSError, ValueError) as e:
         state.update(error='%s: %s' % (name, e), running=False)
@@ -115,6 +120,11 @@ def load(name):
     with lock:
         W(0, 0)                                # console in reset
         W(2, reg2)
+        if NES_DDR:
+            err = nesddr.load_cart(W, R, cart_store, nesrom.ddr_image(cart))
+            if err:
+                state.update(error='%s: %s' % (name, err), running=False)
+                return False
         for base, data in parts:
             if not data:
                 continue

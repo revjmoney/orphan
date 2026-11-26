@@ -1,5 +1,6 @@
 `timescale 1ns / 1ps
-// Orphan Games: NES. Slot 0 info ("NES1"), slot 1 the console (orphan_nes_block), slot 14 LEDs, slot 15 fans.
+// Orphan Games: NES. Slot 0 info ("NES2"), slot 1 the console (orphan_nes_block), slot 14 LEDs, slot 15 fans.
+// The cart (PRG + CHR ROM, up to 1 MB each) is in the board's DDR, read through the PS's HP2 port (orphan_bus_hp).
 // The picture, sound and pads go through the ARM (browser / CYD); no video pins. Real NES pads can also plug into
 // any hashboard connector J1..J9 through a small adapter (orphan_nespad.v has the wiring); register HWPADS picks
 // which connector is pad 1 and pad 2 (J1 and J2 after reset). Only a picked connector whose own PLUG pin is
@@ -26,14 +27,25 @@ module top (
     wire [8:0]  plug_in, rxd_in, pad_oe;
     wire [3:0]  port1, port2;
     wire [8:0]  never;
-    ardzy_bus u_bus (.clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_wstrb(wstrb),
-                     .bus_we(we), .bus_re(re), .bus_rdata(rd_info | rd_nes | rd_led | rd_fan));
-    ardzy_info #(.SLOT(0), .PROJECT("NES1"), .VERSION(1)) u_info (
+    // the cart's DDR read port (HP2), clocked by the console clock (see orphan_nes_block)
+    wire        hp_clk, hp_arvalid, hp_arready, hp_rvalid, hp_rlast, hp_rready;
+    wire [31:0] hp_araddr;
+    wire [3:0]  hp_arlen;
+    wire [63:0] hp_rdata;
+    wire [1:0]  hp_rresp;
+    orphan_bus_hp u_bus (.clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_wstrb(wstrb),
+                     .bus_we(we), .bus_re(re), .bus_rdata(rd_info | rd_nes | rd_led | rd_fan),
+                     .hp_clk(hp_clk), .hp_araddr(hp_araddr), .hp_arlen(hp_arlen), .hp_arvalid(hp_arvalid),
+                     .hp_arready(hp_arready), .hp_rdata(hp_rdata), .hp_rvalid(hp_rvalid), .hp_rlast(hp_rlast),
+                     .hp_rresp(hp_rresp), .hp_rready(hp_rready));
+    ardzy_info #(.SLOT(0), .PROJECT("NES2"), .VERSION(2)) u_info (
         .clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_we(we), .bus_re(re),
         .bus_rdata(rd_info), .leds_n());
     orphan_nes_block #(.SLOT(1)) u_nes (
         .clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_we(we), .bus_re(re), .bus_rdata(rd_nes),
-        .level(lvl), .hw_pads(hw_pads), .hw_drive(hw_drive), .hw_enable(hw_en), .hw_port1(port1), .hw_port2(port2), .hw_never(never));
+        .level(lvl), .hw_pads(hw_pads), .hw_drive(hw_drive), .hw_enable(hw_en), .hw_port1(port1), .hw_port2(port2), .hw_never(never),
+        .hp_clk(hp_clk), .hp_araddr(hp_araddr), .hp_arlen(hp_arlen), .hp_arvalid(hp_arvalid), .hp_arready(hp_arready),
+        .hp_rdata(hp_rdata), .hp_rvalid(hp_rvalid), .hp_rlast(hp_rlast), .hp_rresp(hp_rresp), .hp_rready(hp_rready));
 
     // ---------------------------------------------------------------- real NES pads on the hashboard connectors
     orphan_nespad_ports u_pads (.clk(clk), .enable(hw_en), .port1(port1), .port2(port2), .plug(plug_in), .rxd(rxd_in), .never(never),

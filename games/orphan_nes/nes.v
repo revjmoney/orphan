@@ -146,7 +146,9 @@ module NES(input clk, input reset, input ce,
            output [8:0] scanline,
            
            output reg [31:0] dbgadr,
-           output [1:0] dbgctr
+           output [1:0] dbgctr,
+           // Orphan: which CPU / PPU window the access is in (CPU A14..13, PPU A12..10), for the cart caches
+           output [2:0] memory_win
            );
   reg [7:0] from_data_bus;
   wire [7:0] cpu_dout;
@@ -286,6 +288,8 @@ module NES(input clk, input reset, input ce,
   MemoryMultiplex mem(clk, ce, prg_linaddr, prg_read && prg_allow, prg_write && prg_allow, prg_din, 
                                chr_linaddr, chr_read,              chr_write && (chr_allow || vram_ce), chr_from_ppu,
                                memory_addr, memory_read_cpu, memory_read_ppu, memory_write, memory_dout);
+
+  assign memory_win = (chr_read || chr_write) ? chr_addr[12:10] : {1'b0, prg_addr[14:13]};
 
   always @* begin
     if (apu_cs) begin
