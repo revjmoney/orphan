@@ -376,6 +376,8 @@ def cyd_sender():
                 cyd_stats[0] = n / (time.time() - t0)
                 cyd_stats[3] = (time.process_time() - cpu0) * 100 / (time.time() - t0)
                 n, t0, cpu0 = 0, time.time(), time.process_time()
+        except cydlink.CydBusy:                # a video is on the CYD: wait for it to finish, try again
+            time.sleep(1)
         except OSError:
             kind, checked, link = 'rect', 0.0, None
             time.sleep(1)

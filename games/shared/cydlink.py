@@ -194,6 +194,10 @@ class CydLink:
         return len(data)
 
 
+class CydBusy(Exception):
+    """The CYD is showing a higher-priority stream (a video): try again later (not an error)."""
+
+
 class CydLinkUdp:
     """The same pictures over UDP 8093: the ESP32's TCP stops near 480 KB/s, its Wi-Fi takes about 1.8 MB/s of UDP.
 
@@ -203,8 +207,9 @@ class CydLinkUdp:
 
     PACKET = 1400
 
-    def __init__(self, host, port=8093, rate=1200000, timeout=0.08):
+    def __init__(self, host, port=8093, rate=1200000, timeout=0.08, priority=0):
         self.addr, self.rate, self.timeout = (host, port), rate, timeout
+        self.priority = priority              # 0 games, 1 video: a video holds the screen, games get CydBusy
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.settimeout(timeout)
         self.prev, self.layout, self.gen, self.pic = None, None, 0, 0
@@ -241,8 +246,18 @@ class CydLinkUdp:
         pkt = struct.pack('<BBH', MODE, self.gen, self.pic) + payload
         for _ in range(8):
             self.sock.sendto(pkt, self.addr)
-            if self._recv(b'M'):
-                return
+            end = time.perf_counter() + self.timeout
+            while time.perf_counter() < end:
+                try:
+                    self.sock.settimeout(max(0.001, end - time.perf_counter()))
+                    d, _ = self.sock.recvfrom(64)
+                except OSError:
+                    break
+                if len(d) >= 2 and d[1] == self.gen and d[:1] == b'M':
+                    return
+                if len(d) >= 2 and d[1] == self.gen and d[:1] == b'B':
+                    self.layout, self.prev = None, None
+                    raise CydBusy('the CYD is showing a video')
         raise OSError('the CYD does not answer on UDP')
 
     FLY = 3                                   # pictures that may wait for their answer at once
@@ -320,7 +335,8 @@ class CydLinkUdp:
         rows = encode_rows(img) if changed.any() else None
         self._collect()
         if not same or self.layout is None:
-            self._mode(struct.pack('<BBBBHHHHH', pb, scale, 1 if hud else 0, 0, w, h, x, y, len(pal) // 2) + pal)
+            self._mode(struct.pack('<BBBBHHHHH', pb, scale, 1 if hud else 0, self.priority, w, h, x, y, len(pal) // 2)
+                       + pal)
             self.layout, self.prev, self.stale = layout, None, None
             self.inflight.clear()
             changed = np.ones(h, dtype=bool)

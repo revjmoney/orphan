@@ -10,7 +10,7 @@ game stream (UDP 8093), shown 1.5x and centred. A picture that is late is skippe
   --size   160x120 (default, 240 x 180 on the CYD, smoothest) or 212x160 (318 x 240, full screen, more data)
   --via    send from an Orphan board (wired network, the ORPHAN games' cydlink.py there) instead of this PC
   --sound  play the sound on this PC (ffplay) while it plays
-Stop any Orphan game that streams to the same CYD first (ardzy stop on that board), they would take turns.
+An Orphan game streaming to the same CYD pauses its picture while the video plays and comes back about 2 s after.
 by JMSCNC, makers of RotatoCAM.
 """
 import argparse
@@ -44,7 +44,7 @@ def play(path, cyd, w, h, fps, rate):
     fs = w * h + 1024
     data = open(path, 'rb').read()
     n = len(data) // fs
-    link = cydlink.CydLinkUdp(cyd, rate=rate)
+    link = cydlink.CydLinkUdp(cyd, rate=rate, priority=1)   # holds the screen: Orphan games wait
     x, y = (320 - w * 3 // 2) // 2, (240 - h * 3 // 2) // 2
     t0, sent = time.perf_counter(), 0
     for i in range(n):

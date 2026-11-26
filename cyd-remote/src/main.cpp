@@ -360,7 +360,11 @@ static uint8_t gameGen=0;static uint16_t udpPic=0;static uint64_t udpGot=0;
 // taken off the network while core 1 is busy drawing (lwIP only queues a few, the rest were dropped).
 constexpr int UdpSlots=24,UdpSlotBytes=1472;
 uint8_t* udpRing=nullptr;uint16_t udpLen[UdpSlots];volatile uint32_t udpHead=0,udpTail=0;
-struct sockaddr_in udpFrom;volatile bool udpFromSet=false;
+struct sockaddr_in udpFrom,udpFromRing[UdpSlots];volatile bool udpFromSet=false;   // reply to who sent that packet
+// A video (priority 1 in MODE) holds the screen: a game's MODE (priority 0) is answered 'B' (busy) while the video
+// has sent anything in the last 2 s, so the games wait instead of taking turns with it.
+uint8_t ownerPri=0;uint32_t ownerSeen=0;struct sockaddr_in owner={};   // the sender that has the screen
+static bool fromOwner(){return udpFrom.sin_addr.s_addr==owner.sin_addr.s_addr && udpFrom.sin_port==owner.sin_port;}
 static void udpTask(void*){
  for(;;){
   // always take packets out of lwIP (its buffers are shared with TCP: left full, /status and /screen stall);
@@ -371,7 +375,7 @@ static void udpTask(void*){
   int n=recvfrom(udpSock,full?spill:udpRing+(udpHead%UdpSlots)*UdpSlotBytes,UdpSlotBytes,0,(struct sockaddr*)&from,&fl);
   if(n<=0){vTaskDelay(1);continue;}
   if(full){udpDropped++;continue;}
-  udpFrom=from;udpFromSet=true;udpLen[udpHead%UdpSlots]=n;__sync_synchronize();udpHead=udpHead+1;
+  udpFromRing[udpHead%UdpSlots]=from;udpFromSet=true;udpLen[udpHead%UdpSlots]=n;__sync_synchronize();udpHead=udpHead+1;
  }
 }
 void udpStart(){
@@ -389,20 +393,26 @@ void gameUdpStep(){
  for(int i=0;i<48;i++){
   if(udpTail==udpHead)break;
   uint8_t* pk=udpRing+(udpTail%UdpSlots)*UdpSlotBytes;int len=udpLen[udpTail%UdpSlots];
+  udpFrom=udpFromRing[udpTail%UdpSlots];
   struct Done{~Done(){__sync_synchronize();udpTail=udpTail+1;}} done;   // the slot is free again after this pass
   udpBytes+=len;udpPackets++;lastPkt=millis();
   if(len<4)continue;
   uint8_t type=pk[0],gen=pk[1];uint16_t pic=pk[2]|(pk[3]<<8);
   if(type==1){
+   uint8_t pri=len>7?pk[7]:0;
+   if(pri<ownerPri && millis()-ownerSeen<2000){uint8_t r[2]={'B',gen};udpReply(r,2);continue;}
    gameMem=pk+4;gameMemLeft=len-4;bool ok=gameModeMsg(len-4);gameMem=nullptr;
-   if(ok){gameGen=gen;udpPic=pic;udpGot=0;uint8_t r[2]={'M',gen};udpReply(r,2);}
+   if(ok){gameGen=gen;udpPic=pic;udpGot=0;ownerPri=pri;ownerSeen=millis();owner=udpFrom;uint8_t r[2]={'M',gen};udpReply(r,2);}
   }else if(type==2 && len>=5){
-   if(gen!=gameGen || !gameMode)continue;
+   if(gen!=gameGen || !gameMode || !fromOwner())continue;
+   ownerSeen=millis();
    if(pic!=udpPic){udpPic=pic;udpGot=0;}
    if(!gameFrameStart)gameFrameStart=millis();
    gameMem=pk+5;gameMemLeft=len-5;bool ok=gameRows(len-5);gameMem=nullptr;
    if(ok)udpGot|=1ULL<<(pk[4]&63);
   }else if(type==3 && len>=5){
+   if(gen!=gameGen || !fromOwner())continue;        // an END from a sender that no longer has the screen
+   ownerSeen=millis();
    // the last few pictures' answers: an END sent again (the board does when an answer is late) gets the same
    // answer and changes nothing else (the board may already be sending the next picture)
    static uint16_t endPic[4]={0xFFFF,0xFFFF,0xFFFF,0xFFFF};static uint8_t endGen[4];static uint64_t endGot[4];static int endN=0;
