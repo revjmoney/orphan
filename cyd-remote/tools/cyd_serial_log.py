@@ -3,7 +3,7 @@
 """Keep the ORPHAN Remote's (CYD) USB serial output in a file, one timestamped line each, reopening the port if
 it goes away (a reset, a reflash). The firmware prints a heartbeat every 5 s ("HB up=... age8091=..."), so after a
 hang this file shows whether the loop still ran.
-  py -3 tools/cyd_serial_log.py [COM21] [F:/backups/cyd-serial.log]
+  py -3 tools/cyd_serial_log.py [COM21] [cyd-serial.log]
 Opening the port does not reset the CYD (DTR and RTS are left released). by JMSCNC, makers of RotatoCAM.
 """
 import sys
@@ -12,7 +12,7 @@ import time
 import serial
 
 port = sys.argv[1] if len(sys.argv) > 1 else 'COM21'
-path = sys.argv[2] if len(sys.argv) > 2 else r'F:\backups\cyd-serial.log'
+path = sys.argv[2] if len(sys.argv) > 2 else 'cyd-serial.log'
 
 while True:
     try:
