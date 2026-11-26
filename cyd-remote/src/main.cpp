@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <esp_task_wdt.h>
 #include <Preferences.h>
 #include <ArduinoJson.h>
 #include <ESPmDNS.h>
@@ -23,6 +24,7 @@ String target="http://orphan.local:8090";
 const char* views[]={"system","mining","projects","radio","synth"};
 int view=0;
 uint32_t lastPoll=0,lastTouch=0,lastFrame=0;
+uint32_t acceptAt[3]={0,0,0},loopCount=0,heartbeatAt=0;   // last connection taken on 80 / 8091 / 8092; serial heartbeat
 uint32_t frameCount=0,frameTransferMs=0;
 float frameFps=0;
 bool hudOn=true;     // last frame's hud= flag: hud=0 keeps the temp/FPS box off, also on the 5 s timer
@@ -187,6 +189,7 @@ bool drawDoubled(WiFiClient& c,int x,int y,int w,int h,bool smooth){
 }
 void frame(){
  WiFiClient c=graphics.available();if(c.fd()<0)return;c.setTimeout(1); // WiFiClient takes seconds
+ acceptAt[1]=millis();
  uint32_t begin=millis();
  String line=c.readStringUntil('\n');int x=queryInt(line,"x",0),y=queryInt(line,"y",0),w=queryInt(line,"w",320),h=queryInt(line,"h",240),scale=queryInt(line,"scale",1);
  size_t length=0;
@@ -341,6 +344,7 @@ void gameStream(){
  }
  WiFiClient n=gameServer.available();
  if(n){
+  acceptAt[2]=millis();
   int slot=-1;for(int i=0;i<GameLanes;i++)if(!gameLane[i].connected()){slot=i;break;}
   if(slot<0)n.stop();
   else{gameLane[slot].stop();gameLane[slot]=n;gameLane[slot].setNoDelay(true);}
@@ -449,6 +453,7 @@ String decodeForm(String value){
 uint8_t spiMhz=40;                      // panel SPI clock: 40 (safe) or 80 MHz, POST /spi to change (restarts)
 void controlRequest(){
  WiFiClient c=control.available();if(c.fd()<0)return;c.setTimeout(1); // WiFiClient takes seconds
+ acceptAt[0]=millis();
  String request=c.readStringUntil('\n');int length=0;
  for(int n=0;n<30;n++){String header=c.readStringUntil('\n');header.trim();if(!header.length())break;header.toLowerCase();if(header.startsWith("content-length:"))length=header.substring(15).toInt();}
  String body,type="text/plain";int status=200;
@@ -509,8 +514,22 @@ void setup(){
  Serial.printf("Orphan Remote: WiFi %s; IP %s\n",connected?"connected":"not connected",WiFi.localIP().toString().c_str());
  if(connected)MDNS.begin("orphan-remote");
  control.begin();control.setNoDelay(true);graphics.begin();graphics.setNoDelay(true);gameServer.begin();gameServer.setNoDelay(true);udpStart();scene();lastPoll=millis();
+ // a loop that stops for 20 s restarts the CYD (it once kept answering ping but no TCP); the reason prints at boot
+ esp_task_wdt_init(20,true);enableLoopWDT();
+ Serial.printf("boot: reset reason %d (1 power on, 3 software, 4 panic, 5 interrupt wdt, 6 task wdt)\n",(int)esp_reset_reason());
+}
+// every 5 s on the USB serial line: if the CYD ever stops answering TCP again, this shows whether the loop still ran
+void heartbeat(){
+ uint32_t now=millis();loopCount++;
+ if(now-heartbeatAt<5000)return;
+ auto age=[&](uint32_t t){return t?(long)((now-t)/1000):-1L;};
+ Serial.printf("HB up=%lus heap=%u min=%u loops=%lu frames=%lu age80=%lds age8091=%lds age8092=%lds udp=%lu wifi=%d rssi=%d\n",
+  (unsigned long)(now/1000),(unsigned)ESP.getFreeHeap(),(unsigned)ESP.getMinFreeHeap(),(unsigned long)loopCount,(unsigned long)frameCount,
+  age(acceptAt[0]),age(acceptAt[1]),age(acceptAt[2]),(unsigned long)udpPackets,(int)WiFi.status(),(int)WiFi.RSSI());
+ heartbeatAt=now;loopCount=0;
 }
 void loop(){
+ heartbeat();
  controlRequest();frame();gameStream();
  gameUdpStep();
  int x,y;
