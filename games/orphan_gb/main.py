@@ -1,4 +1,4 @@
-# Orphan Games: the ARM side of the FPGA game consoles (NES, Game Boy, Master System, Game Gear). by JMSCNC, makers of RotatoCAM. GPL-2.0-or-later.
+# Orphan Games: the ARM side of the FPGA game consoles (NES, Game Boy, Master System, Game Gear, Atari 2600). by JMSCNC, makers of RotatoCAM. GPL-2.0-or-later.
 #
 #   Web page + WebSocket on port 8000: game list, the picture, sound, keyboard / gamepad
 #   raw s16le mono sound (47.95 kHz) on TCP 8001 for ffplay
@@ -7,7 +7,7 @@
 #   (or /etc/orphan/nespads) picks other connectors, ORPHAN_NES_PADS=off turns them off. Wiring: orphan_nespad.v
 #   DISCONNECT EVERY HASHBOARD before using real pads. ORPHAN_NES_PADS_NEVER=6,7 (or /etc/orphan/nespads-never) is an
 #   optional extra: connectors that are never driven or read (default: none)
-# Games: /opt/orphan-games/roms/<nes|gb|sms> (free homebrew only, see the README). The loaded FPGA design says which.
+# Games: /opt/orphan-games/roms/<nes|gb|sms|a26> (free homebrew only, see the README). The loaded FPGA design says which.
 import array
 import multiprocessing
 import atexit
@@ -33,6 +33,8 @@ from blocks import Bus, require
 import gbrom
 import cydlink
 from cydlink import RGB565, GB565, SMS565, GG565
+import a26pal
+import a26rom
 import nesrom
 import smsrom
 
@@ -48,6 +50,9 @@ SYSTEMS = {
     # Master System (256 x 192, 5 px of 6 bits) and Game Gear (160 x 144, 2 px of 12 bits): one design, CTRL bit 2
     'SMS1': {'name': 'Master System / Game Gear', 'dir': 'sms', 'ext': '.sms .gg', 'w': 256, 'h': 192,
              'words': 9831, 'stereo': True, 'audio_hz': 100e6 * 11.75 / 21.875 / 1119},
+    # Atari 2600: 160 x 240 lines kept from YSTART (register 14), 4 pixels of 8 bits (TIA colour 0..127) per word
+    'A261': {'name': 'Atari 2600', 'dir': 'a26', 'ext': '.bin .a26', 'w': 160, 'h': 240, 'words': 9600,
+             'stereo': True, 'audio_hz': 100e6 * 9.875 / 34.5 / 8 / 74},
 }
 
 try:                                           # every Orphan design assumes a 100 MHz FPGA clock
@@ -62,13 +67,13 @@ W = lambda i, v: bus.wr(SLOT, i, v)    # noqa: E731
 R = lambda i: bus.rd(SLOT, i)          # noqa: E731
 SYS_ID = R(7).to_bytes(4, 'big').decode('ascii', 'replace')
 if SYS_ID not in SYSTEMS:
-    raise SystemExit('The FPGA holds no Orphan Games console (found %r). Load orphan_nes, orphan_gb or orphan_sms first.' % SYS_ID)
+    raise SystemExit('The FPGA holds no Orphan Games console (found %r). Load orphan_nes, orphan_gb, orphan_sms or orphan_a26 first.' % SYS_ID)
 SYS = SYSTEMS[SYS_ID]
 ROMS = os.environ.get('ORPHAN_ROMS', '/opt/orphan-games/roms/' + SYS['dir'])
 FB_WORDS = SYS['words']
 RUN = 1                                        # CTRL value while running (+4 = Game Gear mode)
-HW_PAD_DESIGNS = ('NES1', 'GB01')               # designs with orphan_nespad (real NES pads on J1..J9)
-SUB = {'NES1': 0, 'GB01': 1, 'SMS1': 2}[SYS_ID]  # picture type in the WebSocket frame (3 = Game Gear)
+HW_PAD_DESIGNS = ('NES1', 'GB01', 'A261')               # designs with orphan_nespad (real NES pads on J1..J9)
+SUB = {'NES1': 0, 'GB01': 1, 'SMS1': 2, 'A261': 4}[SYS_ID]  # picture type in the WebSocket frame (3 = Game Gear)
 AUDIO_HZ = SYS['audio_hz']
 WBASE = (bus.m._off >> 2) + SLOT * 1024        # word index of the slot in Ardzy's mapped view
 lock = threading.RLock()
@@ -101,6 +106,10 @@ def load(name):
             cart = smsrom.parse(open(path, 'rb').read(), name)
             reg2, parts = cart['cart'], ((0x00000, cart['rom']),)
             info = '%s, ROM %d KB' % ('Game Gear' if cart['gg'] else 'Master System', cart['kb'])
+        elif SYS_ID == 'A261':
+            cart = a26rom.parse(open(path, 'rb').read(), name)
+            reg2, parts = cart['cart'], ((0x00000, cart['rom']),)
+            info = '%s, ROM %d KB' % (cart['scheme'], cart['kb'])
         elif SYS_ID == 'GB01':
             cart = gbrom.parse(open(path, 'rb').read())
             reg2, parts = cart['cart'], ((0x00000, cart['rom']),)
@@ -132,6 +141,8 @@ def load(name):
             RUN, SUB = (5, 3) if cart['gg'] else (1, 2)
             FB_WORDS = 11520 if cart['gg'] else 9831
             SYS.update(w=160 if cart['gg'] else 256, h=144 if cart['gg'] else 192)
+        if SYS_ID == 'A261':
+            W(13, 0)                           # colour TV, both difficulty switches on B (the usual setting)
         W(1, 0)
         W(0, RUN)                              # run
     state.update(game=name, running=True, error='')
@@ -297,6 +308,7 @@ def cyd_process_start():
         cyd_on = True
 
 
+A26565 = np.array([((v >> 19) << 11) | ((v >> 10 & 63) << 5) | (v >> 3 & 31) for v in a26pal.NTSC], dtype='<u2')
 SH_GB = np.arange(0, 32, 2, dtype=np.uint32)        # bit offsets of the pixels inside one frame buffer word
 SH_GG = np.array([0, 12], dtype=np.uint32)
 SH_6 = np.arange(0, 30, 6, dtype=np.uint32)
@@ -305,6 +317,8 @@ SH_6 = np.arange(0, 30, 6, dtype=np.uint32)
 def cyd_layout(fb):
     """The picture as the CYD game stream wants it: (image, scale, x, y, palette). Game Boy and Game Gear are
     shown 1.5x (240 x 216, in-between pixels blended), NES and Master System 1:1."""
+    if SYS_ID == 'A261':                       # 160 x 240 (the CYD stream takes rows up to 256 wide): 1:1, centred
+        return np.frombuffer(fb, dtype=np.uint8)[:160 * 240].reshape(240, 160), 0, 80, 0, A26565
     w = np.frombuffer(fb, dtype=np.uint32)[:, None]
     if SYS_ID == 'GB01':
         px = ((w >> SH_GB) & 3).astype(np.uint8).reshape(-1)[:160 * 144]
