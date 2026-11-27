@@ -28,7 +28,8 @@ for b in $BOARDS; do
 	tar -C "$SD" $EXCL -cf - orphan_synth | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
 	GD=$REPO/games; [ -d "$GD" ] || GD=$REPO/games-work
 	TD=$REPO/toys; [ -d "$TD" ] || TD=$REPO/toys-work
-	tar -C "$GD" $EXCL -cf - orphan_nes orphan_gb orphan_sms | ssh root@$b 'tar -xf - -C /opt/ardzy/projects && mkdir -p /opt/orphan-games/roms/nes /opt/orphan-games/roms/gb /opt/orphan-games/roms/sms'
+	GAMES=$(cd "$GD" && echo orphan_*)		# every Orphan Games core this tree has
+	tar -C "$GD" $EXCL -cf - $GAMES | ssh root@$b 'tar -xf - -C /opt/ardzy/projects && mkdir -p /opt/orphan-games/roms/nes /opt/orphan-games/roms/gb /opt/orphan-games/roms/sms /opt/orphan-games/roms/a26 /opt/orphan-games/roms/a2/system /opt/orphan-games/roms/pce /opt/orphan-games/roms/a78 /opt/orphan-games/roms/c64/system && echo "   games cores: $(ls -d /opt/ardzy/projects/orphan_[a-z]* | grep -cE "orphan_(nes|gb|sms|a26|a2|pce|a78|c64)$")"'
 	tar -C "$TD" $EXCL -cf - orphan_toys | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
 	MD=$REPO/miners; [ -d "$MD" ] || MD=$REPO/miners-work
 	tar -C "$MD" $EXCL --exclude=settings.local.json --exclude=devfee.local.json -cf - orphan_btc | ssh root@$b 'tar -xf - -C /opt/ardzy/projects'
