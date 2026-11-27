@@ -1,23 +1,23 @@
 {
  "orphan_a26.bit": {
   "board": "s9",
-  "sha256": "888a4191f7a5d5ab849ca59f22b53a2db3ad6edc1d542f1369bb1e1c97056d30",
-  "date": "2026-11-26 14:44",
+  "sha256": "1c04629d29a48801532655a2d7cafa298d2aafe40efe2c99be4c7041cd292b55",
+  "date": "2026-11-26 19:07",
   "report": {
    "board": "s9",
    "board_name": "Antminer S9",
    "part": "xc7z010clg400-1",
    "top": "top",
-   "seconds": 334,
-   "date": "2026-11-26 14:44",
+   "seconds": 529,
+   "date": "2026-11-26 19:07",
    "used": {
-    "LUT": 3641,
-    "FF": 2531,
-    "BRAM": 21,
+    "LUT": 3912,
+    "FF": 2547,
+    "BRAM": 30,
     "DSP": 3,
     "LUT_RAM": 8,
     "SRL": 1,
-    "CARRY": 539,
+    "CARRY": 547,
     "BUFG": 4,
     "MMCM_PLL": 1
    },
@@ -31,18 +31,18 @@
    "pins": 47,
    "clocks": {
     "u_a26.c28": {
-     "fmax": 263.78,
+     "fmax": 258.93,
      "need": 28.65,
      "pass": true
     },
-    "u_a26.tclk": {
-     "fmax": 26.38,
-     "need": 3.58,
+    "clk": {
+     "fmax": 123.59,
+     "need": 100.0,
      "pass": true
     },
-    "clk": {
-     "fmax": 129.32,
-     "need": 100.0,
+    "u_a26.tclk": {
+     "fmax": 25.2,
+     "need": 3.58,
      "pass": true
     }
    },
@@ -52,44 +52,17 @@
     {
      "clock": "u_a26.c28",
      "cross": false,
-     "start": "u_a26.up_step[2]",
-     "end": "u_a26.up_we",
-     "delay": 3.79,
-     "levels": 1,
-     "logic_ns": 1.03,
-     "route_ns": 2.76,
+     "start": "u_a26.up_wa[0]",
+     "end": "u_a26.up_wa[0]",
+     "delay": 3.86,
+     "levels": 6,
+     "logic_ns": 1.69,
+     "route_ns": 2.17,
      "steps": [
       {
-       "net": "u_a26.up_step[2]",
-       "ns": 0.78,
-       "src": "orphan_a26_block.v:113"
-      },
-      {
-       "net": "u_a26.up_we",
-       "ns": 1.98,
-       "src": "orphan_a26_block.v:124"
-      }
-     ]
-    },
-    {
-     "clock": "u_a26.tclk",
-     "cross": false,
-     "start": "u_a26.u_a26.dpcclocks[1]",
-     "end": "u_a26.u_a26.n1065_o",
-     "delay": 37.91,
-     "levels": 84,
-     "logic_ns": 18.18,
-     "route_ns": 19.67,
-     "steps": [
-      {
-       "net": "u_a26.u_a26.dpcclocks[1]",
-       "ns": 1.57,
-       "src": "A2601top_ghdl.v:18229"
-      },
-      {
-       "net": "u_a26.u_a26.n1065_o",
-       "ns": 0.02,
-       "src": "A2601top_ghdl.v:18185"
+       "net": "u_a26.up_wa[0]",
+       "ns": 1.02,
+       "src": "orphan_a26_block.v:117"
       }
      ]
     },
@@ -97,55 +70,72 @@
      "clock": "clk",
      "cross": false,
      "start": "u_a26.fr_b[15]",
-     "end": "u_a26 (logic)",
-     "delay": 7.73,
-     "levels": 15,
-     "logic_ns": 2.49,
-     "route_ns": 5.22,
+     "end": "u_a26.fr_b[15]",
+     "delay": 8.09,
+     "levels": 14,
+     "logic_ns": 2.31,
+     "route_ns": 5.75,
      "steps": [
       {
        "net": "u_a26.fr_b[15]",
-       "ns": 0.33,
-       "src": "orphan_a26_block.v:202"
+       "ns": 0.49,
+       "src": "orphan_a26_block.v:204"
+      }
+     ]
+    },
+    {
+     "clock": "u_a26.tclk",
+     "cross": false,
+     "start": "u_a26.u_a26.dpctops[16]",
+     "end": "u_a26.u_a26.n1051_o",
+     "delay": 39.69,
+     "levels": 79,
+     "logic_ns": 18.12,
+     "route_ns": 21.5,
+     "steps": [
+      {
+       "net": "u_a26.u_a26.dpctops[16]",
+       "ns": 1.69,
+       "src": "A2601top_ghdl.v:18464"
       },
       {
-       "net": "u_a26 (logic)",
+       "net": "u_a26.u_a26.n1051_o",
        "ns": 0.02,
-       "src": ""
+       "src": "A2601top_ghdl.v:18185"
       }
      ]
     },
     {
      "clock": "posedge clk -> posedge u_a26.c28",
      "cross": true,
-     "start": "u_a26.up_data[5]",
-     "end": "u_a26.up_data[5]",
-     "delay": 1.34,
-     "levels": 1,
-     "logic_ns": 0.6,
-     "route_ns": 0.74,
+     "start": "u_a26.up_data[31]",
+     "end": "u_a26.up_data[31]",
+     "delay": 1.37,
+     "levels": 0,
+     "logic_ns": 0.45,
+     "route_ns": 0.92,
      "steps": [
       {
-       "net": "u_a26.up_data[5]",
-       "ns": 0.72,
-       "src": "orphan_a26_block.v:71"
+       "net": "u_a26.up_data[31]",
+       "ns": 0.92,
+       "src": "orphan_a26_block.v:73"
       }
      ]
     },
     {
      "clock": "posedge clk -> posedge u_a26.tclk",
      "cross": true,
-     "start": "u_a26.ctrl[1]",
-     "end": "u_a26.ctrl[1]",
-     "delay": 1.32,
+     "start": "u_a26.pads_all[4]",
+     "end": "u_a26.pads_all[4]",
+     "delay": 1.86,
      "levels": 0,
      "logic_ns": 0.45,
-     "route_ns": 0.87,
+     "route_ns": 1.41,
      "steps": [
       {
-       "net": "u_a26.ctrl[1]",
-       "ns": 0.87,
-       "src": "orphan_a26_block.v:65"
+       "net": "u_a26.pads_all[4]",
+       "ns": 1.41,
+       "src": "orphan_a26_block.v:78"
       }
      ]
     },
@@ -154,15 +144,15 @@
      "cross": true,
      "start": "u_a26.up_ack",
      "end": "u_a26.up_ack",
-     "delay": 0.84,
+     "delay": 0.85,
      "levels": 0,
      "logic_ns": 0.45,
-     "route_ns": 0.39,
+     "route_ns": 0.4,
      "steps": [
       {
        "net": "u_a26.up_ack",
-       "ns": 0.39,
-       "src": "orphan_a26_block.v:116"
+       "ns": 0.4,
+       "src": "orphan_a26_block.v:118"
       }
      ]
     },
@@ -171,20 +161,15 @@
      "cross": true,
      "start": "lvl[7]",
      "end": "lvl[7]",
-     "delay": 5.41,
+     "delay": 7.16,
      "levels": 7,
-     "logic_ns": 1.82,
-     "route_ns": 3.58,
+     "logic_ns": 1.76,
+     "route_ns": 5.38,
      "steps": [
       {
        "net": "lvl[7]",
-       "ns": 0.31,
+       "ns": 0.98,
        "src": "orphan_leds.v:23"
-      },
-      {
-       "net": "(logic)",
-       "ns": 0.02,
-       "src": "orphan_leds.v:96"
       }
      ]
     }
