@@ -150,7 +150,7 @@ class CydLink:
         self.sock, self.prev, self.layout = s, None, None
 
     def send(self, img, scale=0, x=0, y=0, palette=None, hud=False):
-        """img: (h, w) uint8 indices into palette (list/array of RGB565) or uint16 RGB565. scale 0 = 1x, 1 = 1.5x.
+        """img: (h, w) uint8 indices into palette (list/array of RGB565) or uint16 RGB565. scale 0 = 1x, 1 = 1.5x, 2 = 2x wide 1x tall (CYD firmware with "wide2" in /status).
         Returns the bytes sent for this picture. Raises OSError if the CYD is gone (the next call reconnects)."""
         if self.sock is None:
             self._connect()
@@ -165,7 +165,7 @@ class CydLink:
             changed = np.ones(h, dtype=bool)
         else:
             changed = (img != self.prev).any(axis=1)
-        if scale:                                       # 1.5x draws row pairs: send whole pairs
+        if scale == 1:                                  # 1.5x draws row pairs: send whole pairs
             pair = changed.reshape(-1, 2).any(axis=1)
             changed = np.repeat(pair, 2)
         idx = np.flatnonzero(changed)
@@ -175,7 +175,7 @@ class CydLink:
             for grp in np.split(idx, cut):
                 for b0 in range(0, grp.size, ROWS_PER_BLOCK):
                     r0, r1 = int(grp[b0]), int(grp[min(b0 + ROWS_PER_BLOCK, grp.size) - 1]) + 1
-                    if scale and (r1 - r0) & 1:
+                    if scale == 1 and (r1 - r0) & 1:
                         r1 += 1
                     body = b''.join(encode_rows(img[r0:r1]))
                     parts.append(_msg(ROWS, struct.pack('<HH', r0, r1 - r0) + body))
@@ -329,7 +329,7 @@ class CydLinkUdp:
         pb = img.dtype.itemsize
         pal = b'' if palette is None else np.asarray(palette, dtype='<u2').tobytes()
         layout = (pb, scale, w, h, x, y, pal, hud)
-        unit = 2 if scale else 1                       # rows that must travel together
+        unit = 2 if scale == 1 else 1                  # rows that must travel together
         same = layout == self.layout and self.prev is not None and self.prev.shape == img.shape
         changed = (img != self.prev).any(axis=1) if same else np.ones(h, dtype=bool)
         rows = encode_rows(img) if changed.any() else None
@@ -343,7 +343,7 @@ class CydLinkUdp:
         if self.stale is not None and self.stale.shape == changed.shape:
             changed = changed | self.stale
         self.stale = None
-        if scale:
+        if scale == 1:
             changed = np.repeat(changed.reshape(-1, 2).any(axis=1), 2)
         if rows is None and changed.any():
             rows = encode_rows(img)
