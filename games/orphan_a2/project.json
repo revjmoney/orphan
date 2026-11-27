@@ -1,0 +1,15 @@
+{
+  "id": "A2E1",
+  "title": "Orphan Games: Apple IIe in the FPGA",
+  "category": "Games",
+  "level": "easy",
+  "summary": "An enhanced Apple IIe rebuilt in the FPGA (apple2fpga by Stephen A. Edwards with the //e work by Gyorgy Szombathelyi, from MiSTer's Apple-II core; T65 CPU in 65C02 mode): 64K + 64K aux RAM, text, lo-res, hi-res and double hi-res, the speaker, a Disk II drive fed with .dsk / .do / .po / .nib images (read-only for now). Apple's ROMs are NOT included: put your own apple2e.rom (16 KB) and diskii.rom (256 bytes) in /opt/orphan-games/roms/a2/system (video.rom is optional: without it Orphan's own character set is used). Play in the browser (the PC keyboard types, a USB gamepad is the joystick) or on an ORPHAN Remote (CYD) screen. Real NES pads on the hashboard connectors work as the joystick (paddles 0/1, A and B = buttons 0/1), through the same small 3.3 V adapter as the NES; disconnect every hashboard first. by JMSCNC, makers of RotatoCAM.",
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "Apple IIe (ROMs, RAM, Disk II track buffer, frame buffer, sound, keyboard, joystick, real NES pads on J1..J9)",
+    "14": "LEDs (orphan_leds)",
+    "15": "Fan (orphan_fan)"
+  },
+  "runs": "fpga core"
+}
