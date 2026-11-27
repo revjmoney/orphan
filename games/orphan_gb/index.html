@@ -354,7 +354,7 @@ function connect() {
       if (!m.state && !m.games) { showHw(); return; }            // a pad status update only
       if (m.games) games = m.games; if (m.audio_hz) rate = Math.round(m.audio_hz);
       if (m.system) { sysInfo = m; $('sysname').textContent = '[orphan] · ' + m.system + ' in the FPGA, free homebrew'; setScreen(m.w, m.h); }
-      if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? st.game.replace(/\.(nes|gb|sms|gg|bin|a26)$/i, '') : 'No game loaded';
+      if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? (st.attract ? 'Demo: ' : '') + st.game.replace(/\.(nes|gb|sms|gg|bin|a26)$/i, '') : 'No game loaded';
         $('pause').textContent = st.running === false ? 'Resume' : 'Pause'; }
       showList(); showHw(); return; }
     const type = new DataView(ev.data).getInt16(0, true);

@@ -107,7 +107,7 @@ void sceneError(const char* message){
 void scene(){
  if(WiFi.status()!=WL_CONNECTED){sceneError("WiFi disconnected. Reconnecting...");return;}
  if(!targetIsIp()){sceneError("Looking for the Orphan board...");return;}
- HTTPClient h;h.setConnectTimeout(400);h.setTimeout(550);
+ HTTPClient h;h.setConnectTimeout(online?400:250);h.setTimeout(550);
  h.begin(target+"/api/display?tiles=1&view="+views[view]);int status=h.GET();
  if(status!=200){h.end();sceneError("Waiting for S9 display service...");return;}
  if(selIp)selSeen=millis();                          // the views ask the picked board: it is alive
@@ -149,9 +149,11 @@ void scene(){
 // Rectangle packets: POST /rect?x=N&y=N&w=N&h=N HTTP/1.1, little-endian RGB565 rows.
 // Scale 2 expands source pixels on the CYD. Small strips keep memory bounded.
 // WiFiClient::readBytes falls back to Stream's byte-at-a-time reads (about 300 KB/s); read in bulk instead.
+uint32_t rectDeadline=0;     // a whole /rect picture must arrive in 2.5 s: a sender trickling bytes held the loop 10 s+
 bool readFull(WiFiClient& c,void* dst,size_t n,uint32_t timeoutMs=1000){
  uint8_t* p=(uint8_t*)dst;uint32_t last=millis();
  while(n){
+  if(rectDeadline && (int32_t)(millis()-rectDeadline)>0)return false;
   int a=c.available();
   if(a>0){int got=c.read(p,min((size_t)a,n));if(got>0){p+=got;n-=got;last=millis();continue;}}
   if(!c.connected() && c.available()<=0)return false;
@@ -196,15 +198,19 @@ bool drawDoubled(WiFiClient& c,int x,int y,int w,int h,bool smooth){
  }
  return true;
 }
+bool otherBoard(WiFiClient& c);
 void frame(){
  WiFiClient c=graphics.available();if(c.fd()<0)return;c.setTimeout(1); // WiFiClient takes seconds
+ if(otherBoard(c)){c.print("HTTP/1.1 503 Busy\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");c.stop();return;}
  acceptAt[1]=millis();
  uint32_t begin=millis();
  String line=c.readStringUntil('\n');int x=queryInt(line,"x",0),y=queryInt(line,"y",0),w=queryInt(line,"w",320),h=queryInt(line,"h",240),scale=queryInt(line,"scale",1);
  size_t length=0;
  while(c.fd()>=0 && millis()-begin<1500){String header=c.readStringUntil('\n');header.trim();if(!header.length())break;header.toLowerCase();if(header.startsWith("content-length:"))length=header.substring(15).toInt();}
  if(!line.startsWith("POST /rect") || (scale!=1 && scale!=2) || x<0 || x>=320 || y<0 || y>=240 || w<1 || h<1 || w>(320-x)/scale || h>(240-y)/scale || length!=(size_t)w*h*2){c.print("HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");c.stop();return;}
+ rectDeadline=begin+2500;
  bool ok=scale==2?drawDoubled(c,x,y,w,h,queryInt(line,"smooth",0)):drawNative(c,x,y,w,h);
+ rectDeadline=0;
  if(ok){
   uint32_t now=millis();float fps=lastFrame?1000.0f/(now-lastFrame):0;
   frameFps=frameFps>0?frameFps*.7f+fps*.3f:fps;
@@ -367,7 +373,7 @@ void gameStream(){
  if(n){
   acceptAt[2]=millis();
   int slot=-1;for(int i=0;i<GameLanes;i++)if(!gameLane[i].connected()){slot=i;break;}
-  if(slot<0)n.stop();
+  if(slot<0 || otherBoard(n))n.stop();
   else{gameLane[slot].stop();gameLane[slot]=n;gameLane[slot].setNoDelay(true);}
  }
  for(int i=0;i<GameLanes;i++)if(gameLane[i].connected())gameLaneStep(i);
@@ -424,6 +430,7 @@ struct OrphanBoard{uint32_t ip;char name[20];uint32_t seen;};
 constexpr int MaxBoards=8;
 OrphanBoard boards[MaxBoards];int nBoards=0;
 uint32_t selIp=0,selSeen=0;                 // the picked board (network byte order), last heard
+uint32_t busySent=0,modesTaken=0;            // MODEs answered 'B' because another board is picked / MODEs taken
 portMUX_TYPE boardsMux=portMUX_INITIALIZER_UNLOCKED;
 String toastText;uint32_t toastUntil=0;bool toastShown=false,forceFullPicture=false;
 static void boardSeen(uint32_t ip,const char* name){
@@ -436,16 +443,37 @@ static void boardSeen(uint32_t ip,const char* name){
  portEXIT_CRITICAL(&boardsMux);
 }
 static bool selAlive(){return selIp && millis()-selSeen<10000;}
+bool otherBoard(WiFiClient& c){return selAlive() && (uint32_t)c.remoteIP()!=selIp;}   // a picked board is alive, c is not it
+// One mDNS sweep at boot and one each time a double tap finds fewer than two boards: never a steady stream of
+// queries (with the game picture in memory the heap is tight; an mDNS packet that could not be allocated crashed
+// the CYD, and the network stopped answering after it).
+TaskHandle_t discoverHandle=nullptr;
+volatile bool discovering=false;
 static void discoverTask(void*){
  static const char* names[]={"orphan","orphan-2","orphan-3","orphan-4","orphan-5","orphan-6","orphan-7","orphan-8","orphan-9"};
- for(int k=0;;k=(k+1)%9){
+ for(;;){
+  discovering=true;
   String host;
-  if(WiFi.status()==WL_CONNECTED && !targetHost(host) && !resolvedTargetIp){       // a saved name: find its IP first
+  if(WiFi.status()==WL_CONNECTED && !targetHost(host)){                    // a saved name: find its IP first
    if(host.endsWith(".local"))host=host.substring(0,host.length()-6);
    IPAddress a=MDNS.queryHost(host,1500);if((uint32_t)a){boardSeen((uint32_t)a,host.c_str());resolvedTargetIp=(uint32_t)a;}
   }
-  if(WiFi.status()==WL_CONNECTED){IPAddress a=MDNS.queryHost(names[k],800);if((uint32_t)a)boardSeen((uint32_t)a,names[k]);}
-  vTaskDelay(pdMS_TO_TICKS(1500));
+  for(int k=0;k<9;k++){
+   if(WiFi.status()!=WL_CONNECTED || heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)<8192)break;   // never when memory is short
+   IPAddress a=MDNS.queryHost(names[k],600);if((uint32_t)a)boardSeen((uint32_t)a,names[k]);
+   vTaskDelay(pdMS_TO_TICKS(200));
+  }
+  discovering=false;
+  // until the next sweep request: every 3 s see whether the picked board's display service answers (a plain TCP
+  // connect, here on core 0: the picked board counts as alive whatever the screen shows)
+  while(!ulTaskNotifyTake(pdTRUE,pdMS_TO_TICKS(3000))){
+   uint32_t ip=selIp;if(!ip || WiFi.status()!=WL_CONNECTED)continue;
+   int fd=socket(AF_INET,SOCK_STREAM,0);if(fd<0)continue;
+   struct timeval tv={0,600000};setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
+   struct sockaddr_in a={};a.sin_family=AF_INET;a.sin_port=htons(8090);a.sin_addr.s_addr=ip;
+   if(connect(fd,(struct sockaddr*)&a,sizeof(a))==0 && ip==selIp)selSeen=millis();
+   close(fd);
+  }
  }
 }
 static void showToast(const String& t){toastText=t;toastUntil=millis()+2500;toastShown=false;}
@@ -471,6 +499,7 @@ void selectBoard(uint32_t ip){
  Serial.printf("board picked: %s %s\n",name,a.toString().c_str());
 }
 void nextBoard(){
+ if(nBoards<2 && discoverHandle && !discovering)xTaskNotifyGive(discoverHandle);   // look for more boards too
  uint32_t best=0,first=0,cur=selIp?ntohl(selIp):0;
  portENTER_CRITICAL(&boardsMux);
  for(int i=0;i<nBoards;i++){uint32_t h=ntohl(boards[i].ip);
@@ -478,7 +507,7 @@ void nextBoard(){
   if(h>cur && (!best || h<ntohl(best)))best=boards[i].ip;}
  portEXIT_CRITICAL(&boardsMux);
  if(!best)best=first;
- if(!best){showToast("NO ORPHAN BOARDS FOUND YET");return;}
+ if(!best){showToast("NO ORPHAN BOARDS FOUND YET, LOOKING...");if(discoverHandle && !discovering)xTaskNotifyGive(discoverHandle);return;}
  selectBoard(best);
 }
 String boardsJson(){
@@ -528,10 +557,10 @@ void gameUdpStep(){
    uint8_t pri=len>7?pk[7]:0;
    if(pri==0)boardSeen(udpFrom.sin_addr.s_addr,nullptr);
    // a game from a board that is not the picked one waits (its sender asks again every second)
-   if(pri==0 && selAlive() && udpFrom.sin_addr.s_addr!=selIp){uint8_t r[2]={'B',gen};udpReply(r,2);continue;}
+   if(pri==0 && selAlive() && udpFrom.sin_addr.s_addr!=selIp){busySent++;uint8_t r[2]={'B',gen};udpReply(r,2);continue;}
    if(pri<ownerPri && millis()-ownerSeen<2000){uint8_t r[2]={'B',gen};udpReply(r,2);continue;}
    gameMem=pk+4;gameMemLeft=len-4;bool ok=gameModeMsg(len-4);gameMem=nullptr;
-   if(ok){gameGen=gen;udpPic=pic;udpGot=0;ownerPri=pri;ownerSeen=millis();owner=udpFrom;uint8_t r[2]={'M',gen};udpReply(r,2);}
+   if(ok){modesTaken++;gameGen=gen;udpPic=pic;udpGot=0;ownerPri=pri;ownerSeen=millis();owner=udpFrom;uint8_t r[2]={'M',gen};udpReply(r,2);}
   }else if(type==2 && len>=5){
    if(gen!=gameGen || !gameMode || !fromOwner())continue;
    ownerSeen=millis();
@@ -580,13 +609,17 @@ String decodeForm(String value){
 uint8_t spiMhz=40;                      // panel SPI clock: 40 (safe) or 80 MHz, POST /spi to change (restarts)
 void controlRequest(){
  WiFiClient c=control.available();if(c.fd()<0)return;c.setTimeout(1); // WiFiClient takes seconds
+ // a connection that brings nothing within 150 ms is dropped: its sender gave up while the loop was busy, and waiting
+ // a whole second on each of those kept the loop busy enough that the next ones gave up too
+ {uint32_t t=millis();while(c.available()<=0 && c.connected() && millis()-t<150)delay(1);if(c.available()<=0){c.stop();return;}}
  acceptAt[0]=millis();
  String request=c.readStringUntil('\n');int length=0;
  for(int n=0;n<30;n++){String header=c.readStringUntil('\n');header.trim();if(!header.length())break;header.toLowerCase();if(header.startsWith("content-length:"))length=header.substring(15).toInt();}
  String body,type="text/plain";int status=200;
  if(request.startsWith("GET /status ")){
   JsonDocument d;d["online"]=online;d["target"]=target;d["view"]=views[view];d["ip"]=WiFi.localIP().toString();d["heap"]=ESP.getFreeHeap();d["graphics_port"]=8091;d["game_port"]=8092;d["game_bytes"]=gameBytes;d["rssi"]=WiFi.RSSI();d["game_udp"]=8093;d["udp_bytes"]=udpBytes;d["udp_packets"]=udpPackets;d["udp_lost"]=udpLost;d["udp_dropped"]=udpDropped;d["draw_ms"]=(uint32_t)(gameDrawUs/1000);d["dma_wait_ms"]=(uint32_t)(gameWaitUs/1000);d["channel"]=WiFi.channel();d["scale2"]=true;d["spi_mhz"]=spiMhz;d["frames"]=frameCount;d["fps"]=frameFps;d["transfer_ms"]=frameTransferMs;if(!isnan(chipTemperature))d["temperature"]=chipTemperature;
-  d["selected"]=selIp?IPAddress(selIp).toString():"";d["boards"]=nBoards;
+  d["selected"]=selIp?IPAddress(selIp).toString():"";d["boards"]=nBoards;d["busy_sent"]=busySent;d["modes_taken"]=modesTaken;
+  d["selected_age_ms"]=selIp?millis()-selSeen:0;d["owner"]=IPAddress(owner.sin_addr.s_addr).toString();
   d["scene_polls"]=scenePolls;d["scene_tiles_drawn"]=sceneTilesDrawn;d["scene_draw_ms"]=sceneDrawMs;
   serializeJson(d,body);type="application/json";
  }else if(request.startsWith("POST /target ") && length>0 && length<300){
@@ -643,12 +676,13 @@ void controlRequest(){
 void setup(){
  {Preferences q;q.begin("orphanremote",true);spiMhz=q.getUChar("spi",40);q.end();if(spiMhz!=80)spiMhz=40;}
  Serial.begin(115200);delay(200);gameAlloc();boardInit(1,spiMhz*1000000u);title("Connecting with saved WiFi...");
- tileSprite.setColorDepth(16);tileSprite.createSprite(TileWidth,TileHeight);
+ // (no 40 KB tile sprite: the views draw straight to the panel. With the 60 KB game picture in memory, game
+ // traffic bursts emptied the heap and mDNS crashed the CYD when it could not get memory for a packet.)
  Preferences p;p.begin("orphanremote",true);target=p.getString("target",target);selIp=p.getUInt("sel",0);p.end();
  if(selIp)boardSeen(selIp,nullptr);
  bool connected=connectSaved();
  Serial.printf("Orphan Remote: WiFi %s; IP %s\n",connected?"connected":"not connected",WiFi.localIP().toString().c_str());
- if(connected){MDNS.begin("orphan-remote");xTaskCreatePinnedToCore(discoverTask,"boards",4096,nullptr,1,nullptr,0);}
+ if(connected){MDNS.begin("orphan-remote");xTaskCreatePinnedToCore(discoverTask,"boards",4096,nullptr,1,&discoverHandle,0);}
  control.begin();control.setNoDelay(true);graphics.begin();graphics.setNoDelay(true);gameServer.begin();gameServer.setNoDelay(true);udpStart();scene();lastPoll=millis();
  // a loop that stops for 20 s restarts the CYD (it once kept answering ping but no TCP); the reason prints at boot
  esp_task_wdt_init(20,true);enableLoopWDT();
@@ -676,6 +710,6 @@ void loop(){
  int x,y;
  if(lastFrame && millis()-lastFrame<GraphicsHoldMs && millis()-lastTemperaturePoll>5000){temperaturePoll();if(hudOn)graphicsHud();}
  touchStep();drawToast();
- if((!lastPoll || millis()-lastPoll>(online?SceneIntervalMs:1500)) && (!lastFrame || millis()-lastFrame>GraphicsHoldMs)){scene();lastPoll=millis();}
+ if((!lastPoll || millis()-lastPoll>(online?SceneIntervalMs:5000)) && (!lastFrame || millis()-lastFrame>GraphicsHoldMs)){scene();lastPoll=millis();}
  if(!gameActive() && !(lastFrame && millis()-lastFrame<200))delay(2);
 }
