@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orphan Games</title>
+<style>
+  :root { --ink:#080a0c; --rail:#101613; --line:#2d3b31; --line2:#3d4c41; --txt:#e8efe6; --dim:#a3afa2;
+          --amber:#d2ff51; --amber2:#e6ff9a; --cyan:#5fd4ff; --grn:#52e58b; --red:#ff4838;
+          --ui:"Bahnschrift SemiCondensed","Bahnschrift",system-ui,sans-serif; --num:"Bahnschrift",system-ui,sans-serif; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--ink); color:var(--txt); font:13px/1.35 var(--ui); }
+  header { display:flex; align-items:center; gap:16px; padding:8px 14px; background:linear-gradient(180deg,#1b231e,#0d130f);
+           border-bottom:1px solid var(--line2); flex-wrap:wrap; }
+  .brand { font:700 19px/1 var(--num); letter-spacing:.04em; } .brand b { color:var(--amber); margin-left:6px; }
+  .brand small { display:block; font:400 11px var(--ui); color:var(--dim); margin-top:3px; letter-spacing:0; }
+  #now { font:600 16px var(--num); color:var(--amber2); }
+  .pill { margin-left:auto; padding:2px 8px; border:1px solid var(--line2); border-radius:3px; font:600 12px var(--num); }
+  .pill.live { color:var(--grn); border-color:#2f7d4c; } .pill.off { color:var(--red); border-color:#7d2f2f; }
+  main { display:grid; grid-template-columns:280px minmax(0,1fr); height:calc(100vh - 88px); min-height:420px; }
+  aside { background:var(--rail); border-right:1px solid var(--line); padding:8px; display:flex; flex-direction:column; min-height:0; }
+  #filter { width:100%; background:#081017; color:var(--txt); border:1px solid var(--line2); border-radius:3px; padding:6px 8px; font:inherit; }
+  #list { margin-top:6px; overflow:auto; flex:1; min-height:200px; }
+  .g { display:block; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid #16232e; color:var(--txt);
+       padding:6px 8px; cursor:pointer; font:inherit; }
+  .g:hover { background:#16201a; } .g.on { background:#1c2a12; color:var(--amber2); }
+  .stage { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:14px; }
+  .scr { width:min(100%, 768px, calc((100vh - 240px) * var(--arn, 1.0667))); aspect-ratio:var(--ar, 256/240); background:#000;
+         border:1px solid var(--line2); }
+  .scr canvas { display:block; width:100%; height:100%; } .scr canvas[hidden] { display:none; }
+  #screen { image-rendering:pixelated; }
+  .scr:fullscreen { border:0; display:flex; align-items:center; justify-content:center; }
+  .scr:fullscreen canvas { width:min(100vw, calc(100vh * var(--arn, 1.0667))); height:auto; aspect-ratio:var(--ar, 256/240); }
+  .scr:fullscreen #screen3 { width:100vw; height:100vh; aspect-ratio:auto; }
+  /* picture effect switches (one per effect) */
+  .fx { display:flex; gap:6px 14px; flex-wrap:wrap; justify-content:center; align-items:center; max-width:768px; padding:8px 10px;
+        border:1px solid var(--line2); border-radius:4px; background:#0d130f; }
+  .fx[hidden] { display:none; }
+  .sw { display:inline-flex; align-items:center; gap:6px; cursor:pointer; font:600 12px var(--ui); color:var(--txt); }
+  .sw input { appearance:none; -webkit-appearance:none; width:30px; height:16px; border-radius:9px; background:#2a3530; border:1px solid var(--line2);
+              position:relative; margin:0; cursor:pointer; transition:background .15s; }
+  .sw input::after { content:''; position:absolute; top:1px; left:1px; width:12px; height:12px; border-radius:50%; background:#cfd8cc; transition:left .15s; }
+  .sw input:checked { background:var(--amber); border-color:var(--amber); } .sw input:checked::after { left:15px; background:#0c1400; }
+  .sw input:disabled { opacity:.4; } .sw input:focus-visible { outline:2px solid var(--cyan); outline-offset:1px; }
+  .fxp { display:inline-flex; gap:4px; margin-left:6px; } .fxp .key { padding:3px 8px; }
+  .bar { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+  .key { background:#1a2733; border:1px solid var(--line2); border-radius:3px; color:var(--txt); padding:6px 10px; cursor:pointer; font:600 12px var(--ui); }
+  .key:hover { background:#1d2a22; } .key.on { border-color:var(--amber); background:#1c2a12; }
+  .key:focus-visible, .g:focus-visible, #filter:focus-visible { outline:2px solid var(--cyan); outline-offset:1px; }
+  .help { color:var(--dim); font-size:12px; text-align:center; max-width:640px; }
+  .help b { color:var(--txt); font-weight:600; }
+  footer { color:var(--dim); font-size:11px; padding:6px 14px; border-top:1px solid var(--line); }
+  footer b { color:var(--amber); }
+  @media (max-width:760px) { main { grid-template-columns:1fr; height:auto; } aside { border-right:0; border-bottom:1px solid var(--line); } #list { max-height:240px; } }
+  /* real NES pads on the hashboard header */
+  #hwbtn[hidden] { display:none; }
+  #hwdlg { background:#0d130f; color:var(--txt); border:1px solid #587053; border-radius:6px; padding:0; width:min(960px, 94vw);
+           max-height:92vh; box-shadow:0 20px 60px #000; }
+  #hwdlg::backdrop { background:#000a; }
+  .hwhead { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--line2); }
+  .hwhead h2 { margin:0; font:700 16px var(--num); letter-spacing:.06em; color:var(--amber); text-transform:uppercase; }
+  .hwhead .key { margin-left:auto; }
+  .hwbody { padding:12px 14px; overflow:auto; max-height:calc(92vh - 50px); }
+  .hwpad { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:6px 0; border-bottom:1px solid #16201a; }
+  .hwpad b { min-width:150px; } .hwpad .ok { color:var(--grn); } .hwpad .no { color:var(--dim); }
+  .btns { display:flex; gap:4px; } .btns i { font:600 11px var(--num); font-style:normal; padding:2px 5px; border:1px solid var(--line2);
+          border-radius:3px; color:var(--dim); } .btns i.on { color:#0c1400; background:var(--amber); border-color:var(--amber); }
+  .hwbody img { width:100%; height:auto; display:block; margin:10px 0; border:1px solid var(--line); }
+  .hwbody ol { margin:6px 0 8px 18px; padding:0; } .hwbody li { margin:3px 0; }
+  .hwbody code { background:#080e0a; border:1px solid var(--line); color:#b8f0c9; padding:0 4px; }
+  .warn { color:#ffb02e; font-weight:600; }
+  .danger { border:3px solid #ff4838; background:#2b0a08; color:#ffe2dc; padding:12px 16px; border-radius:6px; margin:0 0 10px;
+            box-shadow:0 0 24px #ff483844; } .danger b { display:block; color:#ff4838; font:800 22px/1.1 var(--num); text-transform:uppercase; margin-bottom:4px; }
+.bmc{display:inline-block;color:#1a1200!important;background:linear-gradient(#ffe27a,#ffcc2e);border:1px solid #ffdd55;border-radius:4px;padding:3px 10px;font-weight:700;font-size:12px;text-decoration:none;white-space:nowrap;box-shadow:0 0 12px #ffcc2e55;vertical-align:middle}.bmc:hover{color:#000!important;box-shadow:0 0 18px #ffcc2e99}</style>
+</head>
+<body>
+<header>
+  <div class="brand">ORPHAN<b>GAMES</b><small id="sysname">[orphan] · consoles in the FPGA, free homebrew</small></div>
+  <span id="now">No game loaded</span>
+  <a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a><span id="orphan-fan"></span>
+  <span class="pill off" id="link">OFFLINE</span>
+</header>
+<main>
+  <aside>
+    <input id="filter" placeholder="Find a game" aria-label="Find a game">
+    <div id="list"></div>
+  </aside>
+  <section class="stage">
+    <div class="scr" id="scr"><canvas id="screen" width="256" height="240"></canvas><canvas id="screen3" hidden></canvas></div>
+    <div class="bar">
+      <button class="key" id="snd">Sound on</button>
+      <button class="key" id="pause">Pause</button>
+      <button class="key" id="reset">Reset</button>
+      <button class="key" id="full">Full screen</button>
+      <button class="key" id="fxbtn" title="Picture effects: each one on or off">Picture</button>
+      <span class="key" id="fps" style="cursor:default">- fps</span>
+      <button class="key" id="hwbtn" hidden>NES pads</button>
+    </div>
+    <div class="fx" id="fx" hidden aria-label="Picture effects"></div>
+    <p class="help" id="help"><b>Arrows</b> move · <b>Z</b> = B · <b>X</b> = A · <b>Enter</b> = Start · <b>Right Shift</b> = Select.
+      A USB gamepad works too: press a button once so the browser sees it.</p>
+  </section>
+</main>
+<dialog id="hwdlg" aria-labelledby="hwtitle">
+  <div class="hwhead"><h2 id="hwtitle">Real NES pads</h2><span id="hwports" class="pill"></span><button class="key" id="hwclose">Close</button></div>
+  <div class="hwbody">
+    <div class="danger" role="alert"><b>&#9888; Disconnect every hashboard first</b>Unplug all hashboards from J1..J9 before you plug in a pad.
+      Any header can be a pad port.</div>
+    <div id="hwstate"></div>
+    <img src="adapter.svg" alt="Adapter wiring: header pin 15 RST to LATCH, 11 TXD to CLOCK, 12 RXD from DATA, 16 3.3 V to VCC, 1 GND to GND, pin 5 PLUG to GND">
+    <p class="warn">3.3 V only: the header pins are not 5 V tolerant. Power the pad from pin 16 (3.3 V), never from 5 V.</p>
+    <p class="warn">Not tested with a NES controller, yet.</p>
+    <ol>
+      <li>Build the adapter as drawn (an NES extension cable's socket end works well: find each wire with a continuity tester).
+        Tie pin 5 (PLUG) to GND: that tells Orphan a pad is plugged in.</li>
+      <li>Unplug every hashboard, then plug the adapter into a header on the S9 board (stock boards only have headers on J6, J7 and J8).
+        Optional: <code>ORPHAN_NES_PADS_NEVER=6,7</code> lists headers that are never driven or read.</li>
+      <li>Pick the headers before starting the console: <code>ORPHAN_NES_PADS=7,8</code> (or the line <code>7,8</code> in
+        <code>/etc/orphan/nespads</code>). The default is J1 and J2; <code>off</code> turns real pads off.</li>
+      <li>This panel shows "adapter found" and lights each button as you press it. Real pads and the browser pads work together.</li>
+    </ol>
+    <p>Full guide: <a href="https://revjmoney.github.io/orphan/nes-pad.html" target="_blank" rel="noopener" style="color:var(--amber)">revjmoney.github.io/orphan/nes-pad.html</a></p>
+  </div>
+</dialog>
+<footer><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> <b>[Rev. J. Money - 2026]</b> Orphan Games · Orphan · FPGA Dev Linux for the S9 Control Board · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM. Cores: NES fpganes by Ludvig Strigeus (GPL-2.0); Game Boy VerilogBoy by Wenting Zhang (OHDL 1.0); Master System / Game Gear: MiSTer SMS core (GPL-2.0-or-later, T80 CPU by Daniel Wallner) + jt89 by Jose Tejada (GPL-3.0); Atari 2600: A2601 by Retromaster from the MiSTer Atari 2600 core (GPL-3.0, T65 CPU by Daniel Wallner); Apple IIe: apple2fpga by Stephen A. Edwards with the //e work by Gyorgy Szombathelyi (MiSTer Apple-II core), T65 CPU (Apple's ROMs are your own); Atari 7800: MiSTer Atari7800 core by Jamie Blanks (MIT); Commodore 64: MiSTer C64 core (FPGA64 by Peter Wendrich; Commodore's ROMs are your own); PC Engine: MiSTer TurboGrafx16 core by Gregory Estrade and the MiSTer team (GPL).</footer>
+<script>
+const $ = id => document.getElementById(id);
+// FCEUX palette (RGB555, 0bbbbbgggggrrrrr) -> RGBA
+const P555 = [0x39ce,0x4464,0x5400,0x4c08,0x3811,0x0815,0x0014,0x002f,0x00a8,0x0100,0x0140,0x08e0,0x2ce3,0,0,0,
+  0x5ef7,0x75c0,0x74e4,0x7810,0x5c17,0x2c1c,0x00bb,0x0539,0x01d1,0x0240,0x02a0,0x1e40,0x4600,0,0,0,
+  0x7fff,0x7ee7,0x7e4b,0x7e28,0x7dfe,0x59df,0x31df,0x1e7f,0x1efe,0x0b50,0x2769,0x4feb,0x6fa0,0x3def,0,0,
+  0x7fff,0x7f95,0x7f58,0x7f3a,0x7f1f,0x6f1f,0x5aff,0x577f,0x539f,0x53fc,0x5fd5,0x67f6,0x7bf3,0x6318,0,0];
+const PAL = new Uint32Array(64);
+P555.forEach((v, i) => { const r = (v & 31) * 255 / 31, g = (v >> 5 & 31) * 255 / 31, b = (v >> 10 & 31) * 255 / 31;
+  PAL[i] = (255 << 24) | (b << 16) | (g << 8) | r; });           // little-endian RGBA
+const GBPAL = new Uint32Array([[0xE0,0xF0,0xC8],[0x88,0xC0,0x70],[0x34,0x68,0x56],[0x08,0x18,0x20]].map(([r,g,b]) => (255 << 24) | (b << 16) | (g << 8) | r));
+// ---- picture enhancements (every core): the console's frame (scrW x scrH, already in colour) goes into src;
+// with every effect off the 2D canvas shows it as sharp pixels (exactly the old look); with any effect on a WebGL
+// pipeline draws it: Scale2x twice (smooth pixels), then one shader for the rest. Each effect has its own switch,
+// remembered in this browser. Spec for future cores: docs/games-picture.md
+const FX = [
+  ['smooth', 'Smooth pixels', 'Scale2x twice: rounds stair-step edges into smooth lines (pixel art upscaler)'],
+  ['soft',   'Soft filter',   'bilinear filtering instead of hard pixel edges'],
+  ['vivid',  'Vivid colour',  'more saturation and contrast'],
+  ['glow',   'Glow',          'bright parts bleed light, like a lit screen'],
+  ['scan',   'Scanlines',     'dark gaps between the lines, like a CRT'],
+  ['mask',   'RGB mask',      'red / green / blue phosphor stripes'],
+  ['curve',  'Curved screen', 'tube curvature with dark corners'],
+  ['blend',  'Frame blend',   'mixes each frame with the last one: smooths flicker'],
+];
+const FX_PRESETS = { Modern: ['smooth', 'soft', 'vivid', 'glow'], CRT: ['soft', 'glow', 'scan', 'mask', 'curve'], Off: [] };
+let fx = {}; try { fx = JSON.parse(localStorage.getItem('orphanPicture') || '{}'); } catch (e) { fx = {}; }
+const src = document.createElement('canvas'); src.width = 256; src.height = 240;
+let ctx = src.getContext('2d'), img = ctx.createImageData(256, 240), px = new Uint32Array(img.data.buffer), scrW = 256, scrH = 240, scrAR = 256 / 240;
+const c2 = $('screen'), c2x = c2.getContext('2d');
+function setScreen(w, h, ar) { ar = ar || w / h; const s = $('scr'); s.style.setProperty('--ar', String(ar)); s.style.setProperty('--arn', ar.toFixed(4));
+  scrAR = ar; if (w === scrW && h === scrH) return; scrW = w; scrH = h; src.width = w; src.height = h; c2.width = w; c2.height = h;
+  ctx = src.getContext('2d'); img = ctx.createImageData(w, h); px = new Uint32Array(img.data.buffer); }
+const GLX = (() => {
+  const cv = $('screen3'), gl = cv.getContext('webgl', {antialias: false, premultipliedAlpha: false, preserveDrawingBuffer: true});
+  if (!gl) return null;
+  const VS = 'attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }';
+  // Scale2x (AdvanceMAME): each input pixel becomes 2x2, corners taken from a neighbour where two edges meet
+  const S2X = 'precision highp float; uniform sampler2D t; uniform vec2 isz, osz;\n' +
+    'vec3 T(vec2 c){ return texture2D(t, c / isz).rgb; } bool Q(vec3 a, vec3 b){ return all(equal(a, b)); }\n' +
+    'void main(){ vec2 p = gl_FragCoord.xy / osz * isz; vec2 c = floor(p) + 0.5; vec2 f = fract(p);\n' +
+    ' vec3 E = T(c), B = T(c + vec2(0.0, -1.0)), D = T(c + vec2(-1.0, 0.0)), F = T(c + vec2(1.0, 0.0)), H = T(c + vec2(0.0, 1.0)), r = E;\n' +
+    ' if (!Q(B, H) && !Q(D, F)) {\n' +
+    '  if (f.y < 0.5) { if (f.x < 0.5) { if (Q(D, B)) r = D; } else { if (Q(B, F)) r = F; } }\n' +
+    '  else { if (f.x < 0.5) { if (Q(D, H)) r = D; } else { if (Q(H, F)) r = F; } } }\n' +
+    ' gl_FragColor = vec4(r, 1.0); }';
+  // everything else in one pass; the texture's row 0 is the picture's top line, the screen's y runs upwards
+  const FIN = 'precision highp float; uniform sampler2D st, sp; uniform vec4 vp; uniform vec2 ssz, tsz;\n' +
+    'uniform float curve, scan, mask, glow, vivid, blend;\n' +
+    'void main(){ vec2 uv = (gl_FragCoord.xy - vp.xy) / vp.zw; uv.y = 1.0 - uv.y; float vig = 1.0;\n' +
+    ' if (curve > 0.5) { vec2 c = uv * 2.0 - 1.0; c *= 1.0 + vec2(0.035, 0.05) * (c.yx * c.yx); uv = c * 0.5 + 0.5;\n' +
+    '  vec2 e = smoothstep(0.0, 0.04, uv) * smoothstep(0.0, 0.04, 1.0 - uv); vig = e.x * e.y * (1.0 - 0.18 * dot(c, c) * 0.5); }\n' +
+    ' if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }\n' +
+    ' vec3 col = texture2D(st, uv).rgb;\n' +
+    ' if (blend > 0.5) col = mix(col, texture2D(sp, uv).rgb, 0.45);\n' +
+    ' if (glow > 0.5) { vec2 d = 1.6 / ssz; vec3 g = vec3(0.0);\n' +
+    '  for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; g += texture2D(st, uv + vec2(cos(a), sin(a)) * d).rgb;\n' +
+    '   g += texture2D(st, uv + vec2(cos(a), sin(a)) * d * 2.2).rgb; }\n' +
+    '  g /= 16.0; vec3 gb = max(g - 0.45, 0.0); col += 2.2 * gb * gb; }\n' +
+    ' if (vivid > 0.5) { float l = dot(col, vec3(0.299, 0.587, 0.114)); col = mix(vec3(l), col, 1.3); col = (col - 0.5) * 1.1 + 0.5; }\n' +
+    ' if (scan > 0.5) { float y = uv.y * ssz.y; float s = 0.5 - 0.5 * cos(6.2831853 * y); col *= (0.55 + 0.45 * s) * 1.28; }\n' +
+    ' if (mask > 0.5) { float m = mod(floor(gl_FragCoord.x), 3.0);\n' +
+    '  vec3 mm = m < 1.0 ? vec3(1.0, 0.72, 0.72) : m < 2.0 ? vec3(0.72, 1.0, 0.72) : vec3(0.72, 0.72, 1.0); col *= mm * 1.24; }\n' +
+    ' gl_FragColor = vec4(clamp(col * vig, 0.0, 1.0), 1.0); }';
+  function prog(fs) { const p = gl.createProgram();
+    for (const [type, s] of [[gl.VERTEX_SHADER, VS], [gl.FRAGMENT_SHADER, fs]]) { const sh = gl.createShader(type); gl.shaderSource(sh, s); gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); gl.attachShader(p, sh); }
+    gl.bindAttribLocation(p, 0, 'p'); gl.linkProgram(p); return p; }
+  let pS2X, pFIN; try { pS2X = prog(S2X); pFIN = prog(FIN); } catch (e) { console.warn('picture effects off:', e); return null; }
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  function tex(w, h) { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    for (const k of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return {t, f, w, h}; }
+  let W = 0, H = 0, srcT = [], x2, x4 = [], k = 0, have = 0;
+  function sizes() { if (W === scrW && H === scrH) return; W = scrW; H = scrH; srcT = [tex(W, H), tex(W, H)]; x2 = tex(2 * W, 2 * H);
+    x4 = [tex(4 * W, 4 * H), tex(4 * W, 4 * H)]; have = 0; }
+  function pass(p, out, inp, w, h) { gl.bindFramebuffer(gl.FRAMEBUFFER, out ? out.f : null); gl.viewport(0, 0, w, h); gl.useProgram(p);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inp.t); gl.uniform1i(gl.getUniformLocation(p, 't'), 0);
+    gl.uniform2f(gl.getUniformLocation(p, 'isz'), inp.w, inp.h); gl.uniform2f(gl.getUniformLocation(p, 'osz'), w, h);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); }
+  // mode: 'new' = a new frame from the console, 'redo' = the same frame again (a switch changed), 'view' = only redraw
+  function draw(mode) {
+    sizes();
+    const dpr = window.devicePixelRatio || 1, bw = Math.max(1, Math.round(cv.clientWidth * dpr)), bh = Math.max(1, Math.round(cv.clientHeight * dpr));
+    if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
+    if (mode !== 'view') { if (mode === 'new') k ^= 1; gl.bindTexture(gl.TEXTURE_2D, srcT[k].t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+      if (fx.smooth) { pass(pS2X, x2, srcT[k], 2 * W, 2 * H); pass(pS2X, x4[k], x2, 4 * W, 4 * H); } if (mode === 'new' || !have) have = Math.min(have + 1, 2); }
+    const st = fx.smooth ? x4[k] : srcT[k], sp = fx.smooth ? x4[k ^ 1] : srcT[k ^ 1];
+    // the picture keeps its shape: the widest rectangle of the console's aspect ratio that fits, centred
+    let vw = bw, vh = Math.round(bw / scrAR); if (vh > bh) { vh = bh; vw = Math.round(bh * scrAR); }
+    const vx = (bw - vw) >> 1, vy = (bh - vh) >> 1;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, bw, bh); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.viewport(vx, vy, vw, vh); gl.useProgram(pFIN);
+    for (const [u, t, i] of [['st', st, 0], ['sp', have > 1 ? sp : st, 1]]) { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, t.t);
+      const f = fx.soft ? gl.LINEAR : gl.NEAREST; gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+      gl.uniform1i(gl.getUniformLocation(pFIN, u), i); }
+    gl.uniform4f(gl.getUniformLocation(pFIN, 'vp'), vx, vy, vw, vh); gl.uniform2f(gl.getUniformLocation(pFIN, 'ssz'), W, H);
+    for (const n of ['curve', 'scan', 'mask', 'glow', 'vivid', 'blend']) gl.uniform1f(gl.getUniformLocation(pFIN, n), fx[n] ? 1 : 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  return {draw};
+})();
+function fxOn() { return GLX && FX.some(([n]) => fx[n]); }
+function present(mode) {                       // 'new' frame, 'redo' (a switch changed), 'view' (size changed)
+  if (mode === 'new') ctx.putImageData(img, 0, 0);
+  const gl = fxOn(); $('screen3').hidden = !gl; c2.hidden = !!gl;
+  if (gl) GLX.draw(mode); else c2x.drawImage(src, 0, 0);
+}
+function fxPanel() {
+  const P = $('fx'); P.innerHTML = '';
+  for (const [n, label, tip] of FX) { const l = document.createElement('label'); l.className = 'sw'; l.title = tip;
+    const i = document.createElement('input'); i.type = 'checkbox'; i.checked = !!fx[n]; i.disabled = !GLX;
+    i.onchange = () => { fx[n] = i.checked; localStorage.setItem('orphanPicture', JSON.stringify(fx)); present('redo'); };
+    l.append(i, document.createTextNode(' ' + label)); P.appendChild(l); }
+  const s = document.createElement('span'); s.className = 'fxp';
+  for (const name in FX_PRESETS) { const b = document.createElement('button'); b.className = 'key'; b.textContent = name;
+    b.title = name === 'Off' ? 'every effect off' : 'turns on: ' + FX_PRESETS[name].map(n => FX.find(f => f[0] === n)[1]).join(', ');
+    b.onclick = () => { fx = {}; for (const n of FX_PRESETS[name]) fx[n] = true; localStorage.setItem('orphanPicture', JSON.stringify(fx)); fxPanel(); present('redo'); };
+    s.appendChild(b); }
+  P.appendChild(s);
+  if (!GLX) P.appendChild(document.createTextNode(' (this browser has no WebGL: effects unavailable)'));
+}
+fxPanel();
+$('fxbtn').onclick = () => { $('fx').hidden = !$('fx').hidden; $('fxbtn').classList.toggle('on', !$('fx').hidden); };
+new ResizeObserver(() => { if (fxOn()) present('view'); }).observe($('screen3'));
+let sysInfo = {}, ws, st = {}, games = [], actx, gainN, playAt = 0, rate = 47950, frames = 0, fpsT = performance.now();
+function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+
+// Master System: BBGGRR (2 bits each); Game Gear: BGR 4-4-4
+const SMSPAL = new Uint32Array(64).map((_, v) => (255 << 24) | ((v >> 4 & 3) * 85 << 16) | ((v >> 2 & 3) * 85 << 8) | (v & 3) * 85);
+// Atari 2600 NTSC colours (the A2601 core's table), index = TIA {hue, lum}
+const A26PAL = new Uint32Array([0x000000,0x404040,0x6C6C6C,0x909090,0xB0B0B0,0xC8C8C8,0xDCDCDC,0xECECEC,0x444400,0x646410,0x848424,0xA0A034,0xB8B840,0xD0D050,0xE8E85C,0xFCFC68,0x702800,0x844414,0x985C28,0xAC783C,0xBC8C4C,0xCCA05C,0xDCB468,0xECC878,0x841800,0x983418,0xAC5030,0xC06848,0xD0805C,0xE09470,0xECA880,0xFCBC94,0x880000,0x9C2020,0xB03C3C,0xC05858,0xD07070,0xE08888,0xECA0A0,0xFCB4B4,0x78005C,0x8C2074,0xA03C88,0xB0589C,0xC070B0,0xD084C0,0xDC9CD0,0xECB0E0,0x480078,0x602090,0x783CA4,0x8C58B8,0xA070CC,0xB484DC,0xC49CEC,0xD4B0FC,0x140084,0x302098,0x4C3CAC,0x6858C0,0x7C70D0,0x9488E0,0xA8A0EC,0xBCB4FC,0x000088,0x1C209C,0x3840B0,0x505CC0,0x6874D0,0x7C8CE0,0x90A4EC,0xA4B8FC,0x00187C,0x1C3890,0x3854A8,0x5070BC,0x6888CC,0x7C9CDC,0x90B4EC,0xA4C8FC,0x002C5C,0x1C4C78,0x386890,0x5084AC,0x689CC0,0x7CB4D4,0x90CCE8,0xA4E0FC,0x003C2C,0x1C5C48,0x387C64,0x509C80,0x68B494,0x7CD0AC,0x90E4C0,0xA4FCD4,0x003C00,0x205C20,0x407C40,0x5C9C5C,0x74B474,0x8CD08C,0xA4E4A4,0xB8FCB8,0x143800,0x345C1C,0x507C38,0x6C9850,0x84B468,0x9CCC7C,0xB4E490,0xC8FCA4,0x2C3000,0x4C501C,0x687034,0x848C4C,0x9CA864,0xB4C078,0xCCD488,0xE0EC9C,0x442800,0x644818,0x846830,0xA08444,0xB89C58,0xD0B46C,0xE8CC7C,0xFCE08C].map(v => (255 << 24) | ((v & 255) << 16) | (v & 0xFF00) | (v >> 16 & 255)));
+// Apple IIe: the 16 colours; colour lines take the 4-dot window at each dot, turned to the colour clock's phase
+const A2PAL = new Uint32Array([0x000000,0xDD0033,0x000099,0xDD22DD,0x007722,0x555555,0x2222FF,0x66AAFF,0x885500,0xFF6600,0xAAAAAA,0xFF9988,0x11DD00,0xFFFF00,0x44FF99,0xFFFFFF].map(v => (255 << 24) | ((v & 255) << 16) | (v & 0xFF00) | (v >> 16 & 255)));
+const A2PHASE = 1;
+function a2draw(words) {
+  const d = new Uint8Array(564);
+  for (let y = 0, p = 0; y < 192; y++) { const o = y * 18, colour = words[o + 17] >>> 31;
+    for (let x = 0; x < 560; x++) d[x] = (words[o + (x >> 5)] >>> (x & 31)) & 1;
+    for (let x = 0; x < 560; x++, p++) { if (!colour) { px[p] = A2PAL[d[x] * 15]; continue; }
+      const w = d[x] | d[x + 1] << 1 | d[x + 2] << 2 | d[x + 3] << 3, r = (x + A2PHASE) & 3;
+      px[p] = A2PAL[((w << r) | (w >> (4 - r))) & 15]; } } }
+// Atari 7800: MARIA's 256 colours (MiSTer core's NTSC warm palette), index = {hue, lum}
+const A78PAL = new Uint32Array([0x000000,0x0D0D0D,0x282828,0x3E3E3E,0x525252,0x656565,0x777777,0x888888,0x989898,0xA8A8A8,0xB7B7B7,0xC6C6C6,0xD5D5D5,0xE3E3E3,0xF1F1F1,0xFFFFFF,0x1A0000,0x331B00,0x483300,0x5B4800,0x6D5C00,0x7F6E00,0x8F7F00,0x9F9000,0xAFA000,0xBEAF03,0xCDBE22,0xDBCD39,0xEADC4E,0xF8EA61,0xFFF873,0xFFFF84,0x450000,0x580000,0x6B2000,0x7C3800,0x8D4C00,0x9D5F00,0xAD7100,0xBC8200,0xCB9319,0xD9A332,0xE8B247,0xF6C15A,0xFFD06D,0xFFDF7E,0xFFED8F,0xFFFB9F,0x5B0000,0x6D0000,0x7F0B00,0x8F2700,0x9F3D00,0xAF511B,0xBE6433,0xCD7648,0xDC875C,0xEA976E,0xF8A77F,0xFFB690,0xFFC5A0,0xFFD4AF,0xFFE2BE,0xFFF0CD,0x5F0000,0x710016,0x82002F,0x931A44,0xA33258,0xB2476A,0xC15B7C,0xD06D8C,0xDE7E9D,0xED8FAC,0xFB9FBB,0xFFAECA,0xFFBED9,0xFFCCE7,0xFFDBF5,0xFFE9FF,0x500053,0x630066,0x750077,0x861588,0x962E99,0xA644A8,0xB557B8,0xC46AC7,0xD37BD5,0xE18CE4,0xF09CF2,0xFDACFF,0xFFBBFF,0xFFCAFF,0xFFD8FF,0xFFE7FF,0x2E0086,0x440097,0x5700A7,0x6A1AB6,0x7B32C5,0x8C47D4,0x9C5BE2,0xAC6DF0,0xBB7EFE,0xCA8FFF,0xD99FFF,0xE7AFFF,0xF5BEFF,0xFFCDFF,0xFFDBFF,0xFFE9FF,0x00009D,0x1200AD,0x2C0CBC,0x4227CB,0x563EDA,0x6852E8,0x7A64F6,0x8A76FF,0x9B87FF,0xAA97FF,0xBAA7FF,0xC9B7FF,0xD7C6FF,0xE5D4FF,0xF3E3FF,0xFFF1FF,0x000098,0x0000A7,0x0021B7,0x0E38C6,0x294DD4,0x3F60E3,0x5372F1,0x6683FF,0x7793FF,0x88A3FF,0x98B3FF,0xA8C2FF,0xB8D1FF,0xC6DFFF,0xD5EDFF,0xE3FBFF,0x000075,0x001C86,0x003497,0x0049A6,0x005CB6,0x166EC5,0x2F7FD4,0x4590E2,0x58A0F0,0x6BB0FE,0x7CBFFF,0x8DCEFF,0x9DDCFF,0xADEAFF,0xBCF8FF,0xCBFFFF,0x001336,0x002D4B,0x00435E,0x005670,0x006981,0x007A92,0x188BA1,0x319BB1,0x46ABC0,0x5ABACF,0x6CC9DD,0x7DD8EC,0x8EE6FA,0x9EF4FF,0xAEFFFF,0xBDFFFF,0x001F00,0x003700,0x004B02,0x005E21,0x007039,0x00824D,0x1A9260,0x32A272,0x47B283,0x5BC194,0x6DD0A4,0x7EDEB3,0x8FECC2,0x9FFAD1,0xAEFFDF,0xBEFFED,0x002100,0x003900,0x004D00,0x006000,0x007200,0x1A8300,0x329411,0x48A42B,0x5BB341,0x6DC255,0x7ED167,0x8FDF79,0x9FED8A,0xAFFB9A,0xBEFFAA,0xCDFFB9,0x001A00,0x003200,0x004800,0x145B00,0x2D6D00,0x437E00,0x578F00,0x699F00,0x7BAF00,0x8BBE1D,0x9CCD35,0xABDB4A,0xBBE95D,0xC9F76F,0xD8FF80,0xE6FF91,0x000700,0x182500,0x313B00,0x465000,0x5A6200,0x6C7400,0x7D8500,0x8E9600,0x9EA600,0xAEB500,0xBDC41E,0xCCD335,0xDAE14A,0xE9EF5D,0xF6FD6F,0xFFFF81,0x330000,0x480F00,0x5B2A00,0x6D4000,0x7E5400,0x8F6700,0x9F7800,0xAF8900,0xBE9900,0xCDA918,0xDBB831,0xEAC746,0xF7D65A,0xFFE46C,0xFFF27D,0xFFFF8E].map(v => (255 << 24) | ((v & 255) << 16) | (v & 0xFF00) | (v >> 16 & 255)));
+// Commodore 64: the VIC-II's 16 colours
+const C64PAL = new Uint32Array([0x000000,0xFFFFFF,0x68372B,0x70A4B2,0x6F3D86,0x588D43,0x352879,0xB8C76F,0x6F4F25,0x433900,0x9A6759,0x444444,0x6C6C6C,0x9AD284,0x6C5EB5,0x959595].map(v => (255 << 24) | ((v & 255) << 16) | (v & 0xFF00) | (v >> 16 & 255)));
+// PC Engine: the VCE's 9-bit colours, GRB 3-3-3
+const PCEPAL = new Uint32Array(512).map((_, v) => (255 << 24) | ((v & 7) * 255 / 7 << 16) | ((v >> 6 & 7) * 255 / 7 << 8) | (v >> 3 & 7) * 255 / 7);
+const GGPAL = new Uint32Array(4096).map((_, v) => (255 << 24) | ((v >> 8 & 15) * 17 << 16) | ((v >> 4 & 15) * 17 << 8) | (v & 15) * 17);
+function drawFrame(words, sys) {
+  let p = 0;
+  if (sys === 1) { setScreen(160, 144);                                   // Game Boy: 16 pixels of 2 bits per word
+    for (let i = 0; i < words.length && p < 23040; i++) { let w = words[i];
+      for (let k = 0; k < 16; k++) { px[p++] = GBPAL[w & 3]; w >>>= 2; } } }
+  else if (sys === 2) { setScreen(256, 192);                              // Master System: 5 pixels of 6 bits
+    for (let i = 0; i < words.length && p < 49152; i++) { let w = words[i];
+      for (let k = 0; k < 5; k++) { px[p++] = SMSPAL[w & 63]; w >>>= 6; } } }
+  else if (sys === 3) { setScreen(160, 144);                              // Game Gear: 2 pixels of 12 bits
+    for (let i = 0; i < words.length && p < 23040; i++) { const w = words[i];
+      px[p++] = GGPAL[w & 4095]; px[p++] = GGPAL[(w >>> 12) & 4095]; } }
+  else if (sys === 4) { setScreen(160, 240, 4 / 3);                      // Atari 2600: 4 pixels of 8 bits, wide pixels
+    for (let i = 0; i < words.length && p < 38400; i++) { let w = words[i];
+      for (let k = 0; k < 4; k++) { px[p++] = A26PAL[w & 127]; w >>>= 8; } } }
+  else if (sys === 8) { setScreen(384, 240, 4 / 3);                      // Commodore 64: 8 colour numbers of 4 bits a word
+    for (let i = 0; i < words.length && p < 92160; i++) { let w = words[i];
+      for (let k = 0; k < 8; k++) { px[p++] = C64PAL[w & 15]; w >>>= 4; } } }
+  else if (sys === 7) { setScreen(320, 240, 4 / 3);                      // Atari 7800: 4 colour codes of 8 bits a word
+    for (let i = 0; i < words.length && p < 76800; i++) { let w = words[i];
+      for (let k = 0; k < 4; k++) { px[p++] = A78PAL[w & 255]; w >>>= 8; } } }
+  else if (sys === 6) { setScreen(256, 240, 4 / 3);                      // PC Engine: 3 dots of 9 bits, 86 words a line
+    for (let y = 0; y < 240; y++) for (let x = 0; x < 256; x++) px[p++] = PCEPAL[(words[y * 86 + (x / 3 | 0)] >>> (9 * (x % 3))) & 511]; }
+  else if (sys === 5) { setScreen(560, 192, 4 / 3); a2draw(words); }       // Apple IIe: 560 dots x 192 lines
+  else { setScreen(256, 240);                                             // NES: 5 pixels of 6 bits per word
+    for (let i = 0; i < words.length && p < 61440; i++) { let w = words[i];
+      for (let k = 0; k < 5; k++) { px[p++] = PAL[w & 63]; w >>>= 6; } } }
+  present('new'); frames++;
+  const now = performance.now(); if (now - fpsT > 1000) { $('fps').textContent = (frames * 1000 / (now - fpsT)).toFixed(0) + ' fps'; frames = 0; fpsT = now; }
+}
+function playSound(s16, stereo) {
+  if (!actx) return;
+  const nch = stereo ? 2 : 1, n = Math.floor(s16.length / nch), buf = actx.createBuffer(nch, n, rate);
+  const dc = playSound.dc || (playSound.dc = [0, 0]);
+  for (let c = 0; c < nch; c++) { const ch = buf.getChannelData(c); let d = dc[c];
+    for (let i = 0; i < n; i++) { const v = s16[i * nch + c] / 32768; d += (v - d) * 0.002; ch[i] = (v - d) * 1.6; }
+    dc[c] = d; }
+  const src = actx.createBufferSource(); src.buffer = buf; src.connect(gainN);
+  const now = actx.currentTime; if (playAt < now + 0.02 || playAt > now + 0.4) playAt = now + 0.08;
+  src.start(playAt); playAt += buf.duration;
+}
+
+// ---- game list
+function showList() {
+  const f = $('filter').value.toLowerCase(), L = $('list'); L.innerHTML = '';
+  for (const g of games) { if (f && !g.toLowerCase().includes(f)) continue;
+    const b = document.createElement('button'); b.className = 'g' + (g === st.game ? ' on' : ''); b.textContent = g.replace(/\.(nes|gb|sms|bin|a26|dsk|do|po|nib|pce|a78|prg)$/i, '').replace(/\.gg$/i, ' (Game Gear)');
+    b.onclick = () => { send({load: g}); $('now').textContent = 'Loading ' + b.textContent + ' ...'; }; L.appendChild(b); }
+  if (!L.children.length) L.textContent = games.length ? 'No match.' : 'No games yet: put ' + (sysInfo.ext || '.nes') + ' files in ' + (sysInfo.roms || '/opt/orphan-games/roms/nes') + ' on the board.';
+}
+$('filter').oninput = showList;
+
+// ---- pads: keyboard + Gamepad API -> NES bits (0 A, 1 B, 2 Select, 3 Start, 4 Up, 5 Down, 6 Left, 7 Right)
+const KEYS = {KeyX: 0, KeyZ: 1, ShiftRight: 2, Enter: 3, ArrowUp: 4, ArrowDown: 5, ArrowLeft: 6, ArrowRight: 7};
+let kb = 0, lastSent = -1;
+// computers (Apple IIe): the keyboard types; Alt keys = the Apple keys (buttons 0 and 1), F12 = Ctrl-Reset
+const A2KEYS = {Enter: 13, Backspace: 8, ArrowLeft: 8, ArrowRight: 21, ArrowUp: 11, ArrowDown: 10, Escape: 27, Tab: 9, Delete: 127};
+function compKey(e, down) {
+  if (sysInfo.keyboard === 'ps2') { if (!e.repeat) send({kcode: e.code, down: down}); return true; }   // C64: the key's position
+  if (e.code === 'AltLeft' || e.code === 'AltRight') { const b = e.code === 'AltLeft' ? 1 : 2; kb = down ? kb | b : kb & ~b; return true; }
+  if (e.code === 'F12') { if (down) send({warm: 1}); return true; }
+  let c = A2KEYS[e.key];
+  if (c === undefined && e.key.length === 1) { c = e.key.charCodeAt(0); if (c >= 97 && c <= 122 && !e.ctrlKey) c -= 32; if (e.ctrlKey) c &= 31; }
+  if (c === undefined || c > 127) return false;
+  send({key: c, down: down}); return true;
+}
+window.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (sysInfo.keyboard) { if (compKey(e, true)) e.preventDefault(); return; } if (e.code in KEYS) { kb |= 1 << KEYS[e.code]; e.preventDefault(); } });
+window.addEventListener('keyup', e => { if (sysInfo.keyboard) { if (compKey(e, false)) e.preventDefault(); return; } if (e.code in KEYS) { kb &= ~(1 << KEYS[e.code]); e.preventDefault(); } });
+function padBits(gp) {
+  if (!gp) return 0; const b = i => gp.buttons[i] && gp.buttons[i].pressed, ax = gp.axes || [];
+  return (b(0) ? 1 : 0) | (b(2) || b(1) ? 2 : 0) | (b(8) ? 4 : 0) | (b(9) ? 8 : 0) |
+         (b(12) || ax[1] < -0.5 ? 16 : 0) | (b(13) || ax[1] > 0.5 ? 32 : 0) | (b(14) || ax[0] < -0.5 ? 64 : 0) | (b(15) || ax[0] > 0.5 ? 128 : 0);
+}
+function pollPads() {
+  const gps = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+  const p1 = kb | padBits(gps[0]), p2 = padBits(gps[1]), v = p1 | p2 << 8;
+  if (v !== lastSent) { lastSent = v; send({pads: [p1, p2]}); }
+  requestAnimationFrame(pollPads);
+}
+requestAnimationFrame(pollPads);
+
+$('snd').onclick = () => { if (!actx) { actx = new AudioContext(); gainN = actx.createGain(); gainN.gain.value = 0.8; gainN.connect(actx.destination); }
+  actx.resume(); $('snd').classList.add('on'); $('snd').textContent = 'Sound is on'; };
+$('pause').onclick = () => send({pause: st.running !== false});
+$('reset').onclick = () => send({reset: 1});
+$('full').onclick = () => { const c = $('scr'); (c.requestFullscreen || c.webkitRequestFullscreen).call(c); };
+
+// ---- real NES pads on the hashboard header (NES and Game Boy designs): live status from main.py
+const BTN = ['A', 'B', 'Sel', 'Sta', 'Up', 'Dn', 'Lt', 'Rt'];
+let hw = null, hwPorts = '', hwNever = [];
+function showHw() {
+  $('hwbtn').hidden = !(sysInfo.hwpad_design || sysInfo.system === 'NES');
+  $('hwports').textContent = !hwPorts ? '' : hwPorts === 'off' ? 'OFF' : hwPorts.replace(',', ' + ');
+  $('hwports').className = 'pill ' + (hw && hw.present.some(Boolean) ? 'live' : 'off');
+  const prot = '<p class="no">Never driven (ORPHAN_NES_PADS_NEVER): ' + (hwNever.length ? hwNever.map(n => 'J' + n).join(', ') : 'none') + '</p>';
+  if (!hw) { $('hwstate').innerHTML = '<p class="no">' + (hwPorts === 'off' ? 'Real pads are off (ORPHAN_NES_PADS=off, or a protected connector was picked).'
+      : 'No status from the console yet.') + '</p>' + prot; return; }
+  $('hwstate').innerHTML = [0, 1].map(i => '<div class="hwpad"><b>Pad ' + (i + 1) + ' on J' + hw.ports[i] + '</b>' +
+    (hw.present[i] ? '<span class="ok">adapter found</span>' : '<span class="no">no adapter</span>') +
+    '<span class="btns">' + BTN.map((n, k) => '<i class="' + (hw.buttons[i] >> k & 1 ? 'on' : '') + '">' + n + '</i>').join('') + '</span></div>').join('') + prot;
+}
+$('hwbtn').onclick = () => { showHw(); $('hwdlg').showModal(); };
+$('hwclose').onclick = () => $('hwdlg').close();
+
+function connect() {
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws'); ws.binaryType = 'arraybuffer';
+  ws.onopen = () => { $('link').textContent = 'FPGA LIVE'; $('link').className = 'pill live'; };
+  ws.onclose = () => { $('link').textContent = 'OFFLINE'; $('link').className = 'pill off'; setTimeout(connect, 1500); };
+  ws.onmessage = ev => {
+    if (typeof ev.data === 'string') { const m = JSON.parse(ev.data);
+      if ('hwpads' in m) { hw = m.hwpads; hwPorts = m.hwports || ''; hwNever = m.hwnever || []; }
+      if (!m.state && !m.games) { showHw(); return; }            // a pad status update only
+      if (m.games) games = m.games; if (m.audio_hz) rate = Math.round(m.audio_hz);
+      if (m.system) { sysInfo = m; $('sysname').textContent = '[orphan] · ' + m.system + ' in the FPGA, free homebrew'; setScreen(m.w, m.h);
+        if (m.keyboard === 'ascii') $('help').innerHTML = 'The keyboard types into the computer · <b>Alt</b> = the Apple keys (buttons 0 and 1) · <b>F12</b> = Ctrl-Reset · a USB gamepad is the joystick.';
+        else if (m.keyboard) $('help').innerHTML = 'The keyboard is the computer keyboard (keys by position) · a USB gamepad is the joystick in port 2.'; }
+      if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? (st.attract ? 'Demo: ' : '') + st.game.replace(/\.(nes|gb|sms|gg|bin|a26|dsk|do|po|nib|pce|a78|prg)$/i, '') : 'No game loaded';
+        $('pause').textContent = st.running === false ? 'Resume' : 'Pause'; }
+      showList(); showHw(); return; }
+    const type = new DataView(ev.data).getInt16(0, true);
+    const sub = new DataView(ev.data).getInt16(2, true);
+    if (type === 1) drawFrame(new Uint32Array(ev.data, 4), sub);
+    else if (type === 2) playSound(new Int16Array(ev.data, 4), sub === 1);
+  };
+}
+connect();
+</script>
+<script>(function(){var s=document.createElement('script');s.src='//'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>
+</body>
+</html>

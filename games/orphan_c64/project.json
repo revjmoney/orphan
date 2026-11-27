@@ -1,0 +1,15 @@
+{
+  "id": "C641",
+  "title": "Orphan Games: Commodore 64 in the FPGA",
+  "category": "Games",
+  "level": "easy",
+  "summary": "The Commodore 64 rebuilt in the FPGA (MiSTer's C64 core: FPGA64 by Peter Wendrich with the MiSTer team's VIC-II, CIA and SID; T65 CPU), NTSC. No disk drive: .prg programs go straight into RAM and start with RUN. Commodore's ROMs are NOT included: put your own basic.rom (8 KB), kernal.rom (8 KB) and chargen.rom (4 KB) in /opt/orphan-games/roms/c64/system. Play in the browser (the PC keyboard types, a USB gamepad is the joystick in port 2) or on an ORPHAN Remote (CYD) screen. Real NES pads on the hashboard connectors work as joysticks (pad 1 = port 2, pad 2 = port 1), through the same small 3.3 V adapter as the NES; disconnect every hashboard first. by JMSCNC, makers of RotatoCAM.",
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "Commodore 64 (ROMs, RAM, frame buffer, SID sound, keyboard, joysticks, real NES pads on J1..J9)",
+    "14": "LEDs (orphan_leds)",
+    "15": "Fan (orphan_fan)"
+  },
+  "runs": "fpga core"
+}

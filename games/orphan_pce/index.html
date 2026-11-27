@@ -122,7 +122,7 @@
     <p>Full guide: <a href="https://revjmoney.github.io/orphan/nes-pad.html" target="_blank" rel="noopener" style="color:var(--amber)">revjmoney.github.io/orphan/nes-pad.html</a></p>
   </div>
 </dialog>
-<footer><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> <b>[Rev. J. Money - 2026]</b> Orphan Games · Orphan · FPGA Dev Linux for the S9 Control Board · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM. Cores: NES fpganes by Ludvig Strigeus (GPL-2.0); Game Boy VerilogBoy by Wenting Zhang (OHDL 1.0); Master System / Game Gear: MiSTer SMS core (GPL-2.0-or-later, T80 CPU by Daniel Wallner) + jt89 by Jose Tejada (GPL-3.0); Atari 2600: A2601 by Retromaster from the MiSTer Atari 2600 core (GPL-3.0, T65 CPU by Daniel Wallner); Apple IIe: apple2fpga by Stephen A. Edwards with the //e work by Gyorgy Szombathelyi (MiSTer Apple-II core), T65 CPU (Apple's ROMs are your own); PC Engine: MiSTer TurboGrafx16 core by Gregory Estrade and the MiSTer team (GPL).</footer>
+<footer><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> <b>[Rev. J. Money - 2026]</b> Orphan Games · Orphan · FPGA Dev Linux for the S9 Control Board · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM. Cores: NES fpganes by Ludvig Strigeus (GPL-2.0); Game Boy VerilogBoy by Wenting Zhang (OHDL 1.0); Master System / Game Gear: MiSTer SMS core (GPL-2.0-or-later, T80 CPU by Daniel Wallner) + jt89 by Jose Tejada (GPL-3.0); Atari 2600: A2601 by Retromaster from the MiSTer Atari 2600 core (GPL-3.0, T65 CPU by Daniel Wallner); Apple IIe: apple2fpga by Stephen A. Edwards with the //e work by Gyorgy Szombathelyi (MiSTer Apple-II core), T65 CPU (Apple's ROMs are your own); Atari 7800: MiSTer Atari7800 core by Jamie Blanks (MIT); Commodore 64: MiSTer C64 core (FPGA64 by Peter Wendrich; Commodore's ROMs are your own); PC Engine: MiSTer TurboGrafx16 core by Gregory Estrade and the MiSTer team (GPL).</footer>
 <script>
 const $ = id => document.getElementById(id);
 // FCEUX palette (RGB555, 0bbbbbgggggrrrrr) -> RGBA
@@ -270,6 +270,10 @@ function a2draw(words) {
     for (let x = 0; x < 560; x++, p++) { if (!colour) { px[p] = A2PAL[d[x] * 15]; continue; }
       const w = d[x] | d[x + 1] << 1 | d[x + 2] << 2 | d[x + 3] << 3, r = (x + A2PHASE) & 3;
       px[p] = A2PAL[((w << r) | (w >> (4 - r))) & 15]; } } }
+// Atari 7800: MARIA's 256 colours (MiSTer core's NTSC warm palette), index = {hue, lum}
+const A78PAL = new Uint32Array([0x000000,0x0D0D0D,0x282828,0x3E3E3E,0x525252,0x656565,0x777777,0x888888,0x989898,0xA8A8A8,0xB7B7B7,0xC6C6C6,0xD5D5D5,0xE3E3E3,0xF1F1F1,0xFFFFFF,0x1A0000,0x331B00,0x483300,0x5B4800,0x6D5C00,0x7F6E00,0x8F7F00,0x9F9000,0xAFA000,0xBEAF03,0xCDBE22,0xDBCD39,0xEADC4E,0xF8EA61,0xFFF873,0xFFFF84,0x450000,0x580000,0x6B2000,0x7C3800,0x8D4C00,0x9D5F00,0xAD7100,0xBC8200,0xCB9319,0xD9A332,0xE8B247,0xF6C15A,0xFFD06D,0xFFDF7E,0xFFED8F,0xFFFB9F,0x5B0000,0x6D0000,0x7F0B00,0x8F2700,0x9F3D00,0xAF511B,0xBE6433,0xCD7648,0xDC875C,0xEA976E,0xF8A77F,0xFFB690,0xFFC5A0,0xFFD4AF,0xFFE2BE,0xFFF0CD,0x5F0000,0x710016,0x82002F,0x931A44,0xA33258,0xB2476A,0xC15B7C,0xD06D8C,0xDE7E9D,0xED8FAC,0xFB9FBB,0xFFAECA,0xFFBED9,0xFFCCE7,0xFFDBF5,0xFFE9FF,0x500053,0x630066,0x750077,0x861588,0x962E99,0xA644A8,0xB557B8,0xC46AC7,0xD37BD5,0xE18CE4,0xF09CF2,0xFDACFF,0xFFBBFF,0xFFCAFF,0xFFD8FF,0xFFE7FF,0x2E0086,0x440097,0x5700A7,0x6A1AB6,0x7B32C5,0x8C47D4,0x9C5BE2,0xAC6DF0,0xBB7EFE,0xCA8FFF,0xD99FFF,0xE7AFFF,0xF5BEFF,0xFFCDFF,0xFFDBFF,0xFFE9FF,0x00009D,0x1200AD,0x2C0CBC,0x4227CB,0x563EDA,0x6852E8,0x7A64F6,0x8A76FF,0x9B87FF,0xAA97FF,0xBAA7FF,0xC9B7FF,0xD7C6FF,0xE5D4FF,0xF3E3FF,0xFFF1FF,0x000098,0x0000A7,0x0021B7,0x0E38C6,0x294DD4,0x3F60E3,0x5372F1,0x6683FF,0x7793FF,0x88A3FF,0x98B3FF,0xA8C2FF,0xB8D1FF,0xC6DFFF,0xD5EDFF,0xE3FBFF,0x000075,0x001C86,0x003497,0x0049A6,0x005CB6,0x166EC5,0x2F7FD4,0x4590E2,0x58A0F0,0x6BB0FE,0x7CBFFF,0x8DCEFF,0x9DDCFF,0xADEAFF,0xBCF8FF,0xCBFFFF,0x001336,0x002D4B,0x00435E,0x005670,0x006981,0x007A92,0x188BA1,0x319BB1,0x46ABC0,0x5ABACF,0x6CC9DD,0x7DD8EC,0x8EE6FA,0x9EF4FF,0xAEFFFF,0xBDFFFF,0x001F00,0x003700,0x004B02,0x005E21,0x007039,0x00824D,0x1A9260,0x32A272,0x47B283,0x5BC194,0x6DD0A4,0x7EDEB3,0x8FECC2,0x9FFAD1,0xAEFFDF,0xBEFFED,0x002100,0x003900,0x004D00,0x006000,0x007200,0x1A8300,0x329411,0x48A42B,0x5BB341,0x6DC255,0x7ED167,0x8FDF79,0x9FED8A,0xAFFB9A,0xBEFFAA,0xCDFFB9,0x001A00,0x003200,0x004800,0x145B00,0x2D6D00,0x437E00,0x578F00,0x699F00,0x7BAF00,0x8BBE1D,0x9CCD35,0xABDB4A,0xBBE95D,0xC9F76F,0xD8FF80,0xE6FF91,0x000700,0x182500,0x313B00,0x465000,0x5A6200,0x6C7400,0x7D8500,0x8E9600,0x9EA600,0xAEB500,0xBDC41E,0xCCD335,0xDAE14A,0xE9EF5D,0xF6FD6F,0xFFFF81,0x330000,0x480F00,0x5B2A00,0x6D4000,0x7E5400,0x8F6700,0x9F7800,0xAF8900,0xBE9900,0xCDA918,0xDBB831,0xEAC746,0xF7D65A,0xFFE46C,0xFFF27D,0xFFFF8E].map(v => (255 << 24) | ((v & 255) << 16) | (v & 0xFF00) | (v >> 16 & 255)));
+// Commodore 64: the VIC-II's 16 colours
+const C64PAL = new Uint32Array([0x000000,0xFFFFFF,0x68372B,0x70A4B2,0x6F3D86,0x588D43,0x352879,0xB8C76F,0x6F4F25,0x433900,0x9A6759,0x444444,0x6C6C6C,0x9AD284,0x6C5EB5,0x959595].map(v => (255 << 24) | ((v & 255) << 16) | (v & 0xFF00) | (v >> 16 & 255)));
 // PC Engine: the VCE's 9-bit colours, GRB 3-3-3
 const PCEPAL = new Uint32Array(512).map((_, v) => (255 << 24) | ((v & 7) * 255 / 7 << 16) | ((v >> 6 & 7) * 255 / 7 << 8) | (v >> 3 & 7) * 255 / 7);
 const GGPAL = new Uint32Array(4096).map((_, v) => (255 << 24) | ((v >> 8 & 15) * 17 << 16) | ((v >> 4 & 15) * 17 << 8) | (v & 15) * 17);
@@ -287,6 +291,12 @@ function drawFrame(words, sys) {
   else if (sys === 4) { setScreen(160, 240, 4 / 3);                      // Atari 2600: 4 pixels of 8 bits, wide pixels
     for (let i = 0; i < words.length && p < 38400; i++) { let w = words[i];
       for (let k = 0; k < 4; k++) { px[p++] = A26PAL[w & 127]; w >>>= 8; } } }
+  else if (sys === 8) { setScreen(384, 240, 4 / 3);                      // Commodore 64: 8 colour numbers of 4 bits a word
+    for (let i = 0; i < words.length && p < 92160; i++) { let w = words[i];
+      for (let k = 0; k < 8; k++) { px[p++] = C64PAL[w & 15]; w >>>= 4; } } }
+  else if (sys === 7) { setScreen(320, 240, 4 / 3);                      // Atari 7800: 4 colour codes of 8 bits a word
+    for (let i = 0; i < words.length && p < 76800; i++) { let w = words[i];
+      for (let k = 0; k < 4; k++) { px[p++] = A78PAL[w & 255]; w >>>= 8; } } }
   else if (sys === 6) { setScreen(256, 240, 4 / 3);                      // PC Engine: 3 dots of 9 bits, 86 words a line
     for (let y = 0; y < 240; y++) for (let x = 0; x < 256; x++) px[p++] = PCEPAL[(words[y * 86 + (x / 3 | 0)] >>> (9 * (x % 3))) & 511]; }
   else if (sys === 5) { setScreen(560, 192, 4 / 3); a2draw(words); }       // Apple IIe: 560 dots x 192 lines
@@ -312,7 +322,7 @@ function playSound(s16, stereo) {
 function showList() {
   const f = $('filter').value.toLowerCase(), L = $('list'); L.innerHTML = '';
   for (const g of games) { if (f && !g.toLowerCase().includes(f)) continue;
-    const b = document.createElement('button'); b.className = 'g' + (g === st.game ? ' on' : ''); b.textContent = g.replace(/\.(nes|gb|sms|bin|a26|dsk|do|po|nib|pce)$/i, '').replace(/\.gg$/i, ' (Game Gear)');
+    const b = document.createElement('button'); b.className = 'g' + (g === st.game ? ' on' : ''); b.textContent = g.replace(/\.(nes|gb|sms|bin|a26|dsk|do|po|nib|pce|a78|prg)$/i, '').replace(/\.gg$/i, ' (Game Gear)');
     b.onclick = () => { send({load: g}); $('now').textContent = 'Loading ' + b.textContent + ' ...'; }; L.appendChild(b); }
   if (!L.children.length) L.textContent = games.length ? 'No match.' : 'No games yet: put ' + (sysInfo.ext || '.nes') + ' files in ' + (sysInfo.roms || '/opt/orphan-games/roms/nes') + ' on the board.';
 }
@@ -324,6 +334,7 @@ let kb = 0, lastSent = -1;
 // computers (Apple IIe): the keyboard types; Alt keys = the Apple keys (buttons 0 and 1), F12 = Ctrl-Reset
 const A2KEYS = {Enter: 13, Backspace: 8, ArrowLeft: 8, ArrowRight: 21, ArrowUp: 11, ArrowDown: 10, Escape: 27, Tab: 9, Delete: 127};
 function compKey(e, down) {
+  if (sysInfo.keyboard === 'ps2') { if (!e.repeat) send({kcode: e.code, down: down}); return true; }   // C64: the key's position
   if (e.code === 'AltLeft' || e.code === 'AltRight') { const b = e.code === 'AltLeft' ? 1 : 2; kb = down ? kb | b : kb & ~b; return true; }
   if (e.code === 'F12') { if (down) send({warm: 1}); return true; }
   let c = A2KEYS[e.key];
@@ -379,8 +390,9 @@ function connect() {
       if (!m.state && !m.games) { showHw(); return; }            // a pad status update only
       if (m.games) games = m.games; if (m.audio_hz) rate = Math.round(m.audio_hz);
       if (m.system) { sysInfo = m; $('sysname').textContent = '[orphan] · ' + m.system + ' in the FPGA, free homebrew'; setScreen(m.w, m.h);
-        if (m.keyboard) $('help').innerHTML = 'The keyboard types into the computer · <b>Alt</b> = the Apple keys (buttons 0 and 1) · <b>F12</b> = Ctrl-Reset · a USB gamepad is the joystick.'; }
-      if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? (st.attract ? 'Demo: ' : '') + st.game.replace(/\.(nes|gb|sms|gg|bin|a26|dsk|do|po|nib|pce)$/i, '') : 'No game loaded';
+        if (m.keyboard === 'ascii') $('help').innerHTML = 'The keyboard types into the computer · <b>Alt</b> = the Apple keys (buttons 0 and 1) · <b>F12</b> = Ctrl-Reset · a USB gamepad is the joystick.';
+        else if (m.keyboard) $('help').innerHTML = 'The keyboard is the computer keyboard (keys by position) · a USB gamepad is the joystick in port 2.'; }
+      if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? (st.attract ? 'Demo: ' : '') + st.game.replace(/\.(nes|gb|sms|gg|bin|a26|dsk|do|po|nib|pce|a78|prg)$/i, '') : 'No game loaded';
         $('pause').textContent = st.running === false ? 'Resume' : 'Pause'; }
       showList(); showHw(); return; }
     const type = new DataView(ev.data).getInt16(0, true);

@@ -1,0 +1,151 @@
+{
+ "orphan_pce.bit": {
+  "board": "s9",
+  "sha256": "1b861700f5dee63ff369146f31f00561555a4f85d4dba5fe8964b99563dbc249",
+  "date": "2026-11-27 10:13",
+  "report": {
+   "board": "s9",
+   "board_name": "Antminer S9",
+   "part": "xc7z010clg400-1",
+   "top": "top",
+   "seconds": 2130,
+   "date": "2026-11-27 10:13",
+   "used": {
+    "LUT": 12300,
+    "FF": 8472,
+    "BRAM": 51,
+    "DSP": 3,
+    "LUT_RAM": 0,
+    "SRL": 1,
+    "CARRY": 495,
+    "BUFG": 3,
+    "MMCM_PLL": 1
+   },
+   "max": {
+    "LUT": 17600,
+    "FF": 35200,
+    "BRAM": 60,
+    "DSP": 80,
+    "PINS": 100
+   },
+   "pins": 47,
+   "clocks": {
+    "clk": {
+     "fmax": 121.42,
+     "need": 100.0,
+     "pass": true
+    },
+    "hp_clk": {
+     "fmax": 67.52,
+     "need": 42.94,
+     "pass": true
+    }
+   },
+   "hold_problems": 0,
+   "timing_ok": true,
+   "paths": [
+    {
+     "clock": "clk",
+     "cross": false,
+     "start": "u_pce.fr_s2[14]",
+     "end": "u_pce.fr_s2[14]",
+     "delay": 8.24,
+     "levels": 14,
+     "logic_ns": 2.34,
+     "route_ns": 5.87,
+     "steps": [
+      {
+       "net": "u_pce.fr_s2[14]",
+       "ns": 0.46,
+       "src": "orphan_pce_block.v:299"
+      }
+     ]
+    },
+    {
+     "clock": "hp_clk",
+     "cross": false,
+     "start": "u_pce.x[0]",
+     "end": "u_pce (logic)",
+     "delay": 14.81,
+     "levels": 29,
+     "logic_ns": 7.06,
+     "route_ns": 7.69,
+     "steps": [
+      {
+       "net": "u_pce.x[0]",
+       "ns": 0.7,
+       "src": "orphan_pce_block.v:212"
+      },
+      {
+       "net": "u_pce (logic)",
+       "ns": 0.33,
+       "src": ""
+      },
+      {
+       "net": "u_pce (logic)",
+       "ns": 0.0,
+       "src": ""
+      },
+      {
+       "net": "u_pce (logic)",
+       "ns": 0.69,
+       "src": ""
+      },
+      {
+       "net": "u_pce (logic)",
+       "ns": 0.02,
+       "src": ""
+      }
+     ]
+    },
+    {
+     "clock": "posedge clk -> posedge hp_clk",
+     "cross": true,
+     "start": "u_pce.probe_off[16]",
+     "end": "u_pce (logic)",
+     "delay": 2.01,
+     "levels": 1,
+     "logic_ns": 0.6,
+     "route_ns": 1.41,
+     "steps": [
+      {
+       "net": "u_pce.probe_off[16]",
+       "ns": 1.39,
+       "src": "orphan_pce_block.v:75"
+      },
+      {
+       "net": "u_pce (logic)",
+       "ns": 0.02,
+       "src": ""
+      }
+     ]
+    },
+    {
+     "clock": "posedge hp_clk -> posedge clk",
+     "cross": true,
+     "start": "lvl[7]",
+     "end": "lvl[7]",
+     "delay": 5.58,
+     "levels": 7,
+     "logic_ns": 1.79,
+     "route_ns": 3.78,
+     "steps": [
+      {
+       "net": "lvl[7]",
+       "ns": 0.33,
+       "src": "orphan_pce_block.v:275"
+      },
+      {
+       "net": "(logic)",
+       "ns": 0.02,
+       "src": "orphan_leds.v:96"
+      }
+     ]
+    }
+   ],
+   "debug": null,
+   "seed": 1,
+   "ethernet_added": false
+  }
+ }
+}
