@@ -355,7 +355,9 @@ def cyd_layout(fb):
 
 def cyd_stream_kind(host):
     """What the ORPHAN Remote offers (from its /status): 'udp' (game stream on UDP 8093, fastest), 'tcp' (TCP 8092)
-    or 'rect' (older firmware: one RGB565 rectangle per picture on 8091)."""
+    or 'rect' (older firmware: one RGB565 rectangle per picture on 8091). None: no answer (busy or away): ask again
+    later. (A timeout used to mean 'rect': the CYD, busy with a slow rectangle, missed the next /status too, and
+    the two stayed stuck on rectangles that held its loop for seconds.)"""
     try:
         with socket.create_connection((host, 80), timeout=2) as s:
             s.sendall(b'GET /status HTTP/1.1\r\nHost: cyd\r\nConnection: close\r\n\r\n')
@@ -366,7 +368,7 @@ def cyd_stream_kind(host):
                     break
                 data += chunk
     except OSError:
-        return 'rect'
+        return None
     if b'"game_udp":8093' in data:
         return 'udp'
     if b'"game_port":8092' in data:
@@ -394,8 +396,11 @@ def cyd_sender():
     while True:
         last, SUB, fb = cyd_take(last)
         try:
-            if kind == 'rect' and time.time() - checked > 30:
+            if kind is None or (kind == 'rect' and time.time() - checked > 30):
                 kind, checked = cyd_stream_kind(state['cyd']), time.time()
+                if kind is None:                   # the CYD did not answer: send nothing, ask again in 2 s
+                    time.sleep(2)
+                    continue
                 link = (cydlink.CydLinkUdp(state['cyd']) if kind == 'udp' else
                         cydlink.CydLink(state['cyd']) if kind == 'tcp' else None)
                 print('CYD %s: %s stream' % (state['cyd'], kind), flush=True)
@@ -414,8 +419,8 @@ def cyd_sender():
                 n, t0, cpu0 = 0, time.time(), time.process_time()
         except cydlink.CydBusy:                # a video is on the CYD: wait for it to finish, try again
             time.sleep(1)
-        except OSError:
-            kind, checked, link = 'rect', 0.0, None
+        except OSError:                        # lost the CYD: find out again what it offers before sending
+            kind, checked, link = None, 0.0, None
             time.sleep(1)
 
 
