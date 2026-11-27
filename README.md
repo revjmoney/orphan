@@ -18,7 +18,7 @@ the FPGA**.
 | ![Orphan TinyLM: Adventure mode](docs/screenshots/tinylm-adventure.png) | ![Orphan Radio](docs/screenshots/radio.png) |
 | **Orphan TinyLM**: a Llama writes stories on the FPGA; Adventure = 4 takes per chapter, you pick | **Orphan Radio**: four tuners and a panadapter, 1 kHz to 49 MHz |
 | ![Master System in the FPGA](docs/screenshots/sms.png) | ![Orphan BTC](docs/screenshots/btc.png) |
-| **Orphan Games**: NES, Game Boy, Master System, Game Gear, Atari 2600, Apple IIe and PC Engine as FPGA cores | **Orphan BTC**: a real Stratum SHA-256 miner with a coin and earnings panel |
+| **Orphan Games**: NES, Game Boy, Master System, Game Gear, Atari 2600, Atari 7800, Apple IIe, Commodore 64 and PC Engine as FPGA cores | **Orphan BTC**: a real Stratum SHA-256 miner with a coin and earnings panel |
 | ![The Orphan menu](docs/screenshots/menu.png) | ![Orphan Synth](docs/screenshots/synth.png) |
 | The login menu (hotkeys spell MY ORPHAN LIFE) | **Orphan Synth**: 8 voices in the FPGA |
 
@@ -33,8 +33,8 @@ it runs: `{fpga core}`, `{arm linux}` or `{fpga + arm}`. Every project has a des
 translucent cards). Click a project for its quick start and wiring; **Load** starts it and opens its own page in a new
 tab. Ardzy's upload, program output and register tools are still there ("Ardzy inside").
 
-**39 FPGA projects**: Ardzy's 19 examples (LED strips, steppers, VGA, audio, RISC-V, an FM transmitter, neural
-networks ...), 6 starters and tests, and Orphan's own fourteen:
+**41 FPGA projects**: Ardzy's 19 examples (LED strips, steppers, VGA, audio, RISC-V, an FM transmitter, neural
+networks ...), 6 starters and tests, and Orphan's own sixteen:
 
 | Project | Runs | What |
 |---|---|---|
@@ -46,6 +46,8 @@ networks ...), 6 starters and tests, and Orphan's own fourteen:
 | **Orphan Games: Atari 2600** | fpga core | A2601 (Retromaster) from MiSTer's Atari 2600 core, turned into Verilog with GHDL: 6507, TIA picture and sound, RIOT. Carts to 32 KB with automatic bank switching (2K, 4K, F8, F6, F4, FA, FE, E0, E7, 3F, UA, DPC) and Superchip RAM; real NES pads work as joysticks. Own test cart included. |
 | **Orphan Games: Apple IIe** | fpga core | MiSTer's Apple-II core (apple2fpga by Stephen A. Edwards, //e work by Gyorgy Szombathelyi) turned into Verilog with GHDL, with T65 as the 65C02: 64K + 64K aux RAM, 560 x 192 picture with NTSC colour, speaker sound, Disk II drive 1 (.dsk .do .po .nib), keyboard typing, paddles and buttons from real NES pads. Apple's ROMs are not included: put your own in roms/a2/system. Own test ROM included. |
 | **Orphan Games: PC Engine** | fpga core | MiSTer's TurboGrafx16 core (HuC6280 + PSG, HuC6270, HuC6260) turned into Verilog with GHDL, LITE build (HuCards only, no CD-ROM or SuperGrafx): HuCards to 4 MB in the board's DDR, stereo PSG, real NES pads. Own test card included. |
+| **Orphan Games: Atari 7800** | fpga core | MiSTer's Atari7800 core (Jamie Blanks, MIT) turned into plain Verilog with sv2v: SALLY, MARIA, TIA and POKEY sound, RIOT, the 7800 cart mappers; carts to 128 KB plus 16 KB cart RAM, no BIOS needed; real NES pads as joysticks with both buttons. 2600 carts play on Orphan Games: Atari 2600. Own test cart included. |
+| **Orphan Games: Commodore 64** | fpga core | MiSTer's C64 core (FPGA64 by Peter Wendrich with the MiSTer VIC-II, CIA and SID work, T65 CPU) turned into Verilog with GHDL and sv2v: 64 KB RAM, VIC-II picture, keyboard by position, joystick on port 2 from a real NES pad; `.prg` programs load and RUN by themselves. Commodore's ROMs are not included: put your own in roms/c64/system. Not working yet: SID sound (silent), disk drive, `.crt` carts. Own test program included. |
 | **Orphan TinyLM** | fpga + arm | Karpathy's stories15M / stories42M Llama models with every matrix product in the FPGA: 64 lanes, 4 stories per weight pass. Modes: Write, 4 Stories, **Adventure** (4 takes per chapter, you pick), model selector, FPGA vs ARM race. |
 | **Orphan BTC** | fpga + arm | A real Stratum v1 SHA-256 miner on Ardzy's SHA-256 core, ARM-checked shares, coin and earnings panel (honest numbers: it is a lottery miner). The 4 board LEDs breathe in a slow scanner while it mines. |
 | **Orphan KAS** | fpga + arm | A Kaspa (kHeavyHash) miner in the FPGA, verified at 575 kH/s on the S9: overlapped nonce stages, Stratum with ARM-checked shares, live forge dashboard, payouts and estimates; the 4 board LEDs breathe in a slow scanner while it mines. Its own repo: [kas-zynq-fpga-miner](https://github.com/revjmoney/kas-zynq-fpga-miner). |
