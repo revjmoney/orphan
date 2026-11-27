@@ -214,6 +214,8 @@ def c64_load(name, path):
         addr, body = c64rom.parse_prg(open(path, 'rb').read())
         with lock:
             W(0, 0)
+            W(13, 123)                         # the 384 x 240 window around the 320 x 200 screen (NTSC timing)
+            W(14, 19)
         c64_put(0, rom, ram=False)
         c64_put(0x4000, char, ram=False)
         with lock:
@@ -246,9 +248,11 @@ def c64_key(code, down):
     k = c64rom.PS2.get(code)
     if k is None:
         return
-    C64['key'] ^= 1 << 10
+    v = (1 << 9 if down else 0) | (k & 0x1FF)
     with lock:
-        W(2, C64['key'] | (1 << 9 if down else 0) | (k & 0x1FF))
+        W(2, C64['key'] | v)                   # the code first, with the old toggle (the C64's clock samples the
+        C64['key'] ^= 1 << 10                  # 11 bits through plain flip-flops: the toggle must change last)
+        W(2, C64['key'] | v)
 
 
 def load(name):
