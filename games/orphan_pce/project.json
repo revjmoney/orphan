@@ -1,0 +1,15 @@
+{
+  "id": "PCE1",
+  "title": "Orphan Games: PC Engine / TurboGrafx-16 in the FPGA",
+  "category": "Games",
+  "level": "easy",
+  "summary": "The PC Engine (TurboGrafx-16) rebuilt in the FPGA (MiSTer's TurboGrafx16 core by Gregory Estrade and the MiSTer team: HuC6280 CPU with its PSG sound, HuC6270 video, HuC6260 colour encoder). HuCards up to 4 MB (the card lives in the board's DDR, read through a 32 KB cache in the FPGA), including the 384K, 768K and Street Fighter II 2.5M mappings; no CD-ROM. Play in the browser (keyboard or a USB gamepad) or on an ORPHAN Remote (CYD) screen. Real NES pads on the hashboard connectors work as pad 1 (A = I, B = II, Select, Start = Run), through the same small 3.3 V adapter as the NES; disconnect every hashboard first. Free homebrew only. by JMSCNC, makers of RotatoCAM.",
+  "web": 8000,
+  "slots": {
+    "0": "Info",
+    "1": "PC Engine (HuCard in DDR + cache, frame buffer, sound, pad, real NES pads on J1..J9)",
+    "14": "LEDs (orphan_leds)",
+    "15": "Fan (orphan_fan)"
+  },
+  "runs": "fpga core"
+}

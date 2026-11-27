@@ -1,0 +1,136 @@
+{
+ "orphan_a2.bit": {
+  "board": "s9",
+  "sha256": "5cfdf61f2a7b564c843eea396fbb9e9844b45ed3aeb5b677a59bb50b56073df8",
+  "date": "2026-11-27 08:46",
+  "report": {
+   "board": "s9",
+   "board_name": "Antminer S9",
+   "part": "xc7z010clg400-1",
+   "top": "top",
+   "seconds": 184,
+   "date": "2026-11-27 08:46",
+   "used": {
+    "LUT": 2282,
+    "FF": 1873,
+    "BRAM": 48,
+    "DSP": 5,
+    "LUT_RAM": 0,
+    "SRL": 3,
+    "CARRY": 246,
+    "BUFG": 3,
+    "MMCM_PLL": 1
+   },
+   "max": {
+    "LUT": 17600,
+    "FF": 35200,
+    "BRAM": 60,
+    "DSP": 80,
+    "PINS": 100
+   },
+   "pins": 47,
+   "clocks": {
+    "clk": {
+     "fmax": 136.17,
+     "need": 100.0,
+     "pass": true
+    },
+    "u_a2.c14": {
+     "fmax": 107.85,
+     "need": 14.31,
+     "pass": true
+    }
+   },
+   "hold_problems": 0,
+   "timing_ok": true,
+   "paths": [
+    {
+     "clock": "clk",
+     "cross": false,
+     "start": "u_a2.fr_s2[12]",
+     "end": "u_a2 (logic)",
+     "delay": 7.34,
+     "levels": 13,
+     "logic_ns": 2.19,
+     "route_ns": 5.13,
+     "steps": [
+      {
+       "net": "u_a2.fr_s2[12]",
+       "ns": 0.51,
+       "src": "orphan_a2_block.v:230"
+      },
+      {
+       "net": "u_a2 (logic)",
+       "ns": 0.02,
+       "src": ""
+      }
+     ]
+    },
+    {
+     "clock": "u_a2.c14",
+     "cross": false,
+     "start": "u_a2.cwe1",
+     "end": "u_a2.cwe1",
+     "delay": 9.27,
+     "levels": 7,
+     "logic_ns": 1.84,
+     "route_ns": 7.42,
+     "steps": [
+      {
+       "net": "u_a2.cwe1",
+       "ns": 1.08,
+       "src": "orphan_a2_block.v:296"
+      }
+     ]
+    },
+    {
+     "clock": "posedge clk -> posedge u_a2.c14",
+     "cross": true,
+     "start": "u_a2.ctrl[2]",
+     "end": "u_a2.ctrl[2]",
+     "delay": 1.28,
+     "levels": 0,
+     "logic_ns": 0.45,
+     "route_ns": 0.83,
+     "steps": [
+      {
+       "net": "u_a2.ctrl[2]",
+       "ns": 0.83,
+       "src": "orphan_a2_block.v:58"
+      }
+     ]
+    },
+    {
+     "clock": "posedge u_a2.c14 -> posedge clk",
+     "cross": true,
+     "start": "lvl[7]",
+     "end": "lvl[7]$legal2655",
+     "delay": 5.32,
+     "levels": 6,
+     "logic_ns": 1.67,
+     "route_ns": 3.64,
+     "steps": [
+      {
+       "net": "lvl[7]",
+       "ns": 1.54,
+       "src": "orphan_leds.v:23"
+      },
+      {
+       "net": "lvl[7]$legal2655",
+       "ns": 0.0,
+       "src": ""
+      },
+      {
+       "net": "(logic)",
+       "ns": 0.02,
+       "src": "orphan_leds.v:96"
+      }
+     ]
+    }
+   ],
+   "debug": null,
+   "seed": 1,
+   "ethernet_added": false
+  }
+ }
+}

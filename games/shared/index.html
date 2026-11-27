@@ -122,7 +122,7 @@
     <p>Full guide: <a href="https://revjmoney.github.io/orphan/nes-pad.html" target="_blank" rel="noopener" style="color:var(--amber)">revjmoney.github.io/orphan/nes-pad.html</a></p>
   </div>
 </dialog>
-<footer><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> <b>[Rev. J. Money - 2026]</b> Orphan Games · Orphan · FPGA Dev Linux for the S9 Control Board · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM. Cores: NES fpganes by Ludvig Strigeus (GPL-2.0); Game Boy VerilogBoy by Wenting Zhang (OHDL 1.0); Master System / Game Gear: MiSTer SMS core (GPL-2.0-or-later, T80 CPU by Daniel Wallner) + jt89 by Jose Tejada (GPL-3.0); Atari 2600: A2601 by Retromaster from the MiSTer Atari 2600 core (GPL-3.0, T65 CPU by Daniel Wallner); Apple IIe: apple2fpga by Stephen A. Edwards with the //e work by Gyorgy Szombathelyi (MiSTer Apple-II core), T65 CPU (Apple's ROMs are your own).</footer>
+<footer><a class="bmc" href="https://buymeacoffee.com/revjmoney" target="_blank" rel="noopener">&#9749; Buy me a coffee</a> <b>[Rev. J. Money - 2026]</b> Orphan Games · Orphan · FPGA Dev Linux for the S9 Control Board · by <a href="https://jmscnc.com" target="_blank" rel="noopener">JMSCNC</a>, makers of RotatoCAM. Cores: NES fpganes by Ludvig Strigeus (GPL-2.0); Game Boy VerilogBoy by Wenting Zhang (OHDL 1.0); Master System / Game Gear: MiSTer SMS core (GPL-2.0-or-later, T80 CPU by Daniel Wallner) + jt89 by Jose Tejada (GPL-3.0); Atari 2600: A2601 by Retromaster from the MiSTer Atari 2600 core (GPL-3.0, T65 CPU by Daniel Wallner); Apple IIe: apple2fpga by Stephen A. Edwards with the //e work by Gyorgy Szombathelyi (MiSTer Apple-II core), T65 CPU (Apple's ROMs are your own); PC Engine: MiSTer TurboGrafx16 core by Gregory Estrade and the MiSTer team (GPL).</footer>
 <script>
 const $ = id => document.getElementById(id);
 // FCEUX palette (RGB555, 0bbbbbgggggrrrrr) -> RGBA
@@ -270,6 +270,8 @@ function a2draw(words) {
     for (let x = 0; x < 560; x++, p++) { if (!colour) { px[p] = A2PAL[d[x] * 15]; continue; }
       const w = d[x] | d[x + 1] << 1 | d[x + 2] << 2 | d[x + 3] << 3, r = (x + A2PHASE) & 3;
       px[p] = A2PAL[((w << r) | (w >> (4 - r))) & 15]; } } }
+// PC Engine: the VCE's 9-bit colours, GRB 3-3-3
+const PCEPAL = new Uint32Array(512).map((_, v) => (255 << 24) | ((v & 7) * 255 / 7 << 16) | ((v >> 6 & 7) * 255 / 7 << 8) | (v >> 3 & 7) * 255 / 7);
 const GGPAL = new Uint32Array(4096).map((_, v) => (255 << 24) | ((v >> 8 & 15) * 17 << 16) | ((v >> 4 & 15) * 17 << 8) | (v & 15) * 17);
 function drawFrame(words, sys) {
   let p = 0;
@@ -285,6 +287,8 @@ function drawFrame(words, sys) {
   else if (sys === 4) { setScreen(160, 240, 4 / 3);                      // Atari 2600: 4 pixels of 8 bits, wide pixels
     for (let i = 0; i < words.length && p < 38400; i++) { let w = words[i];
       for (let k = 0; k < 4; k++) { px[p++] = A26PAL[w & 127]; w >>>= 8; } } }
+  else if (sys === 6) { setScreen(256, 240, 4 / 3);                      // PC Engine: 3 dots of 9 bits, 86 words a line
+    for (let y = 0; y < 240; y++) for (let x = 0; x < 256; x++) px[p++] = PCEPAL[(words[y * 86 + (x / 3 | 0)] >>> (9 * (x % 3))) & 511]; }
   else if (sys === 5) { setScreen(560, 192, 4 / 3); a2draw(words); }       // Apple IIe: 560 dots x 192 lines
   else { setScreen(256, 240);                                             // NES: 5 pixels of 6 bits per word
     for (let i = 0; i < words.length && p < 61440; i++) { let w = words[i];
@@ -308,7 +312,7 @@ function playSound(s16, stereo) {
 function showList() {
   const f = $('filter').value.toLowerCase(), L = $('list'); L.innerHTML = '';
   for (const g of games) { if (f && !g.toLowerCase().includes(f)) continue;
-    const b = document.createElement('button'); b.className = 'g' + (g === st.game ? ' on' : ''); b.textContent = g.replace(/\.(nes|gb|sms|bin|a26|dsk|do|po|nib)$/i, '').replace(/\.gg$/i, ' (Game Gear)');
+    const b = document.createElement('button'); b.className = 'g' + (g === st.game ? ' on' : ''); b.textContent = g.replace(/\.(nes|gb|sms|bin|a26|dsk|do|po|nib|pce)$/i, '').replace(/\.gg$/i, ' (Game Gear)');
     b.onclick = () => { send({load: g}); $('now').textContent = 'Loading ' + b.textContent + ' ...'; }; L.appendChild(b); }
   if (!L.children.length) L.textContent = games.length ? 'No match.' : 'No games yet: put ' + (sysInfo.ext || '.nes') + ' files in ' + (sysInfo.roms || '/opt/orphan-games/roms/nes') + ' on the board.';
 }
@@ -376,7 +380,7 @@ function connect() {
       if (m.games) games = m.games; if (m.audio_hz) rate = Math.round(m.audio_hz);
       if (m.system) { sysInfo = m; $('sysname').textContent = '[orphan] · ' + m.system + ' in the FPGA, free homebrew'; setScreen(m.w, m.h);
         if (m.keyboard) $('help').innerHTML = 'The keyboard types into the computer · <b>Alt</b> = the Apple keys (buttons 0 and 1) · <b>F12</b> = Ctrl-Reset · a USB gamepad is the joystick.'; }
-      if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? (st.attract ? 'Demo: ' : '') + st.game.replace(/\.(nes|gb|sms|gg|bin|a26|dsk|do|po|nib)$/i, '') : 'No game loaded';
+      if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? (st.attract ? 'Demo: ' : '') + st.game.replace(/\.(nes|gb|sms|gg|bin|a26|dsk|do|po|nib|pce)$/i, '') : 'No game loaded';
         $('pause').textContent = st.running === false ? 'Resume' : 'Pause'; }
       showList(); showHw(); return; }
     const type = new DataView(ev.data).getInt16(0, true);

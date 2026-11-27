@@ -34,16 +34,17 @@ def hp_64bit():
 
 
 class CartStore:
-    def __init__(self):
+    def __init__(self, size=SIZE):
+        self.size = size
         self.libc = ctypes.CDLL('libc.so.6', use_errno=True)
-        self.buf = mmap.mmap(-1, SIZE, flags=mmap.MAP_SHARED | mmap.MAP_ANONYMOUS)
+        self.buf = mmap.mmap(-1, size, flags=mmap.MAP_SHARED | mmap.MAP_ANONYMOUS)
         self.addr = ctypes.addressof(ctypes.c_char.from_buffer(self.buf))
         try:
             open('/proc/sys/vm/compact_unevictable_allowed', 'w').write('0')     # locked pages stay put
         except OSError:
             pass
-        self.buf[:] = bytes(SIZE)                            # every page present
-        if self.libc.mlock(ctypes.c_void_p(self.addr), ctypes.c_size_t(SIZE)) != 0:
+        self.buf[:] = bytes(size)                            # every page present
+        if self.libc.mlock(ctypes.c_void_p(self.addr), ctypes.c_size_t(size)) != 0:
             raise OSError(ctypes.get_errno(), 'mlock failed (run as root)')
         self.scratch = mmap.mmap(-1, 8 << 20, flags=mmap.MAP_PRIVATE | mmap.MAP_ANONYMOUS)
         self.scratch_addr = ctypes.addressof(ctypes.c_char.from_buffer(self.scratch))
@@ -53,7 +54,7 @@ class CartStore:
         """The physical page of every 4 KB (read again each time: never trust an old table)."""
         with open('/proc/self/pagemap', 'rb') as f:
             f.seek(self.addr // 4096 * 8)
-            raw = f.read(SIZE // 4096 * 8)
+            raw = f.read(self.size // 4096 * 8)
         pages = []
         for (e,) in struct.iter_unpack('<Q', raw):
             pfn = e & ((1 << 55) - 1)
