@@ -66,21 +66,47 @@ module orphan_larson #(parameter [3:0] SLOT = 4'd5, parameter [17:0] STEP = 18'd
     reg [PWM_BITS-1:0] pwm = {PWM_BITS{1'b0}};
     always @(posedge clk) pwm <= pwm + 1'b1;
 
-    // per LED: distance to the eye -> 0..255 -> squared -> PWM compare
+    // per LED: distance to the eye -> 0..255 -> squared -> PWM compare. No multipliers (they cost a tight core like
+    // orphan_kas its clock): one small engine walks the 4 LEDs in turn, a few registered steps each, so every path is
+    // short. 0..384 -> 0..255 is shifts and adds (x 0.664), the square is 8 shift-and-add steps. A full refresh
+    // takes about 50 clocks, far faster than the eye moves.
+    reg [1:0]  li = 2'd0;                          // the LED being worked on
+    reg [3:0]  st = 4'd0;                          // 0 distance, 1 brightness, 2..9 square bits 0..7, 10 store
+    reg [10:0] dd = 11'd0;
+    reg [8:0]  bb = 9'd0;
+    reg [7:0]  b8 = 8'd0;
+    reg [15:0] acc = 16'd0;
+    reg [15:0] sq0 = 16'd0, sq1 = 16'd0, sq2 = 16'd0, sq3 = 16'd0;
+    wire [10:0] c = {1'b0, li, 8'd0};              // LED li sits at li * 256
+    wire [10:0] p = {1'b0, pos};
+    always @(posedge clk) begin
+        case (st)
+            4'd0: begin dd <= (p > c) ? (p - c) : (c - p); st <= 4'd1; end
+            4'd1: begin
+                bb <= (dd >= 11'd384) ? 9'd0 : 9'd384 - dd[8:0];               // 0..384
+                st <= 4'd11;
+            end
+            4'd11: begin
+                b8 <= (bb >> 1) + (bb >> 3) + (bb >> 5) + (bb >> 7);              // x 0.664: 384 -> 255
+                acc <= 16'd0; st <= 4'd2;
+            end
+            4'd10: begin
+                case (li) 2'd0: sq0 <= acc; 2'd1: sq1 <= acc; 2'd2: sq2 <= acc; default: sq3 <= acc; endcase
+                li <= li + 1'b1; st <= 4'd0;
+            end
+            default: begin                                                        // 2..9: square bit st-2
+                if (b8[st - 4'd2]) acc <= acc + ({8'd0, b8} << (st - 4'd2));
+                st <= st + 1'b1;
+            end
+        endcase
+    end
     reg [3:0] lit = 4'd0;
-    genvar g;
-    generate for (g = 0; g < 4; g = g + 1) begin : led
-        wire [10:0] c = g * 256;
-        wire [10:0] d = ({1'b0, pos} > c) ? ({1'b0, pos} - c) : (c - {1'b0, pos});
-        wire [8:0]  b = (d >= 11'd384) ? 9'd0 : 9'd384 - d[8:0];      // 0..384
-        wire [16:0] b170 = b * 8'd170;
-        wire [7:0]  b8 = b170[15:8];                                    // 0..255
-        reg  [15:0] sq = 16'd0;
-        always @(posedge clk) begin
-            sq <= b8 * b8;
-            lit[g] <= (pwm < sq[15 -: PWM_BITS]);
-        end
-    end endgenerate
+    always @(posedge clk) begin
+        lit[0] <= (pwm < sq0[15 -: PWM_BITS]);
+        lit[1] <= (pwm < sq1[15 -: PWM_BITS]);
+        lit[2] <= (pwm < sq2[15 -: PWM_BITS]);
+        lit[3] <= (pwm < sq3[15 -: PWM_BITS]);
+    end
 
     assign leds_n = on ? ~lit : idle_n;
 endmodule

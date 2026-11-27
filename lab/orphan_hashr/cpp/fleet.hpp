@@ -22,4 +22,14 @@ int hottest(const std::vector<BoardView>& v);      // the hottest reading of any
 bool others_on(const std::vector<BoardView>& v, int h);                  // another board not fully off
 std::vector<int> off_targets(const std::vector<BoardView>& v, int want); // want -1: every board not off
 std::string jname(int h);                          // "J6"
+
+// START MINING ON ALL BOARDS (Rev, 2026-11-27): which boards to power on, at what, and which miners to start
+constexpr double S9_VOLTS = 8.6;                   // an S9 with nothing saved: low and safe (board 2's daily setting)
+constexpr int S9_MHZ = 300;
+constexpr int L3_MHZ = 384;                        // an L3+ with nothing saved: stock clock
+struct Plug { int header; bool plugged, chain; std::string kind; bool off; };      // kind "s9", "l3p" or "" (not picked)
+struct Remembered { int header; double volts; int mhz; };                         // what it last powered on at
+struct PowerStep { int header; std::string kind; double volts; int mhz; };
+struct StartPlan { std::vector<PowerStep> power; bool sha = false, scrypt = false; std::vector<std::string> skipped; };
+StartPlan start_plan(const std::vector<Plug>& plugs, const std::vector<Remembered>& mem);
 }

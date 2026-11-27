@@ -363,6 +363,7 @@ struct Daemon {
             smine_boards.clear();
             smining = false;
         });
+        remember_pool("l3", url, user, pass);
         return "L3+ mining on " + url + " as " + user + (fee_sc.enabled ? " (3 % dev fee on)" : " (dev fee off)") + "\n";
     }
     // ---- L3+ chip test: one L3+ board hashes the genesis block for N s; the ARM re-checks every nonce with scrypt and
@@ -501,6 +502,86 @@ struct Daemon {
         return "J" + std::to_string(h + 1) + " is " + kind_name(k) + "\n";
     }
     std::atomic<bool> mining{false};
+
+    // START MINING ON ALL BOARDS (Rev, 2026-11-27): every plugged board at what it last ran at, then both miners
+    void remember_power(int h, double volts, int mhz) {
+        json::Value e = json::Value::object();
+        e.set("volts", volts);
+        e.set("mhz", mhz);
+        json::Value all = settings["power"].is_object() ? settings["power"] : json::Value::object();
+        all.set(fleet::jname(h), e);
+        settings.set("power", all);
+        save_settings();
+    }
+    void remember_pool(const std::string& which, const std::string& url, const std::string& user, const std::string& pass) {
+        json::Value e = json::Value::object();
+        e.set("pool", url);
+        e.set("user", user);
+        e.set("password", pass);
+        settings.set(which + "_pool", e);
+        save_settings();
+    }
+    std::string saved_pool(const std::string& which) {     // " url user pass", or "" for the built-in default
+        const json::Value& e = settings[which + "_pool"];
+        if (!e.is_object() || e["pool"].str().empty()) return "";
+        return " " + e["pool"].str() + " " + e["user"].str() + " " + (e["password"].str().empty() ? "x" : e["password"].str());
+    }
+    std::vector<fleet::Plug> plugs() {
+        std::vector<fleet::Plug> v;
+        std::vector<int> det = hr.detect();
+        for (int h = 0; h < 9; h++) {
+            Board* x;
+            L3Board* y;
+            std::string k;
+            { std::lock_guard<std::mutex> g(mu); x = boards[h].get(); y = l3[h].get(); k = kinds[h]; }
+            bool off = k == "l3p" ? (!y || y->off()) : (!x || x->off());
+            bool plugged = std::find(det.begin(), det.end(), h) != det.end() || !off;
+            if (plugged) v.push_back({h, true, fleet::chain_on(h), k, off});
+        }
+        return v;
+    }
+    std::vector<fleet::Remembered> remembered() {
+        std::vector<fleet::Remembered> m;
+        const json::Value& all = settings["power"];
+        for (int h = 0; h < 9; h++) {
+            const json::Value& e = all[fleet::jname(h)];
+            if (e.is_object() && e["mhz"].num(0) > 0) m.push_back({h, e["volts"].num(0), int(e["mhz"].num(0))});
+        }
+        return m;
+    }
+    std::atomic<bool> all_busy{false};
+    std::string mine_all() {
+        if (all_busy.exchange(true)) return "busy: already starting every board\n";
+        fleet::StartPlan p = fleet::start_plan(plugs(), remembered());
+        if (!p.sha && !p.scrypt) {
+            all_busy = false;
+            return p.skipped.empty() ? "no hashboard found on J6, J7 or J8\n" : "no board ready: " + p.skipped[0] + "\n";
+        }
+        std::string list;
+        for (const fleet::PowerStep& s : p.power) list += (list.empty() ? "" : ", ") + fleet::jname(s.header);
+        std::thread([this, p] {
+            logline("start all: " + (p.power.empty() ? std::string("every board is on already")
+                                                     : "powering on " + std::to_string(p.power.size()) + " board(s)"));
+            for (const std::string& s : p.skipped) logline("start all: " + s);
+            for (const fleet::PowerStep& s : p.power) {
+                char v[32];
+                std::snprintf(v, sizeof v, "%.2f", s.volts);
+                std::string r = handle("power_on " + std::string(v) + " " + std::to_string(s.mhz) + " " + fleet::jname(s.header));
+                while (!r.empty() && r.back() == '\n') r.pop_back();
+                logline("start all: " + fleet::jname(s.header) + " " + r);
+            }
+            for (int i = 0; i < 2; i++) {
+                bool sha = i == 0;
+                if (sha ? (!p.sha || mining) : (!p.scrypt || smining)) continue;
+                std::string r = handle(std::string(sha ? "mine_start" : "smine_start") + saved_pool(sha ? "s9" : "l3"));
+                while (!r.empty() && r.back() == '\n') r.pop_back();
+                logline("start all: " + r);
+            }
+            all_busy = false;
+        }).detach();
+        return "starting every board" + (list.empty() ? std::string() : ": powering on " + list) +
+               ", then the miners (follow the log)\n";
+    }
     // the 4 board LEDs (FPGA slot 5, orphan_larson): a breathing scanner while either miner runs, else the status
     // LEDs as before. A bitstream without slot 5 ignores the write.
     void leds_tick() { bus.wr(5, 1, (mining || smining) ? 1 : 0); }
@@ -567,6 +648,7 @@ struct Daemon {
             mine_boards.clear();
             mining = false;
         });
+        remember_pool("s9", url, user, pass);
         return "mining on " + url + " as " + user + (fee.enabled ? " (3 % dev fee on)" : " (dev fee off)") + "\n";
     }
 
@@ -872,7 +954,7 @@ struct Daemon {
         std::snprintf(v, sizeof v, "%.2f", a["volts"].num(Pic::V_START));
         std::string volts = v, cmd;
         auto num = [&](const char* k, double d) { return std::to_string(long(a[k].num(d))); };
-        if (op == "scan" || op == "renew" || op == "mine_stop") cmd = op;
+        if (op == "scan" || op == "renew" || op == "mine_stop" || op == "mine_all") cmd = op;
         else if (op == "pic_info" || op == "kat" || op == "skot") cmd = op + J;
         else if (op == "power_on") cmd = "power_on " + volts + " " + num("mhz", 400) + J;
         else if (op == "power_off") cmd = "power_off" + J;
@@ -1084,7 +1166,9 @@ struct Daemon {
                 { std::lock_guard<std::mutex> g(mu); l = make_l3(h); }
                 std::unique_lock<std::mutex> op(l->op, std::try_to_lock);
                 if (!op.owns_lock()) return "busy\n";
-                return l->power_on(mhz, why) ? "on: " + l->state_text() + "\n" : "failed: " + why + "\n";
+                if (!l->power_on(mhz, why)) return "failed: " + why + "\n";
+                remember_power(h, 0, mhz);
+                return "on: " + l->state_text() + "\n";
             }
             Board* b;
             {
@@ -1094,7 +1178,9 @@ struct Daemon {
             }
             std::unique_lock<std::mutex> op(b->op, std::try_to_lock);
             if (!op.owns_lock()) return "busy\n";
-            return b->power_on(volts, mhz, why) ? "on: " + b->state_text() + "\n" : "failed: " + why + "\n";
+            if (!b->power_on(volts, mhz, why)) return "failed: " + why + "\n";
+            remember_power(h, volts, mhz);
+            return "on: " + b->state_text() + "\n";
         }
         if (c == "power_off") {                    // power_off [J]: no J = every board
             std::string j;
@@ -1268,6 +1354,7 @@ struct Daemon {
         if (c == "timer") return timer_cmd(in);
         if (c == "kind") return kind_cmd(in);
         if (c == "smine_start") return smine_start(in);
+        if (c == "mine_all") return mine_all();
         if (c == "smine_stop") return smine_stop();
         if (c == "l3test") return l3test_cmd(in);
         if (c == "fan") return fan_cmd(in);

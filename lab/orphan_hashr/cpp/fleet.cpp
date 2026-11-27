@@ -50,4 +50,19 @@ std::vector<int> off_targets(const std::vector<BoardView>& v, int want) {
     return o;
 }
 
+StartPlan start_plan(const std::vector<Plug>& plugs, const std::vector<Remembered>& mem) {
+    StartPlan p;
+    for (const Plug& g : plugs) {
+        if (!g.plugged || !g.chain || !chain_on(g.header)) continue;
+        if (g.kind != "s9" && g.kind != "l3p") { p.skipped.push_back(jname(g.header) + ": pick S9 or L3+ first"); continue; }
+        if (g.kind == "s9") p.sha = true; else p.scrypt = true;
+        if (!g.off) continue;                      // already on (or on its way): leave it
+        PowerStep s{g.header, g.kind, g.kind == "s9" ? S9_VOLTS : 0.0, g.kind == "s9" ? S9_MHZ : L3_MHZ};
+        for (const Remembered& r : mem)
+            if (r.header == g.header) { if (g.kind == "s9") s.volts = r.volts; s.mhz = r.mhz; }
+        p.power.push_back(s);
+    }
+    return p;
+}
+
 }

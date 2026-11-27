@@ -36,6 +36,28 @@ int main() {
     std::vector<int> off = fleet::off_targets(two, -1);
     check(off.size() == 2 && off[0] == 5 && off[1] == 6 && fleet::off_targets(two, 6) == std::vector<int>{6},
           "power_off without J turns every board off, with J only that one");
+    // START MINING ON ALL BOARDS: power every plugged board that is off (its type picked), at the volts and MHz it
+    // last ran at (or the safe defaults), then start the miner for each kind that has a board
+    std::vector<fleet::Plug> plugs = {
+        {5, true, true, "l3p", true}, {6, true, true, "l3p", false}, {7, true, true, "s9", true}};
+    std::vector<fleet::Remembered> mem = {{7, 8.9, 350}};
+    fleet::StartPlan sp = fleet::start_plan(plugs, mem);
+    check(sp.power.size() == 2 && sp.power[0].header == 5 && sp.power[1].header == 7,
+          "start all: powers J6 and J8, leaves J7 (already on) alone");
+    check(sp.power[0].kind == "l3p" && sp.power[0].mhz == fleet::L3_MHZ,
+          "start all: an L3+ with nothing saved at the L3+ default clock");
+    check(sp.power[1].volts == 8.9 && sp.power[1].mhz == 350, "start all: an S9 at the volts and MHz it last ran at");
+    check(sp.sha && sp.scrypt, "start all: both miners start (an S9 and L3+ boards)");
+    std::vector<fleet::Plug> odd = {{5, true, true, "", true}, {6, false, false, "s9", true}, {7, true, true, "s9", true}};
+    sp = fleet::start_plan(odd, {});
+    check(sp.power.size() == 1 && sp.power[0].header == 7 && sp.power[0].volts == fleet::S9_VOLTS &&
+              sp.power[0].mhz == fleet::S9_MHZ,
+          "start all: an S9 with nothing saved at the S9 defaults");
+    check(sp.skipped.size() == 1 && sp.skipped[0].find("J6") != std::string::npos,
+          "start all: a board with no type picked is named, not powered");
+    check(sp.sha && !sp.scrypt, "start all: only the S9 miner when there is no L3+");
+    sp = fleet::start_plan({}, {});
+    check(sp.power.empty() && !sp.sha && !sp.scrypt, "start all: nothing plugged, nothing to do");
     std::printf("%s %d/%d\n", pass == total ? "PASS" : "FAIL", pass, total);
     return pass == total ? 0 : 1;
 }

@@ -101,6 +101,7 @@ footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;color:v
 
 <!-- ============================== OVERVIEW ============================== -->
 <div class="tab" id="tab-overview" role="tabpanel">
+  <section class="bar" aria-label="Start everything"><button id="bStartAll" class="primary" title="Powers on every plugged hashboard that is off, at the volts and MHz it last ran at, then starts the S9 and L3+ miners on their last pools">START MINING ON ALL BOARDS</button><span class="sub">every plugged board, its last settings, both miners</span></section>
   <section class="metrics" aria-label="Totals">
     <div class="metric good"><small>S9 hashrate (SHA-256)</small><strong id="oS9">-</strong></div>
     <div class="metric good"><small>L3+ hashrate (Scrypt)</small><strong id="oL3">-</strong></div>
@@ -463,6 +464,7 @@ async function poll(){try{const r=await fetch('/api/state?since='+seq+(board?'&b
 $('bSel').onchange=()=>{board=$('bSel').value;sel=null;poll()};
 $('bMine').onclick=()=>post('mine_start',{pool:$('pool').value.trim(),user:$('user').value.trim(),password:$('pass').value.trim()});
 $('bMineStop').onclick=()=>post('mine_stop');
+$('bStartAll').onclick=()=>post('mine_all');
 $('bTimer').onclick=()=>post('timer',{on:$('timerOn').checked,minutes:+$('timerMin').value});
 $('bPlan').onclick=()=>post('plan',{mode:$('plan').value,minutes:+$('planMin').value,solo_pool:$('soloPool').value.trim(),solo_user:$('soloUser').value.trim(),solo_password:$('soloPass').value.trim()});
 $('bFanCurve').onclick=()=>post('fan',{mode:'curve',lo:+$('fanLo').value,hi:+$('fanHi').value});

@@ -1,4 +1,4 @@
-ether 00:0a:35:00:01:22
+ether (board MAC removed)
 on: power on chips 63 mhz 400 pcb 33 chip 50 timer 583
 J6 power on chips 63 mhz 400 pcb 33 chip 50 timer 583
 t+30s J6 power on chips 63 mhz 400 pcb 33 chip 49 timer 553 fan applied 40 % watchdog ok 
