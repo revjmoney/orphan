@@ -13,7 +13,6 @@ class Controller:
         self.lock=threading.Lock();self.cancel=threading.Event();self.commands=queue.Queue(maxsize=1)
         self.logs=collections.deque(maxlen=300);self.log_sequence=0
         self.state={'mode':'idle','message':'Ready','job':None,'hardware':{},'test':None,'last_result':None,'error':None,'settings':settings.DEFAULT.copy(),'mining':{}}
-        self.state['settings']['password']=''
         try:
             self.state['settings']=settings.public()
         except OSError:
@@ -151,7 +150,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                         storage_failed=True
                     else:
                         storage_failed=False
-                        self.server.control.state['settings']={**saved,'password':''}
+                        self.server.control.state['settings']=dict(saved)
                         earnings=getattr(self.server.control,'earnings',None)
                         if earnings is not None:earnings.changed.set()
                 if storage_failed:

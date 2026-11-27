@@ -11,8 +11,10 @@ def validate(data):
     if not isinstance(data['wallets'],list) or len(data['wallets'])>16:raise ValueError('At most 16 wallet addresses')
     wallets=list(dict.fromkeys([data['wallet']]+data['wallets']))
     for wallet in wallets:
-        if wallet and not re.fullmatch(r'(kaspa|kaspatest|kaspasim):[a-z0-9]{61,63}',wallet):
-            raise ValueError('Use a full Kaspa receive address, including its network prefix')
+        # a Kaspa receive address, or a pool account name (Mining-Dutch logs in as account.worker, not an address)
+        if wallet and not (re.fullmatch(r'(kaspa|kaspatest|kaspasim):[a-z0-9]{61,63}',wallet)
+                           or re.fullmatch(r'[A-Za-z0-9_-]{1,64}',wallet)):
+            raise ValueError('Wallet: a full Kaspa address (kaspa:...) or a pool account name (letters, digits, _ or -)')
     data['wallets']=[w for w in wallets if w]
     if not re.fullmatch(r'[A-Za-z0-9_-]{1,32}',data['worker']):raise ValueError('Worker: 1..32 letters, digits, underscore or hyphen')
     from urllib.parse import urlsplit
@@ -34,4 +36,4 @@ def save(data):
         if os.path.exists(name):os.unlink(name)
     return data
 def public():
-    data=load();data['password']='';return data
+    return load()   # the page shows every saved setting, the pool password too (Rev's call; LAN-only page)

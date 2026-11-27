@@ -46,6 +46,7 @@ h1 span{color:var(--lime)}
 .telemetry{grid-template-rows:minmax(0,1fr) minmax(0,.82fr) auto}
 .panel-head{justify-content:space-between;margin-bottom:.55em;flex-wrap:wrap}
 h2{font-size:1em;color:var(--lime);text-transform:uppercase;letter-spacing:.11em}
+.pw{display:flex;gap:.35em}.pw input{flex:1;min-width:0}
 .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.5em}
 label{display:block;margin-bottom:.2em;font-size:.88em}
 .field{margin-bottom:.48em;min-width:0}
@@ -123,9 +124,9 @@ label.devfee input{margin-top:.15em}
    <div class="panel-head"><h2>Wallet &amp; pool</h2></div>
    <form id="settingsForm">
     <div class="field"><label for="saved">Saved wallets</label><select id="saved"><option value="">Choose a saved wallet</option></select></div>
-    <div class="field"><label for="wallet">Active wallet</label><input id="wallet" placeholder="kaspa:…" autocomplete="off"></div>
+    <div class="field"><label for="wallet">Wallet or pool account</label><input id="wallet" placeholder="kaspa:… or a pool account name (Mining-Dutch: your login)" autocomplete="off"></div>
     <div class="field"><label for="pool">Pool / Stratum</label><input id="pool" placeholder="stratum+tcp://host:5555"></div>
-    <div class="row"><div class="field"><label for="worker">Worker</label><input id="worker" value="orphan-s9"></div><div class="field"><label for="password">Pool password</label><input type="password" id="password" placeholder="Keep saved"></div></div>
+    <div class="row"><div class="field"><label for="worker">Worker</label><input id="worker" value="orphan-s9"></div><div class="field"><label for="password">Pool password</label><span class="pw"><input type="password" id="password" placeholder="x" autocomplete="off"><button type="button" id="showpw" aria-pressed="false">Show</button></span></div></div>
     <label class="devfee"><input type="checkbox" id="devfee" checked> 3 % dev fee: 3 of every 100 minutes mine to the Orphan developer's wallet (same pool). Untick to opt out.</label>
     <div class="actions"><button type="button" class="primary" id="mine">Start mining</button><button type="button" class="stop" id="stop">Stop</button><button type="submit">Save</button></div>
    </form>
@@ -192,12 +193,12 @@ async function command(data){
   try{
     const r=await fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
     const result=await r.json();if(!r.ok)throw Error(result.error);
-    if(data.action==='settings')$('password').value='';
     feedbackUntil=performance.now()+1700;report('Command accepted');
   }catch(e){feedbackUntil=performance.now()+4000;report(e.message,true);}
 }
 $('settingsForm').onsubmit=e=>{e.preventDefault();command({action:'settings',settings:{wallet:$('wallet').value.trim(),wallets:[...(settings?.wallets||[]),$('wallet').value.trim()],worker:$('worker').value.trim(),pool:$('pool').value.trim(),password:$('password').value,devfee:$('devfee').checked}});};
 $('saved').onchange=()=>{$('wallet').value=$('saved').value;};
+$('showpw').onclick=()=>{const p=$('password'),on=p.type==='password';p.type=on?'text':'password';$('showpw').textContent=on?'Hide':'Show';$('showpw').setAttribute('aria-pressed',on);};
 $('mine').onclick=()=>command({action:'mine'});$('stop').onclick=()=>command({action:'stop'});$('test').onclick=()=>command({action:'selftest'});$('benchmark').onclick=()=>command({action:'benchmark'});
 $('jobForm').onsubmit=e=>{e.preventDefault();const data={action:'job'};for(const id of ['seed','timestamp','start','end','target'])data[id]=$(id).value.trim();command(data);};
 $('fan').oninput=()=>{$('dutyLabel').textContent=$('fan').value;};$('applyFan').onclick=()=>command({action:'fan',duty:Number($('fan').value)});
@@ -426,7 +427,7 @@ function earnings(s){
 }
 for(const id of ['wallPower','powerPrice']){try{$(id).value=localStorage.getItem(id)||'';}catch(e){}$(id).oninput=()=>{try{localStorage.setItem(id,$(id).value);}catch(e){}};}
 async function tick(){try{const r=await fetch('/api/status');if(!r.ok)throw Error('Status unavailable');const s=await r.json(),h=s.hardware||{},m=s.mining||{};$('connection').textContent='BOARD ONLINE';$('connection').classList.remove('offline');$('mode').textContent=s.mode.toUpperCase();if(performance.now()>feedbackUntil)report(s.error||s.message,!!s.error);const rate=Number(h.hashrate||0)/1000;pipelineRate=rate;pipelineActive=s.mode==='mine'||!!h.busy;if(!motion)drawPipeline(0);$('rate').textContent=rate.toFixed(1);$('hashes').textContent=Number(h.hashes||0).toLocaleString();$('shares').textContent=(m.accepted||0)+' / '+(m.rejected||0);$('temp').textContent=h.temperature==null?'—':Number(h.temperature).toFixed(1);$('nonce').textContent=h.nonce||'0';$('hash').textContent=h.hash||'—';$('jobId').textContent=m.job_id||'—';$('difficulty').textContent=m.difficulty||'—';$('flags').textContent=['busy','found','exhausted','stopped'].filter(k=>h[k]).join(' · ')||'idle';$('rpm').textContent=(h.rpm||[]).map((v,i)=>`${i+1}: ${v} rpm`).join(' / ');if(s.test)$('testResult').textContent=`${s.test.result}: ${s.test.passed} hash vectors and ${s.test.range_tests} nonce ranges`;
-if(s.settings){settings=s.settings;const signature=JSON.stringify(settings.wallets);if($('saved').dataset.signature!==signature){$('saved').replaceChildren(new Option('Choose a saved wallet',''),...settings.wallets.map(w=>new Option(w,w)));$('saved').dataset.signature=signature;}if(!ready){for(const id of ['wallet','pool','worker'])$(id).value=settings[id]||'';$('devfee').checked=settings.devfee!==false;ready=true;}}
+if(s.settings){settings=s.settings;const signature=JSON.stringify(settings.wallets);if($('saved').dataset.signature!==signature){$('saved').replaceChildren(new Option('Choose a saved wallet',''),...settings.wallets.map(w=>new Option(w,w)));$('saved').dataset.signature=signature;}if(!ready){for(const id of ['wallet','pool','worker','password'])$(id).value=settings[id]||'';$('devfee').checked=settings.devfee!==false;ready=true;}}
 const fee=s.devfee||{};$('feeNote').hidden=!fee.active;
 $('hashes').style.setProperty('--digits',$('hashes').textContent.length);renderLog(s.logs||[]);earnings(s);plot(pipelineActive?rate:0,s.mode==='mine'&&Number.isFinite(m.effective_hashrate)?m.effective_hashrate/1000:null);}catch(e){pipelineActive=false;$('connection').textContent='BOARD OFFLINE';$('connection').classList.add('offline');report(e.message,true);}finally{setTimeout(tick,500);}}tick();
 </script>

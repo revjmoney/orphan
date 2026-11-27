@@ -3,8 +3,10 @@
 module kas_engine #(parameter [3:0] SLOT=1)(
  input wire clk, rstn, input wire [15:0] bus_addr,
  input wire [31:0] bus_wdata, input wire [3:0] bus_wstrb,
- input wire bus_we, bus_re, output reg [31:0] bus_rdata=0);
+ input wire bus_we, bus_re, output reg [31:0] bus_rdata=0,
+ output wire active);  // Orphan 2026-11-26: busy, for the LED scanner
  wire sel=bus_addr[15:12]==SLOT;
+ assign active=busy;
  wire [9:0] idx=bus_addr[11:2];
  wire command=bus_we && sel && idx==1 && bus_wstrb[0];
  reg stop=0,start=0,clear=0;
