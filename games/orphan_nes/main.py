@@ -1,4 +1,4 @@
-# Orphan Games: the ARM side of the FPGA game consoles (NES, Game Boy, Master System, Game Gear, Atari 2600). by JMSCNC, makers of RotatoCAM. GPL-2.0-or-later.
+# Orphan Games: the ARM side of the FPGA game consoles (NES, Game Boy, Master System, Game Gear, Atari 2600, Apple IIe, PC Engine). by JMSCNC, makers of RotatoCAM. GPL-2.0-or-later.
 #
 #   Web page + WebSocket on port 8000: game list, the picture, sound, keyboard / gamepad
 #   raw s16le mono sound (47.95 kHz) on TCP 8001 for ffplay
@@ -7,7 +7,8 @@
 #   (or /etc/orphan/nespads) picks other connectors, ORPHAN_NES_PADS=off turns them off. Wiring: orphan_nespad.v
 #   DISCONNECT EVERY HASHBOARD before using real pads. ORPHAN_NES_PADS_NEVER=6,7 (or /etc/orphan/nespads-never) is an
 #   optional extra: connectors that are never driven or read (default: none)
-# Games: /opt/orphan-games/roms/<nes|gb|sms|a26> (free homebrew only, see the README). The loaded FPGA design says which.
+# Games: /opt/orphan-games/roms/<nes|gb|sms|a26|a2|pce> (free homebrew only, see the README). The loaded FPGA design says which.
+# Apple IIe: Apple's ROMs are not part of Orphan: put your own in /opt/orphan-games/roms/a2/system (see a2rom.py).
 import array
 import multiprocessing
 import atexit
@@ -34,8 +35,10 @@ import gbrom
 import cydlink
 from cydlink import RGB565, GB565, SMS565, GG565
 import a26pal
+import a2rom
 import a26rom
 import nesrom
+import pcerom
 import smsrom
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -54,6 +57,12 @@ SYSTEMS = {
     # the last two frames (2 x 9600 words), merged into one picture by a26_merge()
     'A261': {'name': 'Atari 2600', 'dir': 'a26', 'ext': '.bin .a26', 'w': 160, 'h': 240, 'words': 19200,
              'stereo': True, 'audio_hz': 100e6 * 9.875 / 34.5 / 8 / 74},
+    # Apple IIe: 560 x 192 dots, 1 bit each (18 words a line, word 17 bit 31 = colour line); disks, a keyboard
+    'A2E1': {'name': 'Apple IIe', 'dir': 'a2', 'ext': '.dsk .do .po .nib', 'w': 560, 'h': 192, 'words': 3456,
+             'stereo': True, 'audio_hz': 100e6 * 9.875 / 69 / 298, 'keyboard': True},
+    # PC Engine: 256 x 240, 3 dots of 9 bits (GRB) a word, 86 words a line; the HuCard in the DDR (like NES2)
+    'PCE1': {'name': 'PC Engine', 'dir': 'pce', 'ext': '.pce', 'w': 256, 'h': 240, 'words': 20640,
+             'stereo': True, 'audio_hz': 100e6 * 9.875 / 23 / 896},
 }
 
 try:                                           # every Orphan design assumes a 100 MHz FPGA clock
@@ -72,14 +81,17 @@ if NES_DDR:                                    # otherwise the same as NES1
     SYS_ID = 'NES1'
     import nesddr
     cart_store = nesddr.CartStore()
+if SYS_ID == 'PCE1':                           # the HuCard in the DDR too, up to 4 MB
+    import nesddr
+    cart_store = nesddr.CartStore(pcerom.MAX)
 if SYS_ID not in SYSTEMS:
-    raise SystemExit('The FPGA holds no Orphan Games console (found %r). Load orphan_nes, orphan_gb, orphan_sms or orphan_a26 first.' % SYS_ID)
+    raise SystemExit('The FPGA holds no Orphan Games console (found %r). Load orphan_nes, orphan_gb, orphan_sms, orphan_a26, orphan_a2 or orphan_pce first.' % SYS_ID)
 SYS = SYSTEMS[SYS_ID]
 ROMS = os.environ.get('ORPHAN_ROMS', '/opt/orphan-games/roms/' + SYS['dir'])
 FB_WORDS = SYS['words']
 RUN = 1                                        # CTRL value while running (+4 = Game Gear mode)
-HW_PAD_DESIGNS = ('NES1', 'GB01', 'A261')               # designs with orphan_nespad (real NES pads on J1..J9)
-SUB = {'NES1': 0, 'GB01': 1, 'SMS1': 2, 'A261': 4}[SYS_ID]  # picture type in the WebSocket frame (3 = Game Gear)
+HW_PAD_DESIGNS = ('NES1', 'GB01', 'A261', 'A2E1', 'PCE1')               # designs with orphan_nespad (real NES pads on J1..J9)
+SUB = {'NES1': 0, 'GB01': 1, 'SMS1': 2, 'A261': 4, 'A2E1': 5, 'PCE1': 6}[SYS_ID]  # picture type in the WebSocket frame (3 = Game Gear)
 AUDIO_HZ = SYS['audio_hz']
 WBASE = (bus.m._off >> 2) + SLOT * 1024        # word index of the slot in Ardzy's mapped view
 lock = threading.RLock()
@@ -104,9 +116,72 @@ def game_list():
     return sorted(os.path.basename(p) for e in SYS['ext'].split() for p in glob.glob(os.path.join(ROMS, '*' + e)))
 
 
+def a2_put(base, data):
+    """Apple IIe: bytes straight into the block's memories at byte address `base` (no handshake needed)."""
+    W(3, base)
+    for w in nesrom.words(data):
+        W(512, w)
+
+
+A2 = {'tracks': None, 'loaded': -1, 'key': 0}
+
+
+def a2_load(name, path):
+    """Apple IIe: upload the system ROMs, insert the disk, cold start."""
+    try:
+        main_rom, video, disk_rom, notes = a2rom.system_roms(ROMS)
+        tracks = a2rom.disk_tracks(open(path, 'rb').read(), name)
+    except (OSError, ValueError) as e:
+        state.update(error='%s: %s' % (name, e), running=False)
+        return False
+    with lock:
+        W(0, 0)                                # held in reset (a cold start: the block clears $3F4)
+        W(12, 0)                               # no disk while the new one goes in
+        a2_put(0x20000, main_rom)
+        a2_put(0x24000, video)
+        a2_put(0x26000, disk_rom or bytes(256))
+        A2.update(tracks=tracks, loaded=-1)
+        a2_track(17)                           # the head starts on track 17 after a reset
+        W(1, 0)
+        W(0, RUN)
+    state.update(game=name, running=True, error='')
+    print('loaded %s: %d tracks%s' % (name, len(tracks), ''.join(', ' + n for n in notes)), flush=True)
+    return True
+
+
+def a2_track(t):
+    """Put track t into the drive's track buffer; the drive reads only while its head is on the loaded track."""
+    with lock:
+        W(12, A2['loaded'] << 8 & 0x3F00)      # disk out while the buffer changes
+        a2_put(0x28000, A2['tracks'][min(t, 34)])
+        W(12, 1 | t << 8)
+    A2['loaded'] = t
+
+
+def a2_disk_watch():
+    """Follow the Disk II head: a new track goes into the buffer within a few milliseconds of the step."""
+    while True:
+        time.sleep(0.002)
+        if A2['tracks'] is None or not state['running']:
+            continue
+        t = R(12) & 63
+        if t != A2['loaded']:
+            a2_track(t)
+
+
+def a2_key(code, down):
+    """Apple IIe keyboard: a press sets the strobe (bit 9 toggles), bit 8 = a key is held."""
+    if down:
+        A2['key'] ^= 1 << 9
+    with lock:
+        W(2, A2['key'] | (1 << 8 if down else 0) | (code & 0x7F))
+
+
 def load(name):
     global RUN, SUB, FB_WORDS
     path = os.path.join(ROMS, os.path.basename(name))
+    if SYS_ID == 'A2E1':
+        return a2_load(name, path)
     try:
         if SYS_ID == 'SMS1':
             cart = smsrom.parse(open(path, 'rb').read(), name)
@@ -116,6 +191,10 @@ def load(name):
             cart = a26rom.parse(open(path, 'rb').read(), name)
             reg2, parts = cart['cart'], ((0x00000, cart['rom']),)
             info = '%s, ROM %d KB' % (cart['scheme'], cart['kb'])
+        elif SYS_ID == 'PCE1':
+            cart = pcerom.parse(open(path, 'rb').read(), name)
+            reg2, parts = cart['sz'], ()
+            info = 'HuCard %d KB' % cart['kb']
         elif SYS_ID == 'GB01':
             cart = gbrom.parse(open(path, 'rb').read())
             reg2, parts = cart['cart'], ((0x00000, cart['rom']),)
@@ -130,8 +209,9 @@ def load(name):
     with lock:
         W(0, 0)                                # console in reset
         W(2, reg2)
-        if NES_DDR:
-            err = nesddr.load_cart(W, R, cart_store, nesrom.ddr_image(cart))
+        if NES_DDR or SYS_ID == 'PCE1':
+            img = nesrom.ddr_image(cart) if NES_DDR else pcerom.ddr_image(cart)
+            err = nesddr.load_cart(W, R, cart_store, img + bytes(cart_store.size - len(img)))
             if err:
                 state.update(error='%s: %s' % (name, err), running=False)
                 return False
@@ -292,7 +372,7 @@ def cyd_host():
 # frame buffer reads, the browser feed and the CYD encoder no longer fit one core at full speed.
 # Two picture slots in shared memory: the board writes the newest picture into the slot the sender is not reading,
 # the sender always takes the newest one as soon as it is free (a picture it was too slow for is skipped).
-CYD_SLOT = 4 * 12288
+CYD_SLOT = 4 * max(s["words"] for s in SYSTEMS.values())   # bytes of the biggest picture
 cyd_ctx = multiprocessing.get_context('fork')  # (the child shares this module's state as it is now)
 cyd_slots = cyd_ctx.RawArray('B', 2 * CYD_SLOT)
 cyd_meta = cyd_ctx.RawArray('i', 4)            # [picture number, SUB of slot 0, SUB of slot 1, words]
@@ -335,9 +415,40 @@ SH_GG = np.array([0, 12], dtype=np.uint32)
 SH_6 = np.arange(0, 30, 6, dtype=np.uint32)
 
 
+A2PAL = [0x000000, 0xDD0033, 0x000099, 0xDD22DD, 0x007722, 0x555555, 0x2222FF, 0x66AAFF,
+         0x885500, 0xFF6600, 0xAAAAAA, 0xFF9988, 0x11DD00, 0xFFFF00, 0x44FF99, 0xFFFFFF]   # the //e's 16 colours
+A2565 = np.array([((v >> 19) << 11) | ((v >> 10 & 63) << 5) | (v >> 3 & 31) for v in A2PAL], dtype='<u2')
+SH_A2 = np.arange(32, dtype=np.uint32)
+A2PHASE = 1                                    # colour phase of dot 0 (index.html uses the same)
+A2COLS = np.arange(256) * 560 // 256
+
+
+def a2_colours(fb):
+    """Apple IIe: 192 x 560 dots -> colour index 0..15 per dot. Colour lines: the 4-dot window starting at each dot,
+    turned to the colour clock's phase (NTSC artifact colour); text lines: white or black."""
+    w = np.frombuffer(fb, dtype=np.uint32).reshape(192, 18)
+    dots = ((w[:, :, None] >> SH_A2) & 1).reshape(192, 576)[:, :563].astype(np.uint8)
+    dots[:, 560:] = 0
+    win = dots[:, 0:560] | dots[:, 1:561] << 1 | dots[:, 2:562] << 2 | dots[:, 3:563] << 3
+    p = (np.arange(560) + A2PHASE) & 3
+    col = ((win << p) | (win >> (4 - p))) & 15
+    mono = dots[:, :560] * 15
+    return np.where((w[:, 17] >> 31).astype(bool)[:, None], col, mono).astype(np.uint8)
+
+
+PCE565 = np.array([((r * 31 + 3) // 7) << 11 | ((g * 63 + 3) // 7) << 5 | ((b * 31 + 3) // 7)
+                   for g in range(8) for r in range(8) for b in range(8)], dtype='<u2')   # 9-bit GRB -> RGB565
+SH_PCE = np.array([0, 9, 18], dtype=np.uint32)
+
+
 def cyd_layout(fb):
     """The picture as the CYD game stream wants it: (image, scale, x, y, palette). Game Boy and Game Gear are
     shown 1.5x (240 x 216, in-between pixels blended), NES and Master System 1:1."""
+    if SYS_ID == 'PCE1':                       # 256 x 240, 1:1
+        w = np.frombuffer(fb, dtype=np.uint32).reshape(240, 86)[:, :, None]
+        return PCE565[((w >> SH_PCE) & 511).reshape(240, 258)[:, :256]], 0, 32, 0, None
+    if SYS_ID == 'A2E1':                       # 560 dots -> 256 columns (the CYD stream's widest row), centred
+        return a2_colours(fb)[:, A2COLS], 0, 32, 24, A2565
     if SYS_ID == 'A261':                       # 160 x 240 (the CYD stream takes rows up to 256 wide): 1:1, centred
         return np.frombuffer(fb, dtype=np.uint8)[:160 * 240].reshape(240, 160), 0, 80, 0, A26565
     w = np.frombuffer(fb, dtype=np.uint32)[:, None]
@@ -599,12 +710,20 @@ def attract():
 
 def status():
     return json.dumps({'state': state, 'hwpads': nes_pads_state(), 'hwports': state.get('hwpads', ''),
-                       'hwnever': state.get('hwnever', []), 'games': game_list(), 'audio_hz': AUDIO_HZ, 'system': SYS['name'], 'hwpad_design': SYS_ID in HW_PAD_DESIGNS,
+                       'hwnever': state.get('hwnever', []), 'games': game_list(), 'audio_hz': AUDIO_HZ, 'system': SYS['name'], 'hwpad_design': SYS_ID in HW_PAD_DESIGNS, 'keyboard': SYS.get('keyboard', False),
                        'w': SYS['w'], 'h': SYS['h'], 'ext': SYS['ext'], 'roms': ROMS}).encode()
 
 
 def handle(m):
-    if 'pads' in m:
+    if 'key' in m and SYS_ID == 'A2E1':
+        touched()
+        a2_key(int(m['key']), bool(m.get('down', True)))
+    elif 'warm' in m and SYS_ID == 'A2E1':        # Ctrl-Reset: reset without the cold start
+        with lock:
+            W(0, 4)
+            time.sleep(0.02)
+            W(0, RUN)
+    elif 'pads' in m:
         pads[0], pads[1] = int(m['pads'][0]) & 0xFF, int(m['pads'][1]) & 0xFF if len(m['pads']) > 1 else 0
         if pads[0] or pads[1]:
             touched()
@@ -718,7 +837,7 @@ if __name__ == '__main__':
     if games:
         load(games[0])
     cyd_process_start()                        # before any thread starts (it forks)
-    for t in (frames, sound, raw_audio_server, pads_watch, attract):
+    for t in (frames, sound, raw_audio_server, pads_watch, attract) + ((a2_disk_watch,) if SYS_ID == 'A2E1' else ()):
         threading.Thread(target=t, daemon=True).start()
     ip = (subprocess.run(['hostname', '-I'], capture_output=True, text=True).stdout.split() or ['<board>'])[0]
     print('Orphan Games: open http://%s:%d in a browser' % (ip, PORT))
