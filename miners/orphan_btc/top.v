@@ -1,6 +1,7 @@
 // [orphan] Orphan BTC: a real Stratum Bitcoin miner built on Ardzy's 13_sha256 lab (by chryso, GPL-3.0,
 // https://github.com/chrysovalantischryso/ardzy). This hardware file is Ardzy's, unchanged except where marked.
-// Modified by Orphan (JMSCNC, 2026-11-22): orphan_fan added at slot 15.
+// Modified by Orphan (JMSCNC, 2026-11-22): orphan_fan added at slot 15. 2026-11-26: the 4 LEDs breathe in a slow
+// scanner while mining (orphan_larson.v, slot 5); idle, they show the original status LEDs.
 `timescale 1ns / 1ps
 // 13 SHA-256 miner: slot 0 info (project "SHA2"), slot 1 the miner (see sha_miner.v)
 //   LED 0 blinks while mining, LED 1 lights when a hash with enough zero bits was found;
@@ -10,7 +11,7 @@ module top (
     input  wire [5:0] fan_tach,
     output wire [3:0] leds
 );
-    wire [31:0] rd_fan;                // Orphan: orphan_fan read data
+    wire [31:0] rd_fan, rd_led;        // Orphan: orphan_fan, orphan_larson read data
     wire clk, rstn, we, re;
     wire [15:0] addr;
     wire [31:0] wdata, rd_info, rd_sha;
@@ -19,14 +20,16 @@ module top (
     reg  [24:0] blink = 25'd0;
     always @(posedge clk) blink <= blink + 1'b1;
     ardzy_bus u_bus (.clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_wstrb(wstrb),
-                     .bus_we(we), .bus_re(re), .bus_rdata(rd_fan | rd_info | rd_sha));
+                     .bus_we(we), .bus_re(re), .bus_rdata(rd_fan | rd_info | rd_sha | rd_led));
     ardzy_info #(.SLOT(0), .PROJECT("SHA2"), .VERSION(1)) u_info (
         .clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_we(we), .bus_re(re),
         .bus_rdata(rd_info), .leds_n(info_leds_n));
     sha_miner #(.SLOT(1), .NU(3)) u_sha (
         .clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_we(we), .bus_re(re),
         .bus_rdata(rd_sha), .mining_led(mining), .found_led(found));
-    assign leds = {info_leds_n[3:2], ~found, ~(mining & blink[24])};      // active low
+    orphan_larson #(.SLOT(5)) u_led (                                     // Orphan: LED scanner while mining
+        .clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_we(we), .bus_re(re), .bus_rdata(rd_led),
+        .active(mining), .idle_n({info_leds_n[3:2], ~found, ~(mining & blink[24])}), .leds_n(leds));   // active low
     // Orphan: fan control in every design (orphan_fan, slot 15; the Orphan menu's Cooling page drives it)
     orphan_fan #(.SLOT(15)) u_fan (
         .clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_we(we), .bus_re(re),

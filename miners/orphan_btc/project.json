@@ -16,6 +16,7 @@
   "slots": {
     "0": "Info",
     "1": "SHA-256 miner (Ardzy's sha_miner: 4 units, midstate + tail, zero-bit target)",
+    "5": "LED scanner (orphan_larson): the 4 LEDs breathe in a slow scanner while mining",
     "15": "Fan (orphan_fan)"
   },
   "runs": "fpga + arm"
