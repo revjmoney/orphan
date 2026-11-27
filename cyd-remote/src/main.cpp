@@ -22,6 +22,12 @@ WiFiClient gameLane[GameLanes];
 WiFiClient* gameClient=&gameLane[0];   // the lane being read
 String target="http://orphan.local:8090";
 extern uint32_t selIp,selSeen;                       // the picked board (see "several boards" below)
+// The views always ask an IP: a name like orphan.local looked up on the loop blocked it for seconds while the
+// board finder asked mDNS too (the loop watchdog restarted the CYD). The finder turns a saved name into its IP.
+static bool targetHost(String& host){int a=target.indexOf("://");a=a<0?0:a+3;int b=target.indexOf(':',a);int c=target.indexOf('/',a);
+ int e=b>=0?b:(c>=0?c:target.length());host=target.substring(a,e);IPAddress ip;return ip.fromString(host);}
+static bool targetIsIp(){String h;return targetHost(h);}
+volatile uint32_t resolvedTargetIp=0;                // set by the finder, applied by the loop
 const char* views[]={"system","mining","projects","radio","synth"};
 int view=0;
 uint32_t lastPoll=0,lastTouch=0,lastFrame=0;
@@ -40,7 +46,7 @@ bool tileValid[MaxTiles]={};
 bool redrawScene=true;
 uint32_t scenePolls=0,sceneTilesDrawn=0,sceneDrawMs=0;
 void temperaturePoll(){
- if(WiFi.status()!=WL_CONNECTED)return;
+ if(WiFi.status()!=WL_CONNECTED || !targetIsIp())return;
  HTTPClient h;h.setConnectTimeout(300);h.setTimeout(500);h.begin(target+"/api/temperature");
  if(h.GET()==200){JsonDocument d;if(!deserializeJson(d,h.getString()) && d["temperature"].is<float>())chipTemperature=d["temperature"].as<float>();}
  h.end();lastTemperaturePoll=millis();
@@ -100,6 +106,7 @@ void sceneError(const char* message){
 }
 void scene(){
  if(WiFi.status()!=WL_CONNECTED){sceneError("WiFi disconnected. Reconnecting...");return;}
+ if(!targetIsIp()){sceneError("Looking for the Orphan board...");return;}
  HTTPClient h;h.setConnectTimeout(400);h.setTimeout(550);
  h.begin(target+"/api/display?tiles=1&view="+views[view]);int status=h.GET();
  if(status!=200){h.end();sceneError("Waiting for S9 display service...");return;}
@@ -338,12 +345,24 @@ static void gameLaneStep(int lane){
   if(!ok){Serial.println("game stream: bad message, closing lane");gameClient->stop();gameMode=false;return;}
  }
 }
+// The game picture (60 KB in one piece) and the two DMA strips are taken once, at boot before WiFi breaks the heap
+// into pieces. (They used to be asked for in every loop pass: once the heap was in pieces the 60 KB never came, and
+// each try kept the two strips it did get: the heap ran out and TCP stopped answering, the "ping but no HTTP" fault.)
+bool gameAlloc(){
+ static uint32_t triedAt=0;static bool told=false;
+ if(gameFb && gameLine[0] && gameLine[1])return true;
+ if(triedAt && millis()-triedAt<10000)return false;                    // after a failure: try again in 10 s
+ triedAt=millis();
+ if(!gameFb)gameFb=(uint8_t*)heap_caps_malloc(GameMaxBytes,MALLOC_CAP_8BIT);
+ for(auto& b:gameLine)if(!b)b=(uint16_t*)heap_caps_malloc(320*8*2,MALLOC_CAP_DMA);
+ if(gameFb && gameLine[0] && gameLine[1])return true;
+ if(gameFb){heap_caps_free(gameFb);gameFb=nullptr;}                      // nothing kept from a failed try
+ for(auto& b:gameLine)if(b){heap_caps_free(b);b=nullptr;}
+ if(!told){Serial.printf("game stream: no memory (largest free block %u)\n",(unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));told=true;}
+ return false;
+}
 void gameStream(){
- if(!gameFb){
-  gameFb=(uint8_t*)heap_caps_malloc(GameMaxBytes,MALLOC_CAP_8BIT);
-  for(auto& b:gameLine)b=(uint16_t*)heap_caps_malloc(320*8*2,MALLOC_CAP_DMA);
-  if(!gameFb || !gameLine[0] || !gameLine[1]){Serial.println("game stream: no memory");return;}
- }
+ if(!gameAlloc())return;
  WiFiClient n=gameServer.available();
  if(n){
   acceptAt[2]=millis();
@@ -420,6 +439,11 @@ static bool selAlive(){return selIp && millis()-selSeen<10000;}
 static void discoverTask(void*){
  static const char* names[]={"orphan","orphan-2","orphan-3","orphan-4","orphan-5","orphan-6","orphan-7","orphan-8","orphan-9"};
  for(int k=0;;k=(k+1)%9){
+  String host;
+  if(WiFi.status()==WL_CONNECTED && !targetHost(host) && !resolvedTargetIp){       // a saved name: find its IP first
+   if(host.endsWith(".local"))host=host.substring(0,host.length()-6);
+   IPAddress a=MDNS.queryHost(host,1500);if((uint32_t)a){boardSeen((uint32_t)a,host.c_str());resolvedTargetIp=(uint32_t)a;}
+  }
   if(WiFi.status()==WL_CONNECTED){IPAddress a=MDNS.queryHost(names[k],800);if((uint32_t)a)boardSeen((uint32_t)a,names[k]);}
   vTaskDelay(pdMS_TO_TICKS(1500));
  }
@@ -540,6 +564,7 @@ void gameUdpStep(){
 }
 bool gameActive(){for(auto& c:gameLane)if(c.connected())return true;return false;}
 void sendTouch(int x,int y){
+ if(!targetIsIp())return;
  HTTPClient h;h.setConnectTimeout(300);h.setTimeout(300);h.begin(target+"/api/input");h.addHeader("Content-Type","application/json");
  JsonDocument d;d["type"]="touch";d["device"]=WiFi.macAddress();d["x"]=x;d["y"]=y;d["view"]=views[view];String data;serializeJson(d,data);h.POST(data);h.end();
 }
@@ -617,7 +642,7 @@ void controlRequest(){
 }
 void setup(){
  {Preferences q;q.begin("orphanremote",true);spiMhz=q.getUChar("spi",40);q.end();if(spiMhz!=80)spiMhz=40;}
- Serial.begin(115200);delay(200);boardInit(1,spiMhz*1000000u);title("Connecting with saved WiFi...");
+ Serial.begin(115200);delay(200);gameAlloc();boardInit(1,spiMhz*1000000u);title("Connecting with saved WiFi...");
  tileSprite.setColorDepth(16);tileSprite.createSprite(TileWidth,TileHeight);
  Preferences p;p.begin("orphanremote",true);target=p.getString("target",target);selIp=p.getUInt("sel",0);p.end();
  if(selIp)boardSeen(selIp,nullptr);
@@ -641,6 +666,11 @@ void heartbeat(){
 }
 void loop(){
  heartbeat();
+ if(resolvedTargetIp){                                  // the finder found the saved name's IP: ask that from now on
+  String host;targetHost(host);int a=target.indexOf(host);
+  target=target.substring(0,a)+IPAddress(resolvedTargetIp).toString()+target.substring(a+host.length());
+  resolvedTargetIp=0;lastPoll=0;redrawScene=true;Serial.printf("target: %s\n",target.c_str());
+ }
  controlRequest();frame();gameStream();
  gameUdpStep();
  int x,y;
