@@ -72,6 +72,11 @@ bus = Bus()
 W = lambda i, v: bus.wr(SLOT, i, v)    # noqa: E731
 R = lambda i: bus.rd(SLOT, i)          # noqa: E731
 SYS_ID = R(7).to_bytes(4, 'big').decode('ascii', 'replace')
+NES_DDR = SYS_ID == 'NES2'                     # the NES with its cart in the DDR (big carts, all mappers):
+if NES_DDR:                                    # otherwise the same as NES1
+    SYS_ID = 'NES1'
+    import nesddr
+    cart_store = nesddr.CartStore()
 if SYS_ID not in SYSTEMS:
     raise SystemExit('The FPGA holds no Orphan Games console (found %r). Load orphan_nes, orphan_gb, orphan_sms, orphan_a26 or orphan_a2 first.' % SYS_ID)
 SYS = SYSTEMS[SYS_ID]
@@ -184,8 +189,8 @@ def load(name):
             reg2, parts = cart['cart'], ((0x00000, cart['rom']),)
             info = 'mapper %d, ROM %d KB' % (cart['mbc'], cart['kb'])
         else:
-            cart = nesrom.parse(open(path, 'rb').read())
-            reg2, parts = cart['flags'], ((0x00000, cart['prg']), (0x10000, cart['chr']))
+            cart = nesrom.parse(open(path, 'rb').read(), ddr=NES_DDR)
+            reg2, parts = cart['flags'], (() if NES_DDR else ((0x00000, cart['prg']), (0x10000, cart['chr'])))
             info = 'mapper %d, PRG %d KB, CHR %d KB' % (cart['mapper'], cart['prg_kb'], cart['chr_kb'])
     except (OSError, ValueError) as e:
         state.update(error='%s: %s' % (name, e), running=False)
@@ -193,6 +198,11 @@ def load(name):
     with lock:
         W(0, 0)                                # console in reset
         W(2, reg2)
+        if NES_DDR:
+            err = nesddr.load_cart(W, R, cart_store, nesrom.ddr_image(cart))
+            if err:
+                state.update(error='%s: %s' % (name, err), running=False)
+                return False
         for base, data in parts:
             if not data:
                 continue
@@ -436,7 +446,9 @@ def cyd_layout(fb):
 
 def cyd_stream_kind(host):
     """What the ORPHAN Remote offers (from its /status): 'udp' (game stream on UDP 8093, fastest), 'tcp' (TCP 8092)
-    or 'rect' (older firmware: one RGB565 rectangle per picture on 8091)."""
+    or 'rect' (older firmware: one RGB565 rectangle per picture on 8091). None: no answer (busy or away): ask again
+    later. (A timeout used to mean 'rect': the CYD, busy with a slow rectangle, missed the next /status too, and
+    the two stayed stuck on rectangles that held its loop for seconds.)"""
     try:
         with socket.create_connection((host, 80), timeout=2) as s:
             s.sendall(b'GET /status HTTP/1.1\r\nHost: cyd\r\nConnection: close\r\n\r\n')
@@ -447,7 +459,7 @@ def cyd_stream_kind(host):
                     break
                 data += chunk
     except OSError:
-        return 'rect'
+        return None
     if b'"game_udp":8093' in data:
         return 'udp'
     if b'"game_port":8092' in data:
@@ -475,8 +487,11 @@ def cyd_sender():
     while True:
         last, SUB, fb = cyd_take(last)
         try:
-            if kind == 'rect' and time.time() - checked > 30:
+            if kind is None or (kind == 'rect' and time.time() - checked > 30):
                 kind, checked = cyd_stream_kind(state['cyd']), time.time()
+                if kind is None:                   # the CYD did not answer: send nothing, ask again in 2 s
+                    time.sleep(2)
+                    continue
                 link = (cydlink.CydLinkUdp(state['cyd']) if kind == 'udp' else
                         cydlink.CydLink(state['cyd']) if kind == 'tcp' else None)
                 print('CYD %s: %s stream' % (state['cyd'], kind), flush=True)
@@ -495,8 +510,8 @@ def cyd_sender():
                 n, t0, cpu0 = 0, time.time(), time.process_time()
         except cydlink.CydBusy:                # a video is on the CYD: wait for it to finish, try again
             time.sleep(1)
-        except OSError:
-            kind, checked, link = 'rect', 0.0, None
+        except OSError:                        # lost the CYD: find out again what it offers before sending
+            kind, checked, link = None, 0.0, None
             time.sleep(1)
 
 
@@ -599,11 +614,78 @@ def pads_watch():
             hp = nes_pads_state()
         except Exception:  # noqa: BLE001
             hp = None
+        if hp and any(hp.get('buttons') or []):
+            touched()                          # a real NES pad button counts as input too
         if hp != last:
             last = hp
             broadcast(json.dumps({'hwpads': hp, 'hwports': state.get('hwpads', ''),
                                   'hwnever': state.get('hwnever', [])}).encode(), opcode=1)
         time.sleep(0.25)
+
+
+# ---------------------------------------------------------------- attract mode + save states (stub)
+# Nobody touched anything (browser keys / gamepad, real NES pads, picking a game) for ATTRACT_IDLE seconds, on the
+# game list or in the middle of a game: a random game from the folder loads and its own demo plays, and every
+# ATTRACT_EACH seconds another random one. The first input ends it: the game on screen simply keeps going.
+# ORPHAN_ATTRACT_IDLE=0 turns it off. Every core gets it (it only uses load()).
+ATTRACT_IDLE = float(os.environ.get('ORPHAN_ATTRACT_IDLE', '300'))
+ATTRACT_EACH = float(os.environ.get('ORPHAN_ATTRACT_EACH', '90'))
+last_input = [time.time()]
+
+
+def touched():
+    last_input[0] = time.time()
+    if state.get('attract'):
+        state['attract'] = False
+        print('attract mode: input, demo over', flush=True)
+        broadcast(status(), opcode=1)
+
+
+def save_state(name):
+    """STUB: save the running game's whole state (CPU, PPU, APU, mapper registers, RAMs) so it can go on later.
+    Called whenever a game is left: another game picked on the page, or the demo player moving on. Needs the
+    console to dump and reload its registers (an FPGA job, see the NES2 notes); until then nothing is saved."""
+    return False
+
+
+def restore_state(name):
+    """STUB: put a saved state back after load(name). Nothing to restore yet (see save_state)."""
+    return False
+
+
+def switch_game(name):
+    if state.get('game'):
+        save_state(state['game'])
+    if load(name):
+        restore_state(name)
+        return True
+    return False
+
+
+def attract():
+    import random
+    next_at = 0.0
+    while True:
+        time.sleep(1)
+        if ATTRACT_IDLE <= 0:
+            continue
+        now = time.time()
+        if not state.get('attract') and now - last_input[0] < ATTRACT_IDLE:
+            continue
+        if state.get('attract') and now < next_at:
+            continue
+        games = [g for g in game_list() if g != state.get('game')]
+        if not games:
+            continue
+        name = random.choice(games)
+        state['attract'] = True
+        print('attract mode: %s' % name, flush=True)
+        with lock:
+            W(1, 0)                            # no buttons: the game's own demo plays
+        switch_game(name)
+        state['attract'] = True                # (load() sets the game state; keep the demo flag)
+        next_at = time.time() + ATTRACT_EACH
+        broadcast(status(), opcode=1)
 
 
 def status():
@@ -614,6 +696,7 @@ def status():
 
 def handle(m):
     if 'key' in m and SYS_ID == 'A2E1':
+        touched()
         a2_key(int(m['key']), bool(m.get('down', True)))
     elif 'warm' in m and SYS_ID == 'A2E1':        # Ctrl-Reset: reset without the cold start
         with lock:
@@ -622,10 +705,13 @@ def handle(m):
             W(0, RUN)
     elif 'pads' in m:
         pads[0], pads[1] = int(m['pads'][0]) & 0xFF, int(m['pads'][1]) & 0xFF if len(m['pads']) > 1 else 0
+        if pads[0] or pads[1]:
+            touched()
         with lock:
             W(1, pads[0] | pads[1] << 8)
     elif 'load' in m:
-        load(m['load'])
+        touched()
+        switch_game(m['load'])
         broadcast(status(), opcode=1)
     elif 'reset' in m:
         with lock:
@@ -731,7 +817,7 @@ if __name__ == '__main__':
     if games:
         load(games[0])
     cyd_process_start()                        # before any thread starts (it forks)
-    for t in (frames, sound, raw_audio_server, pads_watch) + ((a2_disk_watch,) if SYS_ID == 'A2E1' else ()):
+    for t in (frames, sound, raw_audio_server, pads_watch, attract) + ((a2_disk_watch,) if SYS_ID == 'A2E1' else ()):
         threading.Thread(target=t, daemon=True).start()
     ip = (subprocess.run(['hostname', '-I'], capture_output=True, text=True).stdout.split() or ['<board>'])[0]
     print('Orphan Games: open http://%s:%d in a browser' % (ip, PORT))

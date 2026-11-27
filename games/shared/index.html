@@ -25,8 +25,24 @@
        padding:6px 8px; cursor:pointer; font:inherit; }
   .g:hover { background:#16201a; } .g.on { background:#1c2a12; color:var(--amber2); }
   .stage { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:14px; }
-  #screen { image-rendering:pixelated; background:#000; border:1px solid var(--line2); width:min(100%, 768px, calc((100vh - 200px) * var(--arn, 1.0667)));
-            aspect-ratio:var(--ar, 256/240); }
+  .scr { width:min(100%, 768px, calc((100vh - 240px) * var(--arn, 1.0667))); aspect-ratio:var(--ar, 256/240); background:#000;
+         border:1px solid var(--line2); }
+  .scr canvas { display:block; width:100%; height:100%; } .scr canvas[hidden] { display:none; }
+  #screen { image-rendering:pixelated; }
+  .scr:fullscreen { border:0; display:flex; align-items:center; justify-content:center; }
+  .scr:fullscreen canvas { width:min(100vw, calc(100vh * var(--arn, 1.0667))); height:auto; aspect-ratio:var(--ar, 256/240); }
+  .scr:fullscreen #screen3 { width:100vw; height:100vh; aspect-ratio:auto; }
+  /* picture effect switches (one per effect) */
+  .fx { display:flex; gap:6px 14px; flex-wrap:wrap; justify-content:center; align-items:center; max-width:768px; padding:8px 10px;
+        border:1px solid var(--line2); border-radius:4px; background:#0d130f; }
+  .fx[hidden] { display:none; }
+  .sw { display:inline-flex; align-items:center; gap:6px; cursor:pointer; font:600 12px var(--ui); color:var(--txt); }
+  .sw input { appearance:none; -webkit-appearance:none; width:30px; height:16px; border-radius:9px; background:#2a3530; border:1px solid var(--line2);
+              position:relative; margin:0; cursor:pointer; transition:background .15s; }
+  .sw input::after { content:''; position:absolute; top:1px; left:1px; width:12px; height:12px; border-radius:50%; background:#cfd8cc; transition:left .15s; }
+  .sw input:checked { background:var(--amber); border-color:var(--amber); } .sw input:checked::after { left:15px; background:#0c1400; }
+  .sw input:disabled { opacity:.4; } .sw input:focus-visible { outline:2px solid var(--cyan); outline-offset:1px; }
+  .fxp { display:inline-flex; gap:4px; margin-left:6px; } .fxp .key { padding:3px 8px; }
   .bar { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
   .key { background:#1a2733; border:1px solid var(--line2); border-radius:3px; color:var(--txt); padding:6px 10px; cursor:pointer; font:600 12px var(--ui); }
   .key:hover { background:#1d2a22; } .key.on { border-color:var(--amber); background:#1c2a12; }
@@ -70,15 +86,17 @@
     <div id="list"></div>
   </aside>
   <section class="stage">
-    <canvas id="screen" width="256" height="240"></canvas>
+    <div class="scr" id="scr"><canvas id="screen" width="256" height="240"></canvas><canvas id="screen3" hidden></canvas></div>
     <div class="bar">
       <button class="key" id="snd">Sound on</button>
       <button class="key" id="pause">Pause</button>
       <button class="key" id="reset">Reset</button>
       <button class="key" id="full">Full screen</button>
+      <button class="key" id="fxbtn" title="Picture effects: each one on or off">Picture</button>
       <span class="key" id="fps" style="cursor:default">- fps</span>
       <button class="key" id="hwbtn" hidden>NES pads</button>
     </div>
+    <div class="fx" id="fx" hidden aria-label="Picture effects"></div>
     <p class="help" id="help"><b>Arrows</b> move · <b>Z</b> = B · <b>X</b> = A · <b>Enter</b> = Start · <b>Right Shift</b> = Select.
       A USB gamepad works too: press a button once so the browser sees it.</p>
   </section>
@@ -115,11 +133,126 @@ const P555 = [0x39ce,0x4464,0x5400,0x4c08,0x3811,0x0815,0x0014,0x002f,0x00a8,0x0
 const PAL = new Uint32Array(64);
 P555.forEach((v, i) => { const r = (v & 31) * 255 / 31, g = (v >> 5 & 31) * 255 / 31, b = (v >> 10 & 31) * 255 / 31;
   PAL[i] = (255 << 24) | (b << 16) | (g << 8) | r; });           // little-endian RGBA
-let ctx = $('screen').getContext('2d'), img = ctx.createImageData(256, 240), px = new Uint32Array(img.data.buffer), scrW = 256, scrH = 240;
 const GBPAL = new Uint32Array([[0xE0,0xF0,0xC8],[0x88,0xC0,0x70],[0x34,0x68,0x56],[0x08,0x18,0x20]].map(([r,g,b]) => (255 << 24) | (b << 16) | (g << 8) | r));
-function setScreen(w, h, ar) { if (w === scrW && h === scrH) return; scrW = w; scrH = h; const c = $('screen'); c.width = w; c.height = h;
-  ar = ar || w / h; c.style.setProperty('--ar', String(ar)); c.style.setProperty('--arn', ar.toFixed(4));
-  ctx = c.getContext('2d'); img = ctx.createImageData(w, h); px = new Uint32Array(img.data.buffer); }
+// ---- picture enhancements (every core): the console's frame (scrW x scrH, already in colour) goes into src;
+// with every effect off the 2D canvas shows it as sharp pixels (exactly the old look); with any effect on a WebGL
+// pipeline draws it: Scale2x twice (smooth pixels), then one shader for the rest. Each effect has its own switch,
+// remembered in this browser. Spec for future cores: docs/games-picture.md
+const FX = [
+  ['smooth', 'Smooth pixels', 'Scale2x twice: rounds stair-step edges into smooth lines (pixel art upscaler)'],
+  ['soft',   'Soft filter',   'bilinear filtering instead of hard pixel edges'],
+  ['vivid',  'Vivid colour',  'more saturation and contrast'],
+  ['glow',   'Glow',          'bright parts bleed light, like a lit screen'],
+  ['scan',   'Scanlines',     'dark gaps between the lines, like a CRT'],
+  ['mask',   'RGB mask',      'red / green / blue phosphor stripes'],
+  ['curve',  'Curved screen', 'tube curvature with dark corners'],
+  ['blend',  'Frame blend',   'mixes each frame with the last one: smooths flicker'],
+];
+const FX_PRESETS = { Modern: ['smooth', 'soft', 'vivid', 'glow'], CRT: ['soft', 'glow', 'scan', 'mask', 'curve'], Off: [] };
+let fx = {}; try { fx = JSON.parse(localStorage.getItem('orphanPicture') || '{}'); } catch (e) { fx = {}; }
+const src = document.createElement('canvas'); src.width = 256; src.height = 240;
+let ctx = src.getContext('2d'), img = ctx.createImageData(256, 240), px = new Uint32Array(img.data.buffer), scrW = 256, scrH = 240, scrAR = 256 / 240;
+const c2 = $('screen'), c2x = c2.getContext('2d');
+function setScreen(w, h, ar) { ar = ar || w / h; const s = $('scr'); s.style.setProperty('--ar', String(ar)); s.style.setProperty('--arn', ar.toFixed(4));
+  scrAR = ar; if (w === scrW && h === scrH) return; scrW = w; scrH = h; src.width = w; src.height = h; c2.width = w; c2.height = h;
+  ctx = src.getContext('2d'); img = ctx.createImageData(w, h); px = new Uint32Array(img.data.buffer); }
+const GLX = (() => {
+  const cv = $('screen3'), gl = cv.getContext('webgl', {antialias: false, premultipliedAlpha: false, preserveDrawingBuffer: true});
+  if (!gl) return null;
+  const VS = 'attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }';
+  // Scale2x (AdvanceMAME): each input pixel becomes 2x2, corners taken from a neighbour where two edges meet
+  const S2X = 'precision highp float; uniform sampler2D t; uniform vec2 isz, osz;\n' +
+    'vec3 T(vec2 c){ return texture2D(t, c / isz).rgb; } bool Q(vec3 a, vec3 b){ return all(equal(a, b)); }\n' +
+    'void main(){ vec2 p = gl_FragCoord.xy / osz * isz; vec2 c = floor(p) + 0.5; vec2 f = fract(p);\n' +
+    ' vec3 E = T(c), B = T(c + vec2(0.0, -1.0)), D = T(c + vec2(-1.0, 0.0)), F = T(c + vec2(1.0, 0.0)), H = T(c + vec2(0.0, 1.0)), r = E;\n' +
+    ' if (!Q(B, H) && !Q(D, F)) {\n' +
+    '  if (f.y < 0.5) { if (f.x < 0.5) { if (Q(D, B)) r = D; } else { if (Q(B, F)) r = F; } }\n' +
+    '  else { if (f.x < 0.5) { if (Q(D, H)) r = D; } else { if (Q(H, F)) r = F; } } }\n' +
+    ' gl_FragColor = vec4(r, 1.0); }';
+  // everything else in one pass; the texture's row 0 is the picture's top line, the screen's y runs upwards
+  const FIN = 'precision highp float; uniform sampler2D st, sp; uniform vec4 vp; uniform vec2 ssz, tsz;\n' +
+    'uniform float curve, scan, mask, glow, vivid, blend;\n' +
+    'void main(){ vec2 uv = (gl_FragCoord.xy - vp.xy) / vp.zw; uv.y = 1.0 - uv.y; float vig = 1.0;\n' +
+    ' if (curve > 0.5) { vec2 c = uv * 2.0 - 1.0; c *= 1.0 + vec2(0.035, 0.05) * (c.yx * c.yx); uv = c * 0.5 + 0.5;\n' +
+    '  vec2 e = smoothstep(0.0, 0.04, uv) * smoothstep(0.0, 0.04, 1.0 - uv); vig = e.x * e.y * (1.0 - 0.18 * dot(c, c) * 0.5); }\n' +
+    ' if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) { gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0); return; }\n' +
+    ' vec3 col = texture2D(st, uv).rgb;\n' +
+    ' if (blend > 0.5) col = mix(col, texture2D(sp, uv).rgb, 0.45);\n' +
+    ' if (glow > 0.5) { vec2 d = 1.6 / ssz; vec3 g = vec3(0.0);\n' +
+    '  for (int i = 0; i < 8; i++) { float a = float(i) * 0.785398; g += texture2D(st, uv + vec2(cos(a), sin(a)) * d).rgb;\n' +
+    '   g += texture2D(st, uv + vec2(cos(a), sin(a)) * d * 2.2).rgb; }\n' +
+    '  g /= 16.0; vec3 gb = max(g - 0.45, 0.0); col += 2.2 * gb * gb; }\n' +
+    ' if (vivid > 0.5) { float l = dot(col, vec3(0.299, 0.587, 0.114)); col = mix(vec3(l), col, 1.3); col = (col - 0.5) * 1.1 + 0.5; }\n' +
+    ' if (scan > 0.5) { float y = uv.y * ssz.y; float s = 0.5 - 0.5 * cos(6.2831853 * y); col *= (0.55 + 0.45 * s) * 1.28; }\n' +
+    ' if (mask > 0.5) { float m = mod(floor(gl_FragCoord.x), 3.0);\n' +
+    '  vec3 mm = m < 1.0 ? vec3(1.0, 0.72, 0.72) : m < 2.0 ? vec3(0.72, 1.0, 0.72) : vec3(0.72, 0.72, 1.0); col *= mm * 1.24; }\n' +
+    ' gl_FragColor = vec4(clamp(col * vig, 0.0, 1.0), 1.0); }';
+  function prog(fs) { const p = gl.createProgram();
+    for (const [type, s] of [[gl.VERTEX_SHADER, VS], [gl.FRAGMENT_SHADER, fs]]) { const sh = gl.createShader(type); gl.shaderSource(sh, s); gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); gl.attachShader(p, sh); }
+    gl.bindAttribLocation(p, 0, 'p'); gl.linkProgram(p); return p; }
+  let pS2X, pFIN; try { pS2X = prog(S2X); pFIN = prog(FIN); } catch (e) { console.warn('picture effects off:', e); return null; }
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  function tex(w, h) { const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    for (const k of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0); return {t, f, w, h}; }
+  let W = 0, H = 0, srcT = [], x2, x4 = [], k = 0, have = 0;
+  function sizes() { if (W === scrW && H === scrH) return; W = scrW; H = scrH; srcT = [tex(W, H), tex(W, H)]; x2 = tex(2 * W, 2 * H);
+    x4 = [tex(4 * W, 4 * H), tex(4 * W, 4 * H)]; have = 0; }
+  function pass(p, out, inp, w, h) { gl.bindFramebuffer(gl.FRAMEBUFFER, out ? out.f : null); gl.viewport(0, 0, w, h); gl.useProgram(p);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, inp.t); gl.uniform1i(gl.getUniformLocation(p, 't'), 0);
+    gl.uniform2f(gl.getUniformLocation(p, 'isz'), inp.w, inp.h); gl.uniform2f(gl.getUniformLocation(p, 'osz'), w, h);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); }
+  // mode: 'new' = a new frame from the console, 'redo' = the same frame again (a switch changed), 'view' = only redraw
+  function draw(mode) {
+    sizes();
+    const dpr = window.devicePixelRatio || 1, bw = Math.max(1, Math.round(cv.clientWidth * dpr)), bh = Math.max(1, Math.round(cv.clientHeight * dpr));
+    if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
+    if (mode !== 'view') { if (mode === 'new') k ^= 1; gl.bindTexture(gl.TEXTURE_2D, srcT[k].t); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+      if (fx.smooth) { pass(pS2X, x2, srcT[k], 2 * W, 2 * H); pass(pS2X, x4[k], x2, 4 * W, 4 * H); } if (mode === 'new' || !have) have = Math.min(have + 1, 2); }
+    const st = fx.smooth ? x4[k] : srcT[k], sp = fx.smooth ? x4[k ^ 1] : srcT[k ^ 1];
+    // the picture keeps its shape: the widest rectangle of the console's aspect ratio that fits, centred
+    let vw = bw, vh = Math.round(bw / scrAR); if (vh > bh) { vh = bh; vw = Math.round(bh * scrAR); }
+    const vx = (bw - vw) >> 1, vy = (bh - vh) >> 1;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, bw, bh); gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.viewport(vx, vy, vw, vh); gl.useProgram(pFIN);
+    for (const [u, t, i] of [['st', st, 0], ['sp', have > 1 ? sp : st, 1]]) { gl.activeTexture(gl.TEXTURE0 + i); gl.bindTexture(gl.TEXTURE_2D, t.t);
+      const f = fx.soft ? gl.LINEAR : gl.NEAREST; gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+      gl.uniform1i(gl.getUniformLocation(pFIN, u), i); }
+    gl.uniform4f(gl.getUniformLocation(pFIN, 'vp'), vx, vy, vw, vh); gl.uniform2f(gl.getUniformLocation(pFIN, 'ssz'), W, H);
+    for (const n of ['curve', 'scan', 'mask', 'glow', 'vivid', 'blend']) gl.uniform1f(gl.getUniformLocation(pFIN, n), fx[n] ? 1 : 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  return {draw};
+})();
+function fxOn() { return GLX && FX.some(([n]) => fx[n]); }
+function present(mode) {                       // 'new' frame, 'redo' (a switch changed), 'view' (size changed)
+  if (mode === 'new') ctx.putImageData(img, 0, 0);
+  const gl = fxOn(); $('screen3').hidden = !gl; c2.hidden = !!gl;
+  if (gl) GLX.draw(mode); else c2x.drawImage(src, 0, 0);
+}
+function fxPanel() {
+  const P = $('fx'); P.innerHTML = '';
+  for (const [n, label, tip] of FX) { const l = document.createElement('label'); l.className = 'sw'; l.title = tip;
+    const i = document.createElement('input'); i.type = 'checkbox'; i.checked = !!fx[n]; i.disabled = !GLX;
+    i.onchange = () => { fx[n] = i.checked; localStorage.setItem('orphanPicture', JSON.stringify(fx)); present('redo'); };
+    l.append(i, document.createTextNode(' ' + label)); P.appendChild(l); }
+  const s = document.createElement('span'); s.className = 'fxp';
+  for (const name in FX_PRESETS) { const b = document.createElement('button'); b.className = 'key'; b.textContent = name;
+    b.title = name === 'Off' ? 'every effect off' : 'turns on: ' + FX_PRESETS[name].map(n => FX.find(f => f[0] === n)[1]).join(', ');
+    b.onclick = () => { fx = {}; for (const n of FX_PRESETS[name]) fx[n] = true; localStorage.setItem('orphanPicture', JSON.stringify(fx)); fxPanel(); present('redo'); };
+    s.appendChild(b); }
+  P.appendChild(s);
+  if (!GLX) P.appendChild(document.createTextNode(' (this browser has no WebGL: effects unavailable)'));
+}
+fxPanel();
+$('fxbtn').onclick = () => { $('fx').hidden = !$('fx').hidden; $('fxbtn').classList.toggle('on', !$('fx').hidden); };
+new ResizeObserver(() => { if (fxOn()) present('view'); }).observe($('screen3'));
 let sysInfo = {}, ws, st = {}, games = [], actx, gainN, playAt = 0, rate = 47950, frames = 0, fpsT = performance.now();
 function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 
@@ -156,7 +289,7 @@ function drawFrame(words, sys) {
   else { setScreen(256, 240);                                             // NES: 5 pixels of 6 bits per word
     for (let i = 0; i < words.length && p < 61440; i++) { let w = words[i];
       for (let k = 0; k < 5; k++) { px[p++] = PAL[w & 63]; w >>>= 6; } } }
-  ctx.putImageData(img, 0, 0); frames++;
+  present('new'); frames++;
   const now = performance.now(); if (now - fpsT > 1000) { $('fps').textContent = (frames * 1000 / (now - fpsT)).toFixed(0) + ' fps'; frames = 0; fpsT = now; }
 }
 function playSound(s16, stereo) {
@@ -213,7 +346,7 @@ $('snd').onclick = () => { if (!actx) { actx = new AudioContext(); gainN = actx.
   actx.resume(); $('snd').classList.add('on'); $('snd').textContent = 'Sound is on'; };
 $('pause').onclick = () => send({pause: st.running !== false});
 $('reset').onclick = () => send({reset: 1});
-$('full').onclick = () => { const c = $('screen'); (c.requestFullscreen || c.webkitRequestFullscreen).call(c); };
+$('full').onclick = () => { const c = $('scr'); (c.requestFullscreen || c.webkitRequestFullscreen).call(c); };
 
 // ---- real NES pads on the hashboard header (NES and Game Boy designs): live status from main.py
 const BTN = ['A', 'B', 'Sel', 'Sta', 'Up', 'Dn', 'Lt', 'Rt'];
@@ -243,7 +376,7 @@ function connect() {
       if (m.games) games = m.games; if (m.audio_hz) rate = Math.round(m.audio_hz);
       if (m.system) { sysInfo = m; $('sysname').textContent = '[orphan] · ' + m.system + ' in the FPGA, free homebrew'; setScreen(m.w, m.h);
         if (m.keyboard) $('help').innerHTML = 'The keyboard types into the computer · <b>Alt</b> = the Apple keys (buttons 0 and 1) · <b>F12</b> = Ctrl-Reset · a USB gamepad is the joystick.'; }
-      if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? st.game.replace(/\.(nes|gb|sms|gg|bin|a26|dsk|do|po|nib)$/i, '') : 'No game loaded';
+      if (m.state) { st = m.state; $('now').textContent = st.error ? st.error : st.game ? (st.attract ? 'Demo: ' : '') + st.game.replace(/\.(nes|gb|sms|gg|bin|a26|dsk|do|po|nib)$/i, '') : 'No game loaded';
         $('pause').textContent = st.running === false ? 'Resume' : 'Pause'; }
       showList(); showHw(); return; }
     const type = new DataView(ev.data).getInt16(0, true);

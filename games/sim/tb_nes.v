@@ -16,6 +16,19 @@ module tb;
     wr(512, w); sent = sent + 1;
     v = 0; while (v[15:0] != sent[15:0]) rd(3, v);          // wait for the console side to take it
   end endtask
+
+  // the console's whole life, hashed: every step's memory address, the bytes it got and the pixel (equal hashes
+  // in two runs = the console did exactly the same thing, whatever the cart memory behind it)
+  reg [63:0] trace = 64'd0, trace_f = 64'd0; integer xcol = 0, ti; reg [48:0] tv, tz;
+  always @(posedge dut.nclk) if (dut.run_nes) begin
+    // (unwritten RAM reads X in simulation, 0 on the chip, on both cores alike: X bits count as 0 here)
+    tv = {dut.memory_addr, dut.memory_read_cpu, dut.memory_read_ppu, dut.memory_write,
+          (dut.memory_read_cpu ? dut.memory_din_cpu : 8'd0), (dut.memory_read_ppu ? dut.memory_din_ppu : 8'd0), dut.color};
+    for (ti = 0; ti < 49; ti = ti + 1) tz[ti] = (tv[ti] === 1'b1);
+    trace = (trace * 64'd1099511628211) ^ {15'd0, tz};
+    if (^dut.color === 1'bx) xcol = xcol + 1;
+    if (dut.scanline == 9'd240 && dut.cycle == 9'd0) trace_f <= trace;
+  end
   initial begin
     $readmemh("sim/rom_prg.hex", prg); $readmemh("sim/rom_chr.hex", chr);
     wr(0, 0); wr(2, `FLAGS); sent = 0;
@@ -28,7 +41,7 @@ module tb;
     n = 0;
     while (n < `FRAMES) begin
       repeat (20000) @(posedge clk); rd(6, v);
-      if (v[15:0] != n) begin n = v[15:0]; $display("frame %0d  audio words %0d  level %0d  t=%0t", n, v[27:16], level, $time); $fflush; end
+      if (v[15:0] != n) begin n = v[15:0]; $display("trace at the frame end %016x  x pixels so far %0d", trace_f, xcol); $display("frame %0d  audio words %0d  level %0d  t=%0t", n, v[27:16], level, $time); $fflush; end
       if (n == `FRAMES - 12) wr(1, 16'h0008);                     // press Start for a while
       if (n == `FRAMES - 8) wr(1, 16'h0000);
     end

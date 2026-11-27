@@ -17,7 +17,7 @@ an optional program that runs after it loads (`main.py`, a C program, a sketch o
 | `games/orphan_sms` | Orphan Games: Master System + Game Gear: MiSTer's SMS core GHDL-converted (`vdp_ghdl.v`, `video_ghdl.v`, `T80s_ghdl.v`), jt89 sound, `orphan_sms_block.v` (Sega mapper, frame buffer, stereo, pads); see its `README.md` and `LICENSES.md` |
 | `games/sms_vhdl`, `games/ghdl_convert.sh` | the patched VHDL of the SMS core and the GHDL 4 script that turns it into Verilog netlists |
 | `games/make_sms_testrom.py` | Orphan's own SMS / Game Gear test cart (`games/smsroms/orphan_test.*`) |
-| `games/shared` | the board program and web page all three consoles use (`main.py` reads the loaded console's ID: NES1, GB01, SMS1) |
+| `games/shared` | the board program and web page every console uses (`main.py` reads the loaded console's ID: NES1/NES2, GB01, SMS1, A261); the page's picture effects and the rules for new cores: [games-picture.md](games-picture.md) |
 | `games/sim/tb_nes.v` | loads a ROM through the bus, runs frames, dumps a picture (`nesframe.py` turns it into a PNG) |
 | `toys/orphan_toys` | Orphan Graphics Toys (raycast, color waves, XOR, Life) |
 | `miners/orphan_btc` | Orphan BTC: a Stratum v1 SHA-256 miner on Ardzy's `13_sha256` core (`stratum_btc.py`, earnings panel, `devfee.py`) |

@@ -1,23 +1,23 @@
 {
  "orphan_nes.bit": {
   "board": "s9",
-  "sha256": "56c698a4de64f38d272d1e5abd0d4f93124f2c8b093198c34e73d6ad9a8e1ac6",
-  "date": "2026-11-25 20:24",
+  "sha256": "2cba61683d75fbab5278e620d58cc490da946fb3ba0f59a72a8165f19580c054",
+  "date": "2026-11-26 13:56",
   "report": {
    "board": "s9",
    "board_name": "Antminer S9",
    "part": "xc7z010clg400-1",
    "top": "top",
-   "seconds": 221,
-   "date": "2026-11-25 20:24",
+   "seconds": 464,
+   "date": "2026-11-26 13:56",
    "used": {
-    "LUT": 3954,
-    "FF": 3284,
-    "BRAM": 55,
+    "LUT": 4178,
+    "FF": 3750,
+    "BRAM": 53,
     "DSP": 2,
     "LUT_RAM": 14,
     "SRL": 1,
-    "CARRY": 314,
+    "CARRY": 336,
     "BUFG": 3,
     "MMCM_PLL": 1
    },
@@ -31,12 +31,12 @@
    "pins": 47,
    "clocks": {
     "clk": {
-     "fmax": 114.22,
+     "fmax": 108.38,
      "need": 100.0,
      "pass": true
     },
-    "u_nes.nclk": {
-     "fmax": 52.58,
+    "hp_clk": {
+     "fmax": 47.95,
      "need": 21.51,
      "pass": true
     }
@@ -47,88 +47,83 @@
     {
      "clock": "clk",
      "cross": false,
-     "start": "u_nes.sw_s2[14]",
-     "end": "u_nes.sw_s2[14]",
-     "delay": 8.76,
-     "levels": 15,
-     "logic_ns": 2.49,
-     "route_ns": 6.23,
+     "start": "u_nes.sw_b[15]",
+     "end": "u_nes.sw_b[15]",
+     "delay": 9.23,
+     "levels": 16,
+     "logic_ns": 2.64,
+     "route_ns": 6.56,
      "steps": [
       {
-       "net": "u_nes.sw_s2[14]",
-       "ns": 0.31,
-       "src": "orphan_nes_block.v:266"
+       "net": "u_nes.sw_b[15]",
+       "ns": 0.75,
+       "src": "orphan_nes_block.v:389"
       }
      ]
     },
     {
-     "clock": "u_nes.nclk",
+     "clock": "hp_clk",
      "cross": false,
-     "start": "u_nes.nes.cpu.AddrBus[1]",
-     "end": "u_nes.memory_dout[7]",
-     "delay": 19.02,
-     "levels": 21,
-     "logic_ns": 5.79,
-     "route_ns": 13.15,
+     "start": "u_nes.nes.cpu.AddrBus[0]",
+     "end": "u_nes (logic)",
+     "delay": 20.85,
+     "levels": 18,
+     "logic_ns": 5.36,
+     "route_ns": 15.44,
      "steps": [
       {
-       "net": "u_nes.nes.cpu.AddrBus[1]",
-       "ns": 1.37,
+       "net": "u_nes.nes.cpu.AddrBus[0]",
+       "ns": 1.53,
        "src": "MicroCode.v:4"
       },
       {
-       "net": "u_nes.nes.addr[1]",
-       "ns": 1.48,
-       "src": "nes.v:263"
+       "net": "u_nes.cidx[4]",
+       "ns": 1.21,
+       "src": "orphan_nes_block.v:167"
       },
       {
-       "net": "u_nes.nes.cpu.AluR[7]",
-       "ns": 0.33,
-       "src": "cpu.v:51"
+       "net": "u_nes.miss",
+       "ns": 0.95,
+       "src": "orphan_nes_block.v:126"
       },
       {
-       "net": "u_nes.memory_dout[7]",
-       "ns": 2.48,
-       "src": "nes.v:259"
-      }
-     ]
-    },
-    {
-     "clock": "posedge clk -> posedge u_nes.nclk",
-     "cross": true,
-     "start": "u_nes.mapper_flags[12]",
-     "end": "u_nes.mapper_flags[12]",
-     "delay": 1.74,
-     "levels": 0,
-     "logic_ns": 0.45,
-     "route_ns": 1.29,
-     "steps": [
-      {
-       "net": "u_nes.mapper_flags[12]",
-       "ns": 1.29,
-       "src": "orphan_nes_block.v:68"
-      }
-     ]
-    },
-    {
-     "clock": "posedge u_nes.nclk -> posedge clk",
-     "cross": true,
-     "start": "lvl[6]",
-     "end": "lvl[6]$legal661",
-     "delay": 5.24,
-     "levels": 6,
-     "logic_ns": 1.63,
-     "route_ns": 3.59,
-     "steps": [
-      {
-       "net": "lvl[6]",
-       "ns": 1.24,
-       "src": "orphan_nes_block.v:241"
-      },
-      {
-       "net": "lvl[6]$legal661",
-       "ns": 0.0,
+       "net": "u_nes (logic)",
+       "ns": 1.4,
        "src": ""
+      }
+     ]
+    },
+    {
+     "clock": "posedge clk -> posedge hp_clk",
+     "cross": true,
+     "start": "u_nes.pt_q[19]",
+     "end": "u_nes.pt_q[19]",
+     "delay": 3.48,
+     "levels": 0,
+     "logic_ns": 2.55,
+     "route_ns": 0.93,
+     "steps": [
+      {
+       "net": "u_nes.pt_q[19]",
+       "ns": 0.93,
+       "src": "orphan_nes_block.v:243"
+      }
+     ]
+    },
+    {
+     "clock": "posedge hp_clk -> posedge clk",
+     "cross": true,
+     "start": "lvl[7]",
+     "end": "lvl[7]",
+     "delay": 5.01,
+     "levels": 7,
+     "logic_ns": 1.79,
+     "route_ns": 3.2,
+     "steps": [
+      {
+       "net": "lvl[7]",
+       "ns": 0.32,
+       "src": "orphan_nes_block.v:364"
       },
       {
        "net": "(logic)",
