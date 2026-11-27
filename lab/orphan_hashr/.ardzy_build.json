@@ -1,23 +1,23 @@
 {
  "orphan_hashr.bit": {
   "board": "s9",
-  "sha256": "f78ef084e55bf814764768b900c3d402b470716cdf8a167982fda6c29f2eb73c",
-  "date": "2026-11-26 13:50",
+  "sha256": "6c6cb3cec78db3e951a4d8d9b5934b5dc495731a9637d7e7f16e3ee50a0adaf2",
+  "date": "2026-11-27 15:21",
   "report": {
    "board": "s9",
    "board_name": "Antminer S9",
    "part": "xc7z010clg400-1",
    "top": "top",
-   "seconds": 311,
-   "date": "2026-11-26 13:50",
+   "seconds": 569,
+   "date": "2026-11-27 15:21",
    "used": {
-    "LUT": 5611,
-    "FF": 6403,
+    "LUT": 5688,
+    "FF": 6544,
     "BRAM": 9,
-    "DSP": 10,
+    "DSP": 2,
     "LUT_RAM": 48,
     "SRL": 1,
-    "CARRY": 635,
+    "CARRY": 641,
     "BUFG": 1,
     "MMCM_PLL": 0
    },
@@ -31,7 +31,7 @@
    "pins": 51,
    "clocks": {
     "clk": {
-     "fmax": 103.75,
+     "fmax": 106.81,
      "need": 100.0,
      "pass": true
     }
@@ -42,23 +42,23 @@
     {
      "clock": "clk",
      "cross": false,
-     "start": "u_disp.ch[7].on.u.win[53]",
-     "end": "u_disp.ch[7].on.u.win[53]",
-     "delay": 9.64,
-     "levels": 14,
-     "logic_ns": 2.34,
-     "route_ns": 7.27,
+     "start": "u_build.rc[0]",
+     "end": "u_build.rc[0]",
+     "delay": 9.36,
+     "levels": 9,
+     "logic_ns": 1.68,
+     "route_ns": 7.68,
      "steps": [
       {
-       "net": "u_disp.ch[7].on.u.win[53]",
-       "ns": 1.38,
-       "src": "hr_chain.v:266"
+       "net": "u_build.rc[0]",
+       "ns": 0.34,
+       "src": "hr_build.v:90"
       }
      ]
     }
    ],
    "debug": null,
-   "seed": 1,
+   "seed": 2,
    "ethernet_added": false
   }
  }
