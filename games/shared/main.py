@@ -50,8 +50,9 @@ SYSTEMS = {
     # Master System (256 x 192, 5 px of 6 bits) and Game Gear (160 x 144, 2 px of 12 bits): one design, CTRL bit 2
     'SMS1': {'name': 'Master System / Game Gear', 'dir': 'sms', 'ext': '.sms .gg', 'w': 256, 'h': 192,
              'words': 9831, 'stereo': True, 'audio_hz': 100e6 * 11.75 / 21.875 / 1119},
-    # Atari 2600: 160 x 240 lines kept from YSTART (register 14), 4 pixels of 8 bits (TIA colour 0..127) per word
-    'A261': {'name': 'Atari 2600', 'dir': 'a26', 'ext': '.bin .a26', 'w': 160, 'h': 240, 'words': 9600,
+    # Atari 2600: 160 x 240 lines kept from YSTART (register 14), 4 pixels of 8 bits (TIA colour 0..127) per word,
+    # the last two frames (2 x 9600 words), merged into one picture by a26_merge()
+    'A261': {'name': 'Atari 2600', 'dir': 'a26', 'ext': '.bin .a26', 'w': 160, 'h': 240, 'words': 19200,
              'stereo': True, 'audio_hz': 100e6 * 9.875 / 34.5 / 8 / 74},
 }
 
@@ -161,6 +162,14 @@ def load(name):
 
 
 # ---------------------------------------------------------------- picture + sound
+def a26_merge(fb):
+    """Atari 2600: many games flicker (half their objects on each frame). The core keeps the last two frames;
+    show both at once, the brighter pixel of the two wins (like an emulator's phosphor mode)."""
+    a = np.frombuffer(fb, dtype=np.uint8)
+    f0, f1 = a[:38400], a[38400:76800]
+    return array.array('I', np.where((f1 & 7) > (f0 & 7), f1, f0).tobytes())
+
+
 def double_buffer():
     """True when the loaded core is the NES with two frame buffers (register 12 answers a hold)."""
     if SYS_ID != 'NES1':                       # (on the other cores CTRL bit 2 means something else)
@@ -216,6 +225,8 @@ def frames():
                 W(4, 0)
                 fb = pop(512, FB_WORDS)
                 W(0, RUN)                          # capture again
+        if SYS_ID == 'A261':
+            fb = a26_merge(fb)
         state['pop_ms'] = state.get('pop_ms', 0.0) * 0.9 + (time.perf_counter() - tp) * 100
         nb += 1
         if not dbl or nb & 1:                  # the browser stream stays at 30 a second (board CPU)

@@ -27,7 +27,9 @@
 //  14 YSTART    [8:0] first line kept after VSYNC (default 30); 240 lines are kept from there
 //  15 LINES     read: [8:0] lines in the last frame (262 on a well-behaved NTSC game)
 //   512..767    write: 4 ROM bytes at UP_ADDR, +4;  read: frame buffer word, +1: 4 pixels of 8 bits (the TIA colour
-//               {hue, lum} 0..127, 0 = black), pixel 0 in [7:0]; 160 x 240 = 9600 words
+//               {hue, lum} 0..127, 0 = black), pixel 0 in [7:0]; 160 x 240 = 9600 words per frame, TWO frames:
+//               words 0..9599 the even frames, 9600..19199 the odd ones (many 2600 games flicker: they draw
+//               half their objects on each frame, so the ARM merges the two)
 //   768..1023   read: audio word, +1: {right, left} signed 16-bit (the same), 48.35 kHz
 module orphan_a26_block #(parameter [3:0] SLOT = 4'd1) (
     input  wire        clk,
@@ -45,7 +47,7 @@ module orphan_a26_block #(parameter [3:0] SLOT = 4'd1) (
     output reg  [3:0]  hw_port2 = 4'd2,
     output reg  [8:0]  hw_never = 9'h000
 );
-    localparam FBW = 9600;
+    localparam FBW = 19200;                          // two frames of 9600 words
     wire sel = (bus_addr[15:12] == SLOT);
     wire [9:0] idx = bus_addr[11:2];
 
@@ -71,7 +73,7 @@ module orphan_a26_block #(parameter [3:0] SLOT = 4'd1) (
     reg [31:0] up_data = 32'd0;
     reg        up_req = 1'b0;
     reg [15:0] up_count = 16'd0;
-    reg [13:0] fb_rd = 14'd0;
+    reg [14:0] fb_rd = 15'd0;
     reg [10:0] au_rd = 11'd0;
     reg [15:0] pads_all = 16'd0;                  // browser | real pads, registered in clk before crossing
     always @(posedge clk) pads_all <= pads | hw_pads;
@@ -139,7 +141,7 @@ module orphan_a26_block #(parameter [3:0] SLOT = 4'd1) (
     reg [15:0] frames = 16'd0;
     reg        fb_we = 1'b0;
     reg [31:0] fb_wd = 32'd0;
-    reg [13:0] fb_wa = 14'd0, row_base = 14'd0;
+    reg [14:0] fb_wa = 15'd0, row_base = 15'd0;
     wire [8:0] row = line - ys_s2;
     wire       keep = (line >= ys_s2) && (row < 9'd240) && cap;
     // the TIA's colour output runs 2 clocks ahead of its HBLANK: delay it so a line's 160 pixels line up
@@ -154,7 +156,7 @@ module orphan_a26_block #(parameter [3:0] SLOT = 4'd1) (
         end else if (hsyn && !hs_last) begin
             if (line != 9'h1FF) line <= line + 1'b1;
         end
-        if (hb_last && !hblank) begin x <= 8'd0; row_base <= row * 8'd40; end   // the visible part of a line starts
+        if (hb_last && !hblank) begin x <= 8'd0; row_base <= row * 8'd40 + (frames[0] ? 15'd9600 : 15'd0); end   // the visible part of a line starts
         else if (x != 8'd160) begin                                     // then exactly 160 pixels
             x <= x + 1'b1;
             if (keep) begin
@@ -220,7 +222,7 @@ module orphan_a26_block #(parameter [3:0] SLOT = 4'd1) (
                 10'd1: pads <= bus_wdata[15:0];
                 10'd2: cart <= bus_wdata[24:0];
                 10'd3: up_addr <= bus_wdata[14:0];
-                10'd4: fb_rd <= bus_wdata[13:0];
+                10'd4: fb_rd <= bus_wdata[14:0];
                 10'd5: au_rd <= bus_wdata[10:0];
                 10'd9: begin hw_enable <= bus_wdata[0];
                              hw_port1 <= (bus_wdata[7:4] >= 4'd1 && bus_wdata[7:4] <= 4'd9) ? bus_wdata[7:4] : 4'd1;
@@ -233,7 +235,7 @@ module orphan_a26_block #(parameter [3:0] SLOT = 4'd1) (
         end
         if (bus_re) begin
             if (!sel) bus_rdata <= 32'd0;
-            else if (idx[9:8] == 2'b10) begin bus_rdata <= fbq; fb_rd <= (fb_rd == FBW - 1) ? 14'd0 : fb_rd + 1'b1; end
+            else if (idx[9:8] == 2'b10) begin bus_rdata <= fbq; fb_rd <= (fb_rd == FBW - 1) ? 15'd0 : fb_rd + 1'b1; end
             else if (idx[9:8] == 2'b11) begin bus_rdata <= auq; au_rd <= au_rd + 1'b1; end
             else case (idx)
                 10'd0: bus_rdata <= {30'd0, ctrl};
