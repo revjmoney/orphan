@@ -24,7 +24,7 @@ if [ -n "${1:-}" ]; then
 	fi
 fi
 for src in "$REPO/radio/orphan_radio" "$REPO/radio-work/orphan_radio" "$REPO/synth/orphan_synth" "$REPO/synth-work/orphan_synth" \
-           "$REPO/games/orphan_nes" "$REPO/games-work/orphan_nes" "$REPO/games/orphan_gb" "$REPO/games-work/orphan_gb" "$REPO/games/orphan_sms" "$REPO/games-work/orphan_sms" "$REPO/games/orphan_a26" "$REPO/games-work/orphan_a26" "$REPO/toys/orphan_toys" "$REPO/toys-work/orphan_toys" "$REPO/miners/orphan_btc" "$REPO/miners-work/orphan_btc" "$REPO/miners/orphan_kas" "$REPO/kas-work/repo/orphan_kas"            "$REPO/lm/orphan_tinylm" "$REPO/lm-work/orphan_tinylm" "$REPO/lab/orphan_spektor" "$REPO/lab-work/orphan_spektor" "$REPO/lab/orphan_mimik" "$REPO/lab-work/orphan_mimik" "$REPO/lab/orphan_hashr" "$REPO/lab-work/orphan_hashr"; do
+           "$REPO/games/orphan_nes" "$REPO/games-work/orphan_nes" "$REPO/games/orphan_gb" "$REPO/games-work/orphan_gb" "$REPO/games/orphan_sms" "$REPO/games-work/orphan_sms" "$REPO/games/orphan_a26" "$REPO/games-work/orphan_a26" "$REPO/games/orphan_a2" "$REPO/games-work/orphan_a2" "$REPO/games/orphan_pce" "$REPO/games-work/orphan_pce" "$REPO/toys/orphan_toys" "$REPO/toys-work/orphan_toys" "$REPO/miners/orphan_btc" "$REPO/miners-work/orphan_btc" "$REPO/miners/orphan_kas" "$REPO/kas-work/repo/orphan_kas"            "$REPO/lm/orphan_tinylm" "$REPO/lm-work/orphan_tinylm" "$REPO/lab/orphan_spektor" "$REPO/lab-work/orphan_spektor" "$REPO/lab/orphan_mimik" "$REPO/lab-work/orphan_mimik" "$REPO/lab/orphan_hashr" "$REPO/lab-work/orphan_hashr"; do
 	[ -d "$src" ] || continue
 	name=$(basename "$src")
 	mkdir -p "$P/$name"
@@ -42,7 +42,7 @@ ORPHAN_PROJECTS=$P python3 "$REPO/orphan/merge-quickstart.py" "$REPO"/orphan/pro
 for f in "$REPO"/orphan/fan-bits/*.bit; do [ -f "$f" ] || continue; n=$(basename "$f" .bit); [ -d "$P/$n" ] && cp "$f" "$P/$n/$n.bit"; done
 W=$ROOT/opt/ardzy/web   # Ardzy's web page in the Orphan look ("Ardzy inside"); the original stays as index.ardzy.html
 if [ -f $W/index.html ]; then [ -f $W/index.ardzy.html ] || cp $W/index.html $W/index.ardzy.html; python3 "$REPO/orphan/brand-ardzy-web.py" $W/index.ardzy.html $W/index.html; fi
-mkdir -p $ROOT/opt/orphan-games/roms/nes $ROOT/opt/orphan-games/roms/gb $ROOT/opt/orphan-games/roms/sms $ROOT/opt/orphan-games/roms/a26
+mkdir -p $ROOT/opt/orphan-games/roms/nes $ROOT/opt/orphan-games/roms/gb $ROOT/opt/orphan-games/roms/sms $ROOT/opt/orphan-games/roms/a26 $ROOT/opt/orphan-games/roms/a2/system $ROOT/opt/orphan-games/roms/pce
 echo
 echo "Orphan is installed. Log in again (or type: orphan) for the menu."
 echo "Projects: $(ls $P | wc -l) in $P. Load one from the menu: F FPGA projects."
