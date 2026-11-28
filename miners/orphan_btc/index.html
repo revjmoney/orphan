@@ -122,12 +122,19 @@ footer{justify-content:space-between;gap:6px;flex-wrap:wrap}
    <div><dt>Fabric used (build report)</dt><dd id="dFab">-</dd></div>
    <div><dt>Work fed over AXI (midstate + tail)</dt><dd id="dFeed">-</dd></div>
    <div><dt>Results handed back by the FPGA</dt><dd id="dFind">-</dd></div>
+   <div><dt>Register accesses a second (this program)</dt><dd id="dAxi">-</dd></div>
+   <div><dt>Fan (slot 15)</dt><dd id="dFan">-</dd></div>
+   <div><dt>LED scanner (slot 5)</dt><dd id="dLed">-</dd></div>
   </dl>
   <p class="roots">An abstract floorplan drawn from the build report and the live registers: not a die photo and not
    the real placement. Lime bursts cross the AXI bus each time the ARM writes a new midstate and header tail into
    the FPGA; orange ones come back when the FPGA hands back a nonce. Each unit does two compressions of 64 rounds
    (2 clocks a round); the sweep is slowed about a million times so it can be seen, and its speed follows the
-   measured clock.</p>
+   measured clock. Small dots are this program's real register accesses through ardzy_bus (lime: the miner, blue:
+   the fan, violet: the LED scanner); reads go out and come back with the data. Other programs on the board (the
+   fan tool) are not counted. Inside the FPGA the miner's busy wire runs the LED scanner and its eye on the 4 board
+   LEDs (drawn with the same timing as the hardware, which does not report its position); the fan's PWM and tach
+   pins blink with the duty and the pulses it measured.</p>
  </section>
  <section class="panel" style="grid-column:1/-1">
   <div class="panel-head"><h2>Live miner log</h2><span id="cnt"></span></div>
@@ -214,10 +221,17 @@ tick(); setInterval(tick, 1000);
   // where each part of the design sits: units as bands (two above the spine, two below), control and the small
   // blocks on the left. Sizes follow the design: units are most of the logic.
   const BANDS = [[1, 8], [9, 17], [19, 27], [28, 36]];
-  const BLOCKS = [{id: 'ctrl', name: 'sha_miner: FSM, nonce batches, raw core', c: [1, 13], r: [1, 17]},
-    {id: 'bus', name: 'ardzy_bus + info', c: [1, 13], r: [19, 24]},
-    {id: 'led', name: 'LED scanner', c: [1, 13], r: [25, 29]},
-    {id: 'fan', name: 'fan', c: [1, 13], r: [30, 34]}];
+  const BLOCKS = [{id: 'ctrl', name: 'sha_miner: FSM, nonce batches, raw core', c: [1, 13], r: [6, 17]},
+    {id: 'bus', name: 'ardzy_bus + info', c: [1, 13], r: [1, 4]},
+    {id: 'led', name: 'LED scanner', c: [1, 13], r: [19, 26]},
+    {id: 'fan', name: 'fan', c: [1, 13], r: [27, 35]}];
+  const blk = id => BLOCKS.find(b => b.id === id);
+  const mid = id => { const b = blk(id); return [PX + (b.c[0] + b.c[1] + 1) / 2 * T, PY + (b.r[0] + b.r[1] + 1) / 2 * T]; };
+  // the board's 4 LEDs and the fan's pins: pads on the die's bottom edge under their blocks
+  const LEDPAD = [0, 1, 2, 3].map(i => [PX + (1.5 + i * 1.6) * T, H - 13]);
+  const FANPAD = [0, 1, 2, 3, 4, 5, 6].map(i => [PX + (8 + i * .85) * T, H - 13]);   // PWM, then tach 0..5
+  const SLOTS = {1: 'ctrl', 5: 'led', 15: 'fan', 0: 'bus'};
+  const DOT = {ctrl: LIME, fan: '#5fd3ff', led: '#d8a8ff', bus: '#c9d6c7'};
   function place(units) {
     tile.forEach(t => t.who = null);
     const mark = (id, c0, c1, r0, r1, dens) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
@@ -227,9 +241,18 @@ tick(); setInterval(tick, 1000);
   }
   let units = 0, mhz = 0, rate = 0, mining = false, fmax = null, used = null, max = null;
   let feeds = -1, finds = -1, pulses = [], lastT = performance.now(), phase = 0, heat = 0;
+  let rates = {}, lastBus = null, lastBusT = 0, fan = null, led = null, dots = [], acc = {}, eyeT = 0, wasMining = false;
   place(0);
   window.dieUpdate = s => {
-    const f = s.fpga || {}, b = s.build || {};
+    const f = s.fpga || {}, b = s.build || {}, fb = s.fabric;
+    // register traffic: this program's reads and writes per slot, as rates from one status to the next
+    if (fb && fb.bus) {
+      const t = performance.now() / 1000;
+      if (lastBus && t > lastBusT) { rates = {}; for (const k in fb.bus) rates[k] = Math.max(0, (fb.bus[k] - (lastBus[k] || 0)) / (t - lastBusT)); }
+      lastBus = fb.bus; lastBusT = t; fan = fb.fan; led = fb.led;
+    }
+    if (s.mode === 'mine' && !wasMining) eyeT = performance.now();     // the scanner starts on LED 0 when mining starts
+    wasMining = s.mode === 'mine';
     if (f.units && f.units !== units) { units = Math.min(4, f.units); place(units); }
     mining = s.mode === 'mine'; rate = s.rate || 0; mhz = mining ? (f.mhz || 0) : 0;
     fmax = b.fmax || null; used = b.used || null; max = b.max || null;
@@ -249,6 +272,13 @@ tick(); setInterval(tick, 1000);
     const ago = t => t ? Math.max(0, Math.round(Date.now() / 1000 - t)) + ' s ago' : 'none yet';
     $('dFeed').innerHTML = f.feeds ? '<b>' + f.feeds + '</b> · last ' + ago(f.feed_t) + ' · job ' + (f.job || '-') + ' · en2 ' + (f.en2 || '-') : 'none yet';
     $('dFind').innerHTML = f.finds ? '<i>' + f.finds + '</i> · last ' + ago(f.find_t) : 'none yet';
+    const rs = k => rates[k] || 0, per = (r, w) => (r + w) < .05 ? '0' : (r + w).toFixed(r + w < 10 ? 1 : 0);
+    const tot = Object.values(rates).reduce((a, v) => a + v, 0);
+    $('dAxi').textContent = lastBus ? 'sha_miner ' + per(rs('r1'), rs('w1')) + ' · fan ' + per(rs('r15'), rs('w15')) + ' · LED ' + per(rs('r5'), rs('w5')) +
+      ' · info ' + per(rs('r0'), rs('w0')) + ' · total ' + tot.toFixed(0) + ' a second' : '-';
+    const rpm = fan ? fan.tach.map((c, k) => c ? 'J' + (k + 1) + ' ' + (c * 30).toLocaleString() + ' rpm' : '').filter(Boolean) : [];
+    $('dFan').textContent = fan ? 'duty ' + fan.duty + ' % · ' + (rpm.length ? rpm.join(' · ') : 'no tach pulses') : '-';
+    $('dLed').textContent = led ? (led.id ? (mining ? 'scanning: driven by the miner\'s busy wire inside the FPGA' : 'idle: the LEDs show the status bits') + ' · MODE ' + led.mode : 'not in this bitstream') : '-';
     if (reduce.matches) draw(now);
   };
   function box(x, y, w, h, fill, stroke, label, sub) {
@@ -256,14 +286,28 @@ tick(); setInterval(tick, 1000);
     if (label) { g.fillStyle = '#d9e8d7'; g.font = '12px Consolas,monospace'; g.fillText(label, x + 7, y + 16); }
     if (sub) { g.fillStyle = '#8fa08e'; g.font = '10px Consolas,monospace'; g.fillText(sub, x + 7, y + 30); }
   }
-  // the bus route of a work feed: ARM core -> AXI GP0 -> sha_miner control -> the units
-  function route(u) { return [[165, 92], [310, 120], [350, 120], [PX + 7 * T, PY + 9 * T], [PX + 15 * T, PY + (BANDS[u][0] + BANDS[u][1]) / 2 * T + 5]]; }
+  // every register access: ARM core -> AXI GP0 -> ardzy_bus (the address decoder) -> the slot's block
+  const AXIY = PY + 2.5 * T;
+  function toBlock(id) { const p = [[165, 92], [310, AXIY], [350, AXIY], mid('bus')]; if (id !== 'bus') p.push(mid(id)); return p; }
+  // a work feed goes on from sha_miner to the units
+  function route(u) { return toBlock('ctrl').concat([[PX + 15 * T, PY + (BANDS[u][0] + BANDS[u][1]) / 2 * T + 5]]); }
   function along(pts, f) {
     const segs = []; let tot = 0;
     for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push(d); tot += d; }
     let d = f * tot;
     for (let i = 0; i < segs.length; i++) { if (d <= segs[i]) { const k = d / segs[i]; return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * k, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * k]; } d -= segs[i]; }
     return pts[pts.length - 1];
+  }
+  // how busy a block's slot is on the bus (0..1), from this program's accesses a second
+  function busy(id) {
+    let r = 0;
+    for (const k in rates) if (id === 'all' || SLOTS[+k.slice(1)] === id) r += rates[k];
+    return Math.min(1, r / (id === 'all' ? 60 : 30));
+  }
+  function wire(pts, on, color, t) {                   // an on-chip wire; lit and moving while its signal is active
+    g.save(); g.strokeStyle = color; g.globalAlpha = on ? .85 : .22; g.lineWidth = on ? 2 : 1;
+    g.setLineDash(on ? [6, 5] : []); g.lineDashOffset = on ? -t / 40 : 0;
+    g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.stroke(); g.restore();
   }
   function draw(now) {
     const dt = Math.min(.1, (now - lastT) / 1000); lastT = now;
@@ -310,17 +354,45 @@ tick(); setInterval(tick, 1000);
         const hc = 17 + ((phase + off) % 1) * 84, near = Math.max(0, 1 - Math.abs(((hc - 17) % 42 + 17) - t.c) / 6);
         const v = .18 + .5 * heat * (.55 + .45 * t.fill) + .6 * heat * near;
         col = 'rgba(210,255,81,' + Math.min(.95, v).toFixed(3) + ')';
-      } else col = t.who === 'ctrl' ? 'rgba(210,255,81,' + (.16 + .25 * heat).toFixed(3) + ')' : 'rgba(163,175,162,.28)';
+      } else if (t.who === 'ctrl') col = 'rgba(210,255,81,' + (.16 + .25 * heat + .25 * busy('ctrl') * t.fill).toFixed(3) + ')';
+      else if (t.who === 'bus') col = 'rgba(201,214,199,' + (.16 + .55 * busy('all') * t.fill).toFixed(3) + ')';
+      else if (t.who === 'fan') col = 'rgba(95,211,255,' + (.34 + .4 * (fan ? fan.duty / 100 : 0) + .25 * busy('fan') * t.fill).toFixed(3) + ')';
+      else col = 'rgba(216,168,255,' + (.14 + (mining ? .3 : 0) + .3 * busy('led') * t.fill).toFixed(3) + ')';
       g.fillStyle = col; g.fillRect(x + 1, y + 1, T - 2, T - 2);
     }
     g.fillStyle = '#8fa08e'; g.font = '10px Consolas,monospace';
     g.fillText('PL · ARTIX-7 FABRIC', PX, PY - 10);
     g.fillText('BUFG · clock spine', PX + 15 * T, PY + SPINE * T + 8);
-    g.fillText('BRAM', PX + 6 * T - 2, PY + TR * T + 14); g.fillText('DSP', PX + 19 * T, PY + TR * T + 14);
+    g.fillText('BRAM', PX + 18 * T - 3, PY - 10); g.fillText('DSP', PX + 19 * T + 12, PY - 10);
     for (const b of BLOCKS) { g.strokeStyle = b.id === 'ctrl' ? '#7a9a3c' : '#3d5143'; g.strokeRect(PX + b.c[0] * T + .5, PY + b.r[0] * T + .5, (b.c[1] - b.c[0] + 1) * T, (b.r[1] - b.r[0] + 1) * T);
       const n = b.id === 'ctrl' ? 'sha_miner' : b.name;
       g.fillStyle = '#060a07e6'; g.fillRect(PX + b.c[0] * T + 1, PY + b.r[0] * T + 1, g.measureText(n).width + 8, 14);
       g.fillStyle = '#c9d6c7'; g.fillText(n, PX + b.c[0] * T + 4, PY + b.r[0] * T + 12); }
+    // wires inside the FPGA: sha_miner hands each unit its nonce and the midstate; its busy flag runs the LED scanner
+    const cm = mid('ctrl'), lm = mid('led'), fm = mid('fan'), lb = blk('led'), fbk = blk('fan');
+    for (let u = 0; u < units; u++) wire([[PX + 14 * T, cm[1]], [PX + 14.5 * T, PY + (BANDS[u][0] + BANDS[u][1]) / 2 * T + 5], [PX + 15 * T, PY + (BANDS[u][0] + BANDS[u][1]) / 2 * T + 5]], mining, LIME, now);
+    wire([[PX + 12 * T, PY + 17.5 * T], [PX + 12 * T, PY + lb.r[0] * T]], mining, '#d8a8ff', now);
+    g.fillStyle = '#8fa08e'; g.font = '10px Consolas,monospace'; g.fillText('busy', PX + 9.3 * T, PY + 18.9 * T);
+    // the board's 4 LEDs: the scanner's soft eye glides LED 0 -> 3 -> 0, 1.5 s each way at 100 MHz (the same timing
+    // as orphan_larson.v; the FPGA does not report where the eye is, so it is drawn from the time mining started)
+    const oneWay = 1.5 * 100 / (mhz || 100), tt = ((now - eyeT) / 1000) % (2 * oneWay), pos = 3 * (tt < oneWay ? tt / oneWay : 2 - tt / oneWay);
+    LEDPAD.forEach(([x, y], i) => {
+      wire([[x, PY + (lb.r[1] + 1) * T], [x, y - 6]], false, '#d8a8ff', now);
+      const v = mining ? Math.pow(Math.max(0, 1 - Math.abs(pos - i) / 1.5), 2) : 0;
+      g.fillStyle = '#1c1426'; g.fillRect(x - 5, y - 5, 10, 10);
+      if (v > .01) { g.save(); g.shadowColor = '#ff6a3d'; g.shadowBlur = 14 * v; g.fillStyle = 'rgba(255,120,70,' + v.toFixed(3) + ')'; g.fillRect(x - 4, y - 4, 8, 8); g.restore(); }
+    });
+    // the fan: one PWM pin (shared by all headers) and 6 tach inputs, blinking with their measured pulses
+    FANPAD.forEach(([x, y], i) => {
+      wire([[x, PY + (fbk.r[1] + 1) * T], [x, y - 5]], false, '#5fd3ff', now);
+      let v = 0;
+      if (fan && i === 0) v = fan.duty / 100 * (.6 + .4 * Math.sin(now / 25));
+      else if (fan && fan.tach[i - 1]) { const hz = Math.min(8, fan.tach[i - 1] / 15); v = (now / 1000 * hz) % 1 < .5 ? 1 : .25; }
+      g.fillStyle = '#0f1d24'; g.fillRect(x - 3, y - 4, 6, 8);
+      if (v > .01) { g.fillStyle = 'rgba(95,211,255,' + v.toFixed(3) + ')'; g.fillRect(x - 3, y - 4, 6, 8); }
+    });
+    g.fillStyle = '#8fa08e'; g.font = '9px Consolas,monospace';
+    g.fillText('LED 0-3', LEDPAD[0][0] - 5, H - 21); g.fillText('PWM · tach', FANPAD[0][0] - 3, H - 21);
     // the SHA-256d units: two strips of 64 rounds each, the round being worked on lit
     for (let u = 0; u < units; u++) {
       const [r0, r1] = BANDS[u], x0 = PX + 17 * T, w = 42 * T, y0 = PY + r0 * T + 14, sh = Math.max(8, (r1 - r0 + 1) * T / 2 - 14);
@@ -356,6 +428,23 @@ tick(); setInterval(tick, 1000);
       }
       g.globalAlpha = 1;
     }
+    // register traffic: one dot per access this program makes (up to 30 a second per slot), out to the block and,
+    // for a read, back with the data
+    for (const k in rates) {
+      const id = SLOTS[+k.slice(1)]; if (!id) continue;
+      acc[k] = (acc[k] || 0) + Math.min(30, rates[k]) * dt;
+      while (acc[k] >= 1 && dots.length < 240) { acc[k] -= 1; dots.push({t0: now, id, read: k[0] === 'r'}); }
+    }
+    for (const id of ['ctrl', 'fan', 'led']) if (busy(id) > 0) {             // the routes in use, faintly
+      const p = toBlock(id); g.save(); g.strokeStyle = DOT[id]; g.globalAlpha = .18; g.lineWidth = 1; g.beginPath();
+      g.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) g.lineTo(p[i][0], p[i][1]); g.stroke(); g.restore(); }
+    dots = dots.filter(d => now - d.t0 < 900);
+    for (const d of dots) {
+      const f = (now - d.t0) / 900, pts = toBlock(d.id), q = d.read ? (f < .5 ? f * 2 : 2 - f * 2) : f;
+      const [x, y] = along(pts, q);
+      g.fillStyle = DOT[d.id]; g.globalAlpha = d.read && f >= .5 ? 1 : .7; g.fillRect(x - 3, y - 3, 6, 6);
+    }
+    g.globalAlpha = 1;
   }
   function loop(now) { draw(now); if (!reduce.matches) requestAnimationFrame(loop); }
   requestAnimationFrame(loop);

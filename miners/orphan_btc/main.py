@@ -63,6 +63,7 @@ class Control:
             s['log'] = list(self.log)
         s['settings'] = settings.public()
         s['build'] = BUILD
+        s['fabric'] = fabric_state()
         try:
             s['temp'] = round(int(open('/sys/bus/iio/devices/iio:device0/in_temp0_raw').read()) * 503.975 / 4096 - 273.15, 1)
         except (OSError, ValueError):
@@ -164,7 +165,35 @@ def market():
         time.sleep(300)
 
 
-bus = Bus()
+class CountingBus(Bus):
+    """The register bus, counting this program's reads and writes per slot (the page's floorplan shows the traffic)."""
+    def __init__(self):
+        super().__init__()
+        self.n = {}
+
+    def rd(self, slot, i):
+        k = 'r%d' % slot
+        self.n[k] = self.n.get(k, 0) + 1
+        return super().rd(slot, i)
+
+    def wr(self, slot, i, v):
+        k = 'w%d' % slot
+        self.n[k] = self.n.get(k, 0) + 1
+        super().wr(slot, i, v)
+
+
+def fabric_state():
+    """The small blocks, read live: the fan (slot 15: duty, 6 tach counts of the last second, windows) and the LED
+    scanner (slot 5: ID, MODE). The scanner itself runs on the miner's busy wire inside the FPGA."""
+    try:
+        fan = {'duty': bus.rd(15, 1), 'tach': [bus.rd(15, 2 + k) for k in range(6)], 'windows': bus.rd(15, 8)}
+        led = {'id': bus.rd(5, 0) == 0x4C525331, 'mode': bus.rd(5, 1) & 1}
+    except Exception:  # noqa: BLE001
+        return None
+    return {'fan': fan, 'led': led, 'bus': dict(bus.n)}
+
+
+bus = CountingBus()
 require(bus, 'SHA2')
 control = Control()
 threading.Thread(target=market, daemon=True).start()
