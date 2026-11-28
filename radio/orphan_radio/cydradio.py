@@ -17,6 +17,7 @@ TOP = 52                     # text: frequency line (0..36) and the tuners / lev
 SPEC = 70                    # spectrum trace rows
 WF0 = TOP + SPEC             # the waterfall starts here and runs to the bottom (one text line less with a decoder)
 TEXT_H = 14                  # the decoder's line at the bottom
+TOUCH_PORT = 8095            # the CYD sends touches here (UDP) while the radio is on its screen
 
 
 def rgb565(r, g, b):
@@ -62,6 +63,9 @@ class Screen:
         self.lock = threading.Lock()
         self.busy_until = 0.0
         self.sent = 0
+        self.cols_v, self.mark, self.drawn_t = None, -1, None     # the last spectrum (0..1 a column), its pan time
+        self.parts = None             # None: not known yet; True: the CYD keeps the waterfall; False: older firmware
+        self.pal_ok, self.pal_t, self.last_top, self.top_t, self.last_dec, self.last_send = False, 0.0, b'', 0.0, b'', 0.0
 
     # ---- inputs from main.py
     def feed_pan(self, db, center, span):
@@ -126,6 +130,7 @@ class Screen:
             self.lo += (lo - self.lo) * .1
             self.hi += (max(hi, self.lo + 20) - self.hi) * .1
             v = np.clip((col - self.lo) / (self.hi - self.lo), 0, 1)
+            self.cols_v, self.drawn_t = v, pan[3]
             # the trace: a filled dim area under a bright line
             yv = (TOP + SPEC - 1 - v * (SPEC - 2)).astype(int)
             rows = np.arange(TOP, TOP + SPEC)[:, None]
@@ -133,6 +138,7 @@ class Screen:
             img[yv, np.arange(W)] = LIME
             # the tuned frequency, a thin red line through the trace (only when it is inside the span)
             fx = int(round((f * 1000 - (center - span / 2)) / span * W))
+            self.mark = fx if 0 <= fx < W else -1
             if 0 <= fx < W:
                 img[TOP:TOP + SPEC, fx] = RED
             self.wf[1:] = self.wf[:-1]
@@ -144,18 +150,59 @@ class Screen:
             text(img, 0, H - TEXT_H + 1, dec_text[-(W // 6):], 'R10', AMBER)
         return img
 
-    # ---- sending
-    def send(self, host, img):
-        body = img.astype('>u2').tobytes()
-        head = ('POST /rect?x=0&y=0&w=%d&h=%d&hud=0 HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\nConnection: close\r\n\r\n'
-                % (W, H, host, len(body))).encode()
-        s = socket.create_connection((host, 8091), timeout=3)
+    # ---- sending (TCP 8091; every request names TOUCH_PORT so the CYD sends this board the touches)
+    def post(self, host, path, body):
+        head = ('POST %s HTTP/1.1\r\nHost: %s\r\nContent-Length: %d\r\nConnection: close\r\n\r\n'
+                % (path, host, len(body))).encode()
+        sk = socket.create_connection((host, 8091), timeout=3)
         try:
-            s.sendall(head + body)
-            reply = s.recv(64)
+            sk.sendall(head + body)
+            reply = sk.recv(64)
         finally:
-            s.close()
-        return reply
+            sk.close()
+        return reply[9:12]                              # the status code, b'200'
+
+    def send_full(self, host, img):
+        """Older CYD firmware: the whole picture (150 KB)."""
+        return self.post(host, '/rect?x=0&y=0&w=%d&h=%d&hud=0&touch=%d' % (W, H, TOUCH_PORT), img.astype('>u2').tobytes())
+
+    def send_parts(self, host, img, dec_on):
+        """Only what changed: the text lines as small pictures when they differ, then 640 bytes (320 spectrum
+        heights + one waterfall line of palette indices); the CYD keeps and scrolls the waterfall itself."""
+        now = time.time()
+        if not self.pal_ok or now - self.pal_t > 10:
+            code = self.post(host, '/wfpal', PALETTE.astype('>u2').tobytes())
+            if code != b'200':
+                return code
+            self.pal_ok, self.pal_t = True, now
+        key = img[:TOP].tobytes()
+        if key != self.last_top or now - self.top_t > 5:
+            code = self.post(host, '/rect?x=0&y=0&w=%d&h=%d&hud=0&touch=%d' % (W, TOP, TOUCH_PORT),
+                             img[:TOP].astype('>u2').tobytes())
+            if code != b'200':
+                return code
+            self.last_top, self.top_t = key, now
+        bottom = H - (TEXT_H if dec_on else 0)
+        if dec_on:
+            k = img[bottom:].tobytes()
+            if k != self.last_dec:
+                code = self.post(host, '/rect?x=0&y=%d&w=%d&h=%d&hud=0&touch=%d' % (bottom, W, TEXT_H, TOUCH_PORT),
+                                 img[bottom:].astype('>u2').tobytes())
+                if code != b'200':
+                    return code
+                self.last_dec = k
+        else:
+            self.last_dec = b''
+        if self.cols_v is None:
+            return b'200'
+        h = np.round(self.cols_v * (SPEC - 1)).astype(np.uint8)
+        idx = np.round(self.cols_v * 255).astype(np.uint8)
+        return self.post(host, '/radio?sy=%d&sh=%d&wy=%d&wh=%d&mark=%d&touch=%d'
+                         % (TOP, SPEC, WF0, bottom - WF0, self.mark, TOUCH_PORT), h.tobytes() + idx.tobytes())
+
+    def forget(self):
+        """The CYD showed something else (another board, a restart): send everything again."""
+        self.pal_ok, self.last_top, self.last_dec = False, b'', b''
 
 
 def cyd_host():
@@ -168,21 +215,77 @@ def cyd_host():
 SCREEN = Screen()
 
 
-def run(get_state, get_meter, get_dec_text, period=0.25):
-    """Thread body: draw and push every period seconds while a CYD is named and this board is the one it shows."""
+def touch_loop(tune, get_state):
+    """Touches from the CYD (UDP TOUCH_PORT): 'D x y ms' down, 'M x y ms' move, 'U x y ms' up.
+    A tap on the spectrum or waterfall tunes to that spot; a sideways drag there slides the frequency like dragging
+    the spectrum; a tap on the right half of the text lines steps the demodulator."""
+    sk = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sk.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sk.bind(('', TOUCH_PORT))
+    g, last_tune = None, 0.0
+    while True:
+        try:
+            data, _ = sk.recvfrom(64)
+            f = data.decode('ascii', 'replace').split()
+            kind, x, y = f[0], int(f[1]), int(f[2])
+        except (OSError, ValueError, IndexError):
+            continue
+        st, pan = get_state(), SCREEN.pan
+        if kind == 'D':
+            g = {'x': x, 'y': y, 'f0': float(st['freq']), 'drag': False,
+                 'span': pan[2] if pan else 20000.0, 'center': pan[1] if pan else float(st['freq']) * 1000}
+        elif g is None:
+            continue
+        elif kind == 'M':
+            if g['y'] >= TOP and abs(x - g['x']) > 6:
+                g['drag'] = True
+            if g['drag'] and time.time() - last_tune > 0.08:
+                last_tune = time.time()
+                tune(freq=round(g['f0'] - (x - g['x']) / W * g['span'] / 1000, 3))
+        elif kind == 'U':
+            if g['drag']:
+                tune(freq=round(g['f0'] - (x - g['x']) / W * g['span'] / 1000, 3))
+            elif g['y'] >= TOP:
+                fk = (g['center'] - g['span'] / 2 + x / W * g['span']) / 1000
+                snap = 1.0 if g['span'] > 200e3 else 0.1
+                tune(freq=round(round(fk / snap) * snap, 3))
+            elif x >= W // 2:
+                tune(demod='next')
+            g = None
+
+
+def run(get_state, get_meter, get_dec_text, tune=None, period=0.1):
+    """Thread body: whenever the receiver has a new spectrum (and at least every 0.5 s) update the CYD named in
+    /etc/orphan/cyd, while this board is the one it shows."""
     scr = SCREEN
+    if tune:
+        threading.Thread(target=touch_loop, args=(tune, get_state), daemon=True).start()
     while True:
         t = time.time()
         host = cyd_host()
         if host and t >= scr.busy_until:
             try:
-                img = scr.draw(get_state(), get_meter(), get_dec_text())
-                r = scr.send(host, img)
-                if b' 503' in r[:16]:
-                    scr.busy_until = t + 2               # the CYD shows another board
-                else:
-                    scr.sent += 1
+                fresh = scr.pan is not None and scr.pan[3] != scr.drawn_t
+                if fresh or t - scr.last_send > 0.5:
+                    dec = get_dec_text()
+                    img = scr.draw(get_state(), get_meter(), dec)
+                    if scr.parts is False:
+                        code = scr.send_full(host, img)
+                    else:
+                        code = scr.send_parts(host, img, bool(dec))
+                        if code in (b'400', b'404') and scr.parts is None:
+                            scr.parts = False               # older firmware: whole pictures from now on
+                        elif code == b'409':
+                            scr.pal_ok = False              # the CYD restarted: palette again
+                        elif code == b'200':
+                            scr.parts = True
+                    if code == b'503':
+                        scr.busy_until = t + 2              # the CYD shows another board
+                        scr.forget()
+                    elif code == b'200':
+                        scr.sent += 1
+                        scr.last_send = t
             except OSError:
-                scr.busy_until = t + 3                   # CYD off or unreachable
-        time.sleep(max(0.02, period - (time.time() - t)))
-
+                scr.busy_until = t + 3                      # CYD off or unreachable
+                scr.forget()
+        time.sleep(max(0.01, period - (time.time() - t)))

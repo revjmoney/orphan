@@ -34,6 +34,11 @@ uint32_t lastPoll=0,lastTouch=0,lastFrame=0;
 uint32_t acceptAt[3]={0,0,0},loopCount=0,heartbeatAt=0;   // last connection taken on 80 / 8091 / 8092; serial heartbeat
 uint32_t frameCount=0,frameTransferMs=0;
 float frameFps=0;
+// the radio (orphan_radio cydradio.py, POST /radio on 8091): the CYD keeps the waterfall itself, palette indices
+// newest line first, in the game picture's memory (free while the radio shows), and draws the spectrum from 320
+// heights, so each update is 640 bytes instead of a whole picture. Touches then go to the radio as UDP.
+uint16_t radioPalSw[256];bool radioPalOk=false;int radioWfRows=0,radioWfHead=0,radioWfH=0,radioWfY=0;
+uint32_t radioTouchIp=0,radioTouchUntil=0;uint16_t radioTouchPort=0;
 bool hudOn=true;     // last frame's hud= flag: hud=0 keeps the temp/FPS box off, also on the 5 s timer
 float chipTemperature=NAN;
 uint32_t lastTemperaturePoll=0;
@@ -199,6 +204,8 @@ bool drawDoubled(WiFiClient& c,int x,int y,int w,int h,bool smooth){
  return true;
 }
 bool otherBoard(WiFiClient& c);
+bool radioReq(WiFiClient& c,const String& line,size_t length);
+static void radioTouchFrom(WiFiClient& c,const String& line);
 void frame(){
  WiFiClient c=graphics.available();if(c.fd()<0)return;c.setTimeout(1); // WiFiClient takes seconds
  if(otherBoard(c)){c.print("HTTP/1.1 503 Busy\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");c.stop();return;}
@@ -207,6 +214,7 @@ void frame(){
  String line=c.readStringUntil('\n');int x=queryInt(line,"x",0),y=queryInt(line,"y",0),w=queryInt(line,"w",320),h=queryInt(line,"h",240),scale=queryInt(line,"scale",1);
  size_t length=0;
  while(c.fd()>=0 && millis()-begin<1500){String header=c.readStringUntil('\n');header.trim();if(!header.length())break;header.toLowerCase();if(header.startsWith("content-length:"))length=header.substring(15).toInt();}
+ if(radioReq(c,line,length)){c.stop();return;}
  if(!line.startsWith("POST /rect") || (scale!=1 && scale!=2) || x<0 || x>=320 || y<0 || y>=240 || w<1 || h<1 || w>(320-x)/scale || h>(240-y)/scale || length!=(size_t)w*h*2){c.print("HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");c.stop();return;}
  rectDeadline=begin+2500;
  bool ok=scale==2?drawDoubled(c,x,y,w,h,queryInt(line,"smooth",0)):drawNative(c,x,y,w,h);
@@ -216,6 +224,7 @@ void frame(){
   frameFps=frameFps>0?frameFps*.7f+fps*.3f:fps;
   lastFrame=now;frameCount++;frameTransferMs=now-begin;online=true;redrawScene=true;
   hudOn=queryInt(line,"hud",1);
+  radioTouchFrom(c,line);
   if(hudOn)graphicsHud();
  }
  c.print(ok?"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n":"HTTP/1.1 408 Request Timeout\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");c.stop();
@@ -237,6 +246,51 @@ static uint16_t* gameLine[2]={nullptr,nullptr};    // two DMA strips (320 x 8): 
 static int gameBuf=0;
 static bool gameWriting=false;
 static void gameEndWrite(){if(gameWriting){tft.waitDMA();tft.endWrite();gameWriting=false;}}
+static inline uint16_t sw565(uint16_t c){return (uint16_t)((c>>8)|(c<<8));}
+static void radioTouchFrom(WiFiClient& c,const String& line){
+ int tp=queryInt(line,"touch",0);
+ if(tp>0 && tp<65536){radioTouchIp=(uint32_t)c.remoteIP();radioTouchPort=(uint16_t)tp;radioTouchUntil=millis()+3000;}
+}
+// POST /wfpal: 256 RGB565 colours (high byte first) for the waterfall.
+// POST /radio?sy=&sh=&wy=&wh=&mark=&touch=: 320 spectrum heights (0..sh-1 from the bottom, 255 = none) then one new
+// waterfall line of 320 palette indices. mark = the tuned frequency's column (red), touch = the radio's UDP port.
+bool radioReq(WiFiClient& c,const String& line,size_t length){
+ if(line.startsWith("POST /wfpal")){
+  uint8_t b[512];
+  if(length!=512 || !readFull(c,b,512)){c.print("HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");return true;}
+  for(int i=0;i<256;i++)radioPalSw[i]=sw565((uint16_t)(b[2*i]<<8|b[2*i+1]));
+  radioPalOk=true;c.print("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");return true;
+ }
+ if(!line.startsWith("POST /radio"))return false;
+ int sy=queryInt(line,"sy",52),sh=queryInt(line,"sh",70),wy=queryInt(line,"wy",122),wh=queryInt(line,"wh",118),mark=queryInt(line,"mark",-1);
+ bool ok=length==640 && sy>=0 && sh>=2 && sy+sh<=240 && wy>=0 && wh>=1 && wy+wh<=240 && wh*320<=GameMaxBytes && gameFb && gameLine[0];
+ if(!ok || !radioPalOk){c.print(ok?"HTTP/1.1 409 Conflict\r\nContent-Length: 0\r\nConnection: close\r\n\r\n":"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");return true;}
+ static uint8_t d[640];
+ rectDeadline=millis()+1500;bool got=readFull(c,d,640);rectDeadline=0;
+ if(!got){c.print("HTTP/1.1 408 Request Timeout\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");return true;}
+ uint32_t begin=millis();
+ if(wh!=radioWfH || wy!=radioWfY){radioWfH=wh;radioWfY=wy;radioWfRows=0;radioWfHead=0;}
+ radioWfHead=(radioWfHead+radioWfH-1)%radioWfH;memcpy(gameFb+radioWfHead*320,d+320,320);
+ if(radioWfRows<radioWfH)radioWfRows++;
+ if(gameWriting)gameEndWrite();
+ uint16_t* st=gameLine[0];
+ const uint16_t LIME=sw565(0xD7EA),FILL=sw565(0x19E2),RED=sw565(0xF887),BLACK=0;
+ for(int r0=0;r0<sh;r0+=8){int rows=min(8,sh-r0);
+  for(int r=0;r<rows;r++){int y=r0+r;uint16_t* o=st+r*320;
+   for(int x=0;x<320;x++){int h=d[x];uint16_t px=BLACK;
+    if(h!=255){int top=sh-1-min(h,sh-1);px=y==top?LIME:y>top?FILL:BLACK;}
+    if(x==mark)px=RED;o[x]=px;}}
+  tft.pushImage(0,sy+r0,320,rows,st);}
+ for(int r0=0;r0<wh;r0+=8){int rows=min(8,wh-r0);
+  for(int r=0;r<rows;r++){int k=r0+r;uint16_t* o=st+r*320;
+   if(k<radioWfRows){const uint8_t* src=gameFb+((radioWfHead+k)%radioWfH)*320;for(int x=0;x<320;x++)o[x]=radioPalSw[src[x]];}
+   else memset(o,0,640);}
+  tft.pushImage(0,wy+r0,320,rows,st);}
+ radioTouchFrom(c,line);
+ uint32_t now=millis();float fps=lastFrame?1000.0f/(now-lastFrame):0;
+ frameFps=frameFps>0?frameFps*.7f+fps*.3f:fps;lastFrame=now;frameCount++;frameTransferMs=now-begin;online=true;hudOn=false;
+ c.print("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");return true;
+}
 int gamePb=1,gameScale=0,gameW=0,gameH=0,gameX=0,gameY=0;bool gameMode=false,gameHud=false;
 uint32_t gameFrameStart=0,gameBytes=0;uint64_t gameDecodeUs=0,gameDrawUs=0,gameWaitUs=0;
 static inline uint16_t gamePixel(int row,int col){
@@ -322,6 +376,7 @@ static bool gameRows(uint32_t len){
  return true;
 }
 static bool gameModeMsg(uint32_t len){
+ radioWfRows=0;
  uint8_t h[14];if(len<14 || !gameRead(h,14))return false;
  int pb=h[0],sc=h[1],npal=h[12]|(h[13]<<8);
  int w=h[4]|(h[5]<<8),hh=h[6]|(h[7]<<8),x=h[8]|(h[9]<<8),y=h[10]|(h[11]<<8);
@@ -550,15 +605,23 @@ String boardsJson(){
 }
 // touch: a tap is a press shorter than 600 ms; two taps less than 700 ms apart (above the bottom bar) = next board.
 // (A tap also still goes to the board as a touch event, and the bottom bar still changes views, as before.)
+static void radioTouchSend(char t,int x,int y,uint32_t ms){
+ if(udpTxSock<0)return;
+ char b[32];int n=snprintf(b,sizeof(b),"%c %d %d %lu",t,x,y,(unsigned long)ms);
+ struct sockaddr_in a={};a.sin_family=AF_INET;a.sin_port=htons(radioTouchPort);a.sin_addr.s_addr=radioTouchIp;
+ sendto(udpTxSock,b,n,0,(struct sockaddr*)&a,sizeof(a));
+}
 void touchStep(){
- static bool wasDown=false;static uint32_t downAt=0,upAt=0,pollAt=0,lastTapUp=0;static int px=0,py=0,upCount=0;
+ static bool wasDown=false;static uint32_t downAt=0,upAt=0,pollAt=0,lastTapUp=0,lastMove=0;static int px=0,py=0,upCount=0,lx=0,ly=0,mx=0,my=0;
  if(millis()-pollAt<15)return;
  pollAt=millis();
  int x,y;bool down=boardTouch(x,y);
+ bool radio=radioTouchPort && (int32_t)(radioTouchUntil-millis())>0;
  if(down){
-  upCount=0;
-  if(!wasDown){downAt=millis();px=x;py=y;}
-  if(millis()-lastTouch>300){
+  upCount=0;lx=x;ly=y;
+  if(!wasDown){downAt=millis();px=x;py=y;mx=x;my=y;lastMove=millis();if(radio)radioTouchSend('D',x,y,0);}
+  else if(radio && millis()-lastMove>=50 && (abs(x-mx)>=2 || abs(y-my)>=2)){mx=x;my=y;lastMove=millis();radioTouchSend('M',x,y,millis()-downAt);}
+  if(!radio && millis()-lastTouch>300){
    lastTouch=millis();sendTouch(x,y);
    if(y>=212){view=(view+(x<100?4:1))%5;lastFrame=0;lastPoll=0;redrawScene=true;}
   }
@@ -567,6 +630,7 @@ void touchStep(){
  if(!wasDown)return;
  if(++upCount<2)return;                                 // two quiet polls in a row = really let go
  wasDown=false;upAt=millis();
+ if(radio)radioTouchSend('U',lx,ly,upAt-downAt);
  if(py>=212 || upAt-downAt>600){lastTapUp=0;return;}
  if(lastTapUp && downAt-lastTapUp<700){lastTapUp=0;nextBoard();}
  else lastTapUp=upAt;

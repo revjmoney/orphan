@@ -755,6 +755,21 @@ def full_state():
             'decoders': DECODERS, 'dec_text': rx_text(max(0, rx_head()[15] - 3000))[0] if rx_ok() else ''}
 
 
+def cyd_tune(freq=None, demod=None):
+    """Touch tuning from the CYD (cydradio.touch_loop): the same path as the page, so every browser follows."""
+    m = {}
+    if freq is not None:
+        m['freq'] = max(1.0, min(49000.0, float(freq)))
+    if demod == 'next':
+        m['demod'] = DEMODS[(DEMODS.index(state['demod']) + 1) % len(DEMODS)] if state['demod'] in DEMODS else 'am'
+    if m:
+        handle({'set': m})
+    pan = cydradio.SCREEN.pan
+    if freq is not None and pan and state['pan']['on'] and abs(m['freq'] * 1000 - pan[1]) > pan[2] * 0.45:
+        handle({'pan': {'center': round(m['freq'], 3)}})     # tuned off the edge: the panadapter follows
+        broadcast(json.dumps({'state': state}).encode(), opcode=1)
+
+
 def handle(m):
     if 'set' in m:
         for k, v in m['set'].items():
@@ -928,11 +943,12 @@ if __name__ == '__main__':
     if rx_start():
         state['board_dsp'] = 1
         print('rxd: demodulators, filters and decoders run on the board', flush=True)
-    # the ORPHAN Remote (CYD named in /etc/orphan/cyd): frequency, modes, spectrum and waterfall, 4 times a second
+    # the ORPHAN Remote (CYD named in /etc/orphan/cyd): frequency, modes, spectrum and waterfall; touch tuning
     if os.environ.get('ORPHAN_RADIO_CYD', '1') != '0':
         threading.Thread(target=cydradio.run, daemon=True, args=(
             lambda: state, lambda: meter,
-            lambda: (rx_text(max(0, rx_head()[15] - 400))[0] if state['decoder'] != 'off' and rx_ok() else ''))).start()
+            lambda: (rx_text(max(0, rx_head()[15] - 400))[0] if state['decoder'] != 'off' and rx_ok() else '')),
+            kwargs={'tune': cyd_tune}).start()
     for t in (pump, control_loop, melody_loop, raw_audio_server):
         threading.Thread(target=t, daemon=True).start()
     ip = subprocess.run(['hostname', '-I'], capture_output=True, text=True).stdout.split()[0]
