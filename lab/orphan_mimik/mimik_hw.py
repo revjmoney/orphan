@@ -4,6 +4,7 @@ by JMSCNC, makers of RotatoCAM. [Rev. J. Money - 2026] GPL-3.0-or-later."""
 import importlib.util
 import json
 import os
+import re
 import time
 
 from blocks import Bus, require
@@ -61,6 +62,8 @@ class Mimik:
                 (devmask & 0x7F) << 16)
 
     def load_model(self, mid, image=None, **over):
+        if not re.fullmatch(r'[A-Za-z0-9_-]{1,64}', str(mid)):      # a folder name in models/, never a path
+            raise ValueError('bad model name')
         with open(os.path.join(MODELS, mid, 'model.json')) as f:
             m = json.load(f)
         c = dict(m.get('config', {}))

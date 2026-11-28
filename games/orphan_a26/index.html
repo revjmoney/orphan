@@ -387,10 +387,10 @@ function showHw() {
   $('hwbtn').hidden = !(sysInfo.hwpad_design || sysInfo.system === 'NES');
   $('hwports').textContent = !hwPorts ? '' : hwPorts === 'off' ? 'OFF' : hwPorts.replace(',', ' + ');
   $('hwports').className = 'pill ' + (hw && hw.present.some(Boolean) ? 'live' : 'off');
-  const prot = '<p class="no">Never driven (ORPHAN_NES_PADS_NEVER): ' + (hwNever.length ? hwNever.map(n => 'J' + n).join(', ') : 'none') + '</p>';
+  const prot = '<p class="no">Never driven (ORPHAN_NES_PADS_NEVER): ' + (hwNever.length ? hwNever.map(n => 'J' + (n | 0)).join(', ') : 'none') + '</p>';
   if (!hw) { $('hwstate').innerHTML = '<p class="no">' + (hwPorts === 'off' ? 'Real pads are off (ORPHAN_NES_PADS=off, or a protected connector was picked).'
       : 'No status from the console yet.') + '</p>' + prot; return; }
-  $('hwstate').innerHTML = [0, 1].map(i => '<div class="hwpad"><b>Pad ' + (i + 1) + ' on J' + hw.ports[i] + '</b>' +
+  $('hwstate').innerHTML = [0, 1].map(i => '<div class="hwpad"><b>Pad ' + (i + 1) + ' on J' + (hw.ports[i] | 0) + '</b>' +
     (hw.present[i] ? '<span class="ok">adapter found</span>' : '<span class="no">no adapter</span>') +
     '<span class="btns">' + BTN.map((n, k) => '<i class="' + (hw.buttons[i] >> k & 1 ? 'on' : '') + '">' + n + '</i>').join('') + '</span></div>').join('') + prot;
 }
