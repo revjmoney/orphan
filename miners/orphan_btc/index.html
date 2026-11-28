@@ -125,6 +125,8 @@ footer{justify-content:space-between;gap:6px;flex-wrap:wrap}
    <div><dt>Register accesses a second (this program)</dt><dd id="dAxi">-</dd></div>
    <div><dt>Fan (slot 15)</dt><dd id="dFan">-</dd></div>
    <div><dt>LED scanner (slot 5)</dt><dd id="dLed">-</dd></div>
+   <div><dt>Linux side (ARM cores, RAM)</dt><dd id="dLinux">-</dd></div>
+   <div><dt>I/O (Linux's counters)</dt><dd id="dIo">-</dd></div>
   </dl>
   <p class="roots">An abstract floorplan drawn from the build report and the live registers: not a die photo and not
    the real placement. Lime bursts cross the AXI bus each time the ARM writes a new midstate and header tail into
@@ -134,7 +136,9 @@ footer{justify-content:space-between;gap:6px;flex-wrap:wrap}
    the fan, violet: the LED scanner); reads go out and come back with the data. Other programs on the board (the
    fan tool) are not counted. Inside the FPGA the miner's busy wire runs the LED scanner and its eye on the 4 board
    LEDs (drawn with the same timing as the hardware, which does not report its position); the fan's PWM and tach
-   pins blink with the duty and the pulses it measured.</p>
+   pins blink with the duty and the pulses it measured. On the ARM side every block lights with Linux's own
+   counters: each core's busy time, RAM in use and page faults (DDR), interrupts (the GIC), network, SD card and UART
+   bytes; the dots between them follow those rates (the OCM is not used by Linux, USB has no counter here).</p>
  </section>
  <section class="panel" style="grid-column:1/-1">
   <div class="panel-head"><h2>Live miner log</h2><span id="cnt"></span></div>
@@ -242,6 +246,17 @@ tick(); setInterval(tick, 1000);
   let units = 0, mhz = 0, rate = 0, mining = false, fmax = null, used = null, max = null;
   let feeds = -1, finds = -1, pulses = [], lastT = performance.now(), phase = 0, heat = 0;
   let rates = {}, lastBus = null, lastBusT = 0, fan = null, led = null, dots = [], acc = {}, eyeT = 0, wasMining = false;
+  let psr = {}, lastPs = null, lastPsT = 0, psDots = [], psAcc = {};
+  const kb = v => v >= 1e6 ? (v / 1e6).toFixed(1) + ' MB/s' : v >= 1e3 ? (v / 1e3).toFixed(1) + ' KB/s' : Math.round(v) + ' B/s';
+  // a block that glows with its activity (0..1)
+  function lit(x, y, w, h, v, color, label, sub) {
+    const c = color.replace('#', ''), rgb = [0, 2, 4].map(i => parseInt(c.substr(i, 2), 16)).join(',');
+    g.fillStyle = '#0f1712'; g.fillRect(x, y, w, h);
+    g.fillStyle = 'rgba(' + rgb + ',' + (.05 + .32 * v).toFixed(3) + ')'; g.fillRect(x, y, w, h);
+    g.strokeStyle = 'rgba(' + rgb + ',' + (.25 + .75 * v).toFixed(3) + ')'; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, w - 1, h - 1);
+    g.fillStyle = '#e6f0e4'; g.font = '12px Consolas,monospace'; g.fillText(label, x + 7, y + 16);
+    if (sub) { g.fillStyle = '#a9b8a7'; g.font = '10px Consolas,monospace'; g.fillText(sub, x + 7, y + 30); }
+  }
   place(0);
   window.dieUpdate = s => {
     const f = s.fpga || {}, b = s.build || {}, fb = s.fabric;
@@ -250,6 +265,21 @@ tick(); setInterval(tick, 1000);
       const t = performance.now() / 1000;
       if (lastBus && t > lastBusT) { rates = {}; for (const k in fb.bus) rates[k] = Math.max(0, (fb.bus[k] - (lastBus[k] || 0)) / (t - lastBusT)); }
       lastBus = fb.bus; lastBusT = t; fan = fb.fan; led = fb.led;
+    }
+    // the ARM side: Linux's cumulative counters -> rates from one status to the next
+    if (s.ps && s.ps.cpu) {
+      const p = s.ps, t = performance.now() / 1000, q = lastPs, dts = t - lastPsT, r = (a, b) => q && dts > 0 && a != null && b != null ? Math.max(0, (a - b) / dts) : null;
+      psr = {mem: p.mem, load: q && q.cpu ? p.cpu.map((c, k) => { const o = q.cpu[k] || c, tot = c[1] - o[1]; return tot > 0 ? Math.min(1, (c[0] - o[0]) / tot) : 0; }) : null,
+        pgf: r(p.pgfault, q && q.pgfault), intr: r(p.intr, q && q.intr), ctxt: r(p.ctxt, q && q.ctxt),
+        netIn: p.net && q && q.net ? r(p.net[0], q.net[0]) : null, netOut: p.net && q && q.net ? r(p.net[1], q.net[1]) : null,
+        sdR: p.sd && q && q.sd ? r(p.sd[0] * 512, q.sd[0] * 512) : null, sdW: p.sd && q && q.sd ? r(p.sd[1] * 512, q.sd[1] * 512) : null,
+        uart: r(p.uart, q && q.uart)};
+      lastPs = p; lastPsT = t;
+      const n = v => v == null ? '-' : Math.round(v).toLocaleString();
+      $('dLinux').textContent = (psr.load ? psr.load.map((v, k) => 'CPU' + k + ' ' + Math.round(100 * v) + ' %').join(' · ') + ' · ' : '') +
+        (p.mem ? 'RAM ' + Math.round(p.mem[0] / 1024) + ' / ' + Math.round(p.mem[1] / 1024) + ' MB · ' : '') + n(psr.pgf) + ' page faults/s · ' + n(psr.intr) + ' interrupts/s';
+      $('dIo').textContent = psr.netIn == null ? 'measuring...' : 'network in ' + kb(psr.netIn) + ', out ' + kb(psr.netOut) +
+        (psr.sdR != null ? ' · SD read ' + kb(psr.sdR) + ', write ' + kb(psr.sdW) : '') + (psr.uart != null ? ' · UART ' + Math.round(psr.uart) + ' B/s' : '');
     }
     if (s.mode === 'mine' && !wasMining) eyeT = performance.now();     // the scanner starts on LED 0 when mining starts
     wasMining = s.mode === 'mine';
@@ -325,16 +355,40 @@ tick(); setInterval(tick, 1000);
     box(30, 30, 270, 380, '#0d1611', '#2f4034');
     g.fillStyle = '#8fa08e'; g.font = '10px Consolas,monospace'; g.fillText('PS · PROCESSING SYSTEM', 38, 44);
     const feeding = pulses.some(p => p.dir > 0 && now >= p.t0 && now - p.t0 < 1200);
+    const ld = psr.load || [0, 0], avg = (ld[0] + ld[1]) / 2;
+    // every ARM-side block lights with its own Linux counter (cores: busy time, DDR: page faults, I/O: bytes)
     for (let k = 0; k < 2; k++) {                    // Linux runs the daemon on either core
       const x = 40 + k * 130;
-      box(x, 52, 120, 82, feeding ? '#1d2a12' : '#121c15', feeding ? LIME : '#3d5143', 'Cortex-A9 #' + k, 'Linux (both cores)');
+      lit(x, 52, 120, 82, Math.max(ld[k] || 0, feeding ? .6 : 0), feeding ? LIME : '#e8efe6', 'Cortex-A9 #' + k, psr.load ? Math.round(100 * (ld[k] || 0)) + ' % busy' : 'Linux');
       g.fillStyle = '#8fa08e'; g.font = '10px Consolas,monospace'; g.fillText('daemon: stratum,', x + 7, 100); g.fillText('merkle, midstate', x + 7, 113);
     }
-    box(40, 144, 250, 44, '#111a14', '#33453a', 'SCU · L2 cache 512 KB');
-    box(40, 198, 120, 50, '#111a14', '#33453a', 'OCM 256 KB');
-    box(170, 198, 120, 50, '#111a14', '#33453a', 'DDR3 controller');
-    box(40, 258, 250, 64, '#101812', '#33453a', 'I/O: GigE · USB · SD · UART', 'the pool talks over GigE');
-    box(40, 332, 250, 68, '#101812', '#33453a', 'FCLK0 · ' + (mhz ? mhz.toFixed(1) : '100') + ' MHz', 'the clock the PL runs on');
+    lit(40, 144, 250, 44, avg, '#e8efe6', 'SCU · GIC · L2 cache 512 KB', psr.intr != null ? Math.round(psr.intr).toLocaleString() + ' interrupts/s' : '');
+    lit(40, 198, 120, 50, 0, '#e8efe6', 'OCM 256 KB', 'unused by Linux');
+    lit(170, 198, 120, 50, Math.min(1, (psr.pgf || 0) / 3000 + avg * .3), '#ffd27a', 'DDR3 · ' + (psr.mem ? Math.round(psr.mem[1] / 1024) + ' MB' : ''),
+      psr.mem ? Math.round(psr.mem[0] / 1024) + ' MB in use' : '');
+    lit(40, 258, 60, 64, Math.min(1, ((psr.netIn || 0) + (psr.netOut || 0)) / 2e5), '#7fe7c4', 'GigE', psr.netIn != null ? kb(psr.netIn + psr.netOut) : '');
+    lit(103, 258, 60, 64, Math.min(1, ((psr.sdR || 0) + (psr.sdW || 0)) / 2e5), '#ffd27a', 'SD', psr.sdR != null ? kb(psr.sdR + psr.sdW) : '');
+    lit(166, 258, 60, 64, Math.min(1, (psr.uart || 0) / 200), '#c9d6c7', 'UART', psr.uart != null ? Math.round(psr.uart) + ' B/s' : '');
+    lit(229, 258, 61, 64, 0, '#c9d6c7', 'USB', 'idle');
+    lit(40, 332, 250, 68, mining ? .35 : .05, LIME, 'FCLK0 · ' + (mhz ? mhz.toFixed(1) : '100') + ' MHz', 'the clock the PL runs on');
+    // traffic between them, one dot per share of the measured rate (white: cores <-> L2, gold: memory, green:
+    // network, amber: SD card, red: interrupts into the GIC)
+    const flows = [
+      [[[100, 134], [100, 144]], (ld[0] || 0) * 22, '#e8efe6'], [[[230, 134], [230, 144]], (ld[1] || 0) * 22, '#e8efe6'],
+      [[[230, 188], [230, 198]], Math.min(22, (psr.pgf || 0) / 120 + avg * 6), '#ffd27a'],
+      [[[70, 258], [70, 253], [205, 253], [205, 248]], Math.min(22, ((psr.netIn || 0) + (psr.netOut || 0)) / 3000), '#7fe7c4'],
+      [[[133, 258], [133, 254], [215, 254], [215, 248]], Math.min(22, ((psr.sdR || 0) + (psr.sdW || 0)) / 4096), '#ffd27a'],
+      [[[196, 258], [196, 255], [165, 255], [165, 188]], Math.min(22, (psr.intr || 0) / 250), '#ff9a8a']];
+    for (const [pts, r, col] of flows) {
+      g.save(); g.strokeStyle = col; g.globalAlpha = r > .05 ? .25 : .08; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.stroke(); g.restore();
+      const key = pts[0].join(); psAcc[key] = (psAcc[key] || 0) + r * dt;
+      while (psAcc[key] >= 1 && psDots.length < 240) { psAcc[key] -= 1; psDots.push({t0: now, pts, col}); }
+    }
+    psDots = psDots.filter(d => now - d.t0 < 700);
+    for (const d of psDots) { const f = (now - d.t0) / 700, [x, y] = along(d.pts, f < .5 ? f * 2 : 2 - f * 2);
+      g.fillStyle = d.col; g.globalAlpha = .85; g.fillRect(x - 2.5, y - 2.5, 5, 5); }
+    g.globalAlpha = 1;
     // AXI GP0 between the two halves
     g.fillStyle = '#0f1a14'; g.fillRect(304, 30, 52, 380);
     for (let i = 0; i < 4; i++) { g.fillStyle = '#1f2c24'; g.fillRect(311 + i * 11, 34, 3, 372); }

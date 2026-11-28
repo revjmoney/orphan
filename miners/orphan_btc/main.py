@@ -64,6 +64,7 @@ class Control:
         s['settings'] = settings.public()
         s['build'] = BUILD
         s['fabric'] = fabric_state()
+        s['ps'] = ps_state()
         try:
             s['temp'] = round(int(open('/sys/bus/iio/devices/iio:device0/in_temp0_raw').read()) * 503.975 / 4096 - 273.15, 1)
         except (OSError, ValueError):
@@ -191,6 +192,42 @@ def fabric_state():
     except Exception:  # noqa: BLE001
         return None
     return {'fan': fan, 'led': led, 'bus': dict(bus.n)}
+
+
+def ps_state():
+    """The ARM side, from Linux's own counters (cumulative: the page turns them into rates): per core busy and total
+    jiffies, RAM, page faults, network bytes (the wired port), SD card sectors, interrupts, context switches, UART bytes."""
+    ps = {}
+    try:
+        cores = []
+        for line in open('/proc/stat'):
+            f = line.split()
+            if f[0].startswith('cpu') and f[0] != 'cpu':
+                v = [int(x) for x in f[1:8]]                  # user nice system idle iowait irq softirq
+                cores.append([v[0] + v[1] + v[2] + v[5] + v[6], sum(v)])
+            elif f[0] in ('intr', 'ctxt'):
+                ps[f[0]] = int(f[1])
+        ps['cpu'] = cores
+        mem = {l.split(':')[0]: int(l.split()[1]) for l in open('/proc/meminfo') if l.split(':')[0] in ('MemTotal', 'MemAvailable')}
+        ps['mem'] = [mem.get('MemTotal', 0) - mem.get('MemAvailable', 0), mem.get('MemTotal', 0)]   # kB in use, kB
+        vm = dict(l.split() for l in open('/proc/vmstat'))
+        ps['pgfault'] = int(vm.get('pgfault', 0))
+        for line in list(open('/proc/net/dev'))[2:]:
+            name, rest = line.split(':', 1)
+            if name.strip() not in ('lo', 'sit0') and not name.strip().startswith(('wl', 'tun', 'docker')):
+                f = rest.split()
+                ps['net'] = [int(f[0]), int(f[8])]               # bytes in, bytes out
+                break
+        for line in open('/proc/diskstats'):
+            f = line.split()
+            if f[2] == 'mmcblk0':
+                ps['sd'] = [int(f[5]), int(f[9])]                # sectors read, written
+        for line in open('/proc/tty/driver/xuartps'):
+            if 'tx:' in line and line.startswith('0:'):
+                ps['uart'] = int(line.split('tx:')[1].split()[0]) + int(line.split('rx:')[1].split()[0])
+    except (OSError, ValueError, IndexError):
+        pass
+    return ps
 
 
 bus = CountingBus()
