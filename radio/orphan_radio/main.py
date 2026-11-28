@@ -18,6 +18,7 @@ import threading
 import time
 
 from blocks import Bus, require
+import cydradio
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = 8000
@@ -456,6 +457,7 @@ def pump_rx():
             blk = rx['ring'][np.arange(last, last + n) % RX_RING]
             broadcast(b'\x01\x00\x00\x00' + blk.astype('<i2').tobytes())             # frame type 1: slice A
             send_raw(blk[:, 2].astype('<i2').tobytes())
+            cydradio.SCREEN.feed_iq(blk[:, :2], FS, state['freq'] * 1000)       # CYD: only without a panadapter
             last = (last + n) & 0xFFFFFFFF
         if state['multi']:
             mh = struct.unpack_from(RX_MULTI_HEAD, rx['mm'], RX_MULTI_OFF)
@@ -476,6 +478,7 @@ def pump_rx():
                 db = np.frombuffer(rx['mm'], dtype='<f4', count=RX_PAN_N, offset=RX_PAN_OFF)
                 q = np.clip(db * 100, -32768, 32767).astype('<i2')
                 broadcast(struct.pack('<hhdd', 9, RX_PAN_N, center, FCLK / (1 << mh[13])) + q.tobytes())
+                cydradio.SCREEN.feed_pan(db, center, FCLK / (1 << mh[13]))
         now = time.time()
         if now - last_meter > 0.1:
             if state['multi']:
@@ -925,6 +928,11 @@ if __name__ == '__main__':
     if rx_start():
         state['board_dsp'] = 1
         print('rxd: demodulators, filters and decoders run on the board', flush=True)
+    # the ORPHAN Remote (CYD named in /etc/orphan/cyd): frequency, modes, spectrum and waterfall, 4 times a second
+    if os.environ.get('ORPHAN_RADIO_CYD', '1') != '0':
+        threading.Thread(target=cydradio.run, daemon=True, args=(
+            lambda: state, lambda: meter,
+            lambda: (rx_text(max(0, rx_head()[15] - 400))[0] if state['decoder'] != 'off' and rx_ok() else ''))).start()
     for t in (pump, control_loop, melody_loop, raw_audio_server):
         threading.Thread(target=t, daemon=True).start()
     ip = subprocess.run(['hostname', '-I'], capture_output=True, text=True).stdout.split()[0]
