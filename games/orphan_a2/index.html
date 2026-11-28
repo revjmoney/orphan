@@ -99,6 +99,7 @@
     <div class="fx" id="fx" hidden aria-label="Picture effects"></div>
     <p class="help" id="help"><b>Arrows</b> move · <b>Z</b> = B · <b>X</b> = A · <b>Enter</b> = Start · <b>Right Shift</b> = Select.
       A USB gamepad works too: press a button once so the browser sees it.</p>
+    <p class="help" id="padinfo">No controller seen yet: press a button on it while this page is in front.</p>
   </section>
 </main>
 <dialog id="hwdlg" aria-labelledby="hwtitle">
@@ -344,15 +345,31 @@ function compKey(e, down) {
 }
 window.addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (sysInfo.keyboard) { if (compKey(e, true)) e.preventDefault(); return; } if (e.code in KEYS) { kb |= 1 << KEYS[e.code]; e.preventDefault(); } });
 window.addEventListener('keyup', e => { if (sysInfo.keyboard) { if (compKey(e, false)) e.preventDefault(); return; } if (e.code in KEYS) { kb &= ~(1 << KEYS[e.code]); e.preventDefault(); } });
+// a D-pad the browser reports as one "hat" axis (non-standard controllers): -1 up, then clockwise in steps of 2/7,
+// anything above 1 = centred. Returns the NES direction bits (16 up, 32 down, 64 left, 128 right).
+const HAT = [16, 16 | 128, 128, 32 | 128, 32, 32 | 64, 64, 16 | 64];
+function hatBits(v) { if (v === undefined || v > 1.05 || v < -1.05) return 0; return HAT[Math.round((v + 1) * 3.5) & 7]; }
 function padBits(gp) {
   if (!gp) return 0; const b = i => gp.buttons[i] && gp.buttons[i].pressed, ax = gp.axes || [];
-  return (b(0) ? 1 : 0) | (b(2) || b(1) ? 2 : 0) | (b(8) ? 4 : 0) | (b(9) ? 8 : 0) |
-         (b(12) || ax[1] < -0.5 ? 16 : 0) | (b(13) || ax[1] > 0.5 ? 32 : 0) | (b(14) || ax[0] < -0.5 ? 64 : 0) | (b(15) || ax[0] > 0.5 ? 128 : 0);
+  let v = (b(0) ? 1 : 0) | (b(2) || b(1) ? 2 : 0) | (b(8) ? 4 : 0) | (b(9) ? 8 : 0) |
+          (b(12) || ax[1] < -0.5 ? 16 : 0) | (b(13) || ax[1] > 0.5 ? 32 : 0) | (b(14) || ax[0] < -0.5 ? 64 : 0) | (b(15) || ax[0] > 0.5 ? 128 : 0);
+  if (gp.mapping !== 'standard') v |= hatBits(ax[9]);           // DirectInput-style pads: the D-pad is axis 9
+  return v;
+}
+// Which controllers are pad 1 and pad 2. Windows can show one Xbox pad twice (XInput "standard" + a raw HID copy):
+// when any controller has the standard layout, only those count, so a duplicate never steals pad 1.
+let padNames = '';
+function choosePads() {
+  const all = navigator.getGamepads ? [...navigator.getGamepads()].filter(g => g && g.connected) : [];
+  const std = all.filter(g => g.mapping === 'standard');
+  return std.length ? std : all;
 }
 function pollPads() {
-  const gps = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+  const gps = choosePads();
   const p1 = kb | padBits(gps[0]), p2 = padBits(gps[1]), v = p1 | p2 << 8;
   if (v !== lastSent) { lastSent = v; send({pads: [p1, p2]}); }
+  const names = gps.slice(0, 2).map((g, i) => 'pad ' + (i + 1) + ': ' + g.id.replace(/\s*\(.*$/, '') + (g.mapping === 'standard' ? '' : ' (raw layout)')).join(' · ');
+  if (names !== padNames) { padNames = names; $('padinfo').textContent = names ? 'Controller ' + names : 'No controller seen yet: press a button on it while this page is in front.'; }
   requestAnimationFrame(pollPads);
 }
 requestAnimationFrame(pollPads);
