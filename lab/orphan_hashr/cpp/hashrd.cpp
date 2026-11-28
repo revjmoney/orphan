@@ -1267,6 +1267,7 @@ struct Daemon {
             std::string why;
             Board* b = chosen(in, why);
             if (!b || !b->set_volts(v, why)) return "failed: " + why + "\n";
+            remember_power(b->header(), v, b->mhz());   // START MINING brings it back at these volts (Rev 2026-11-28)
             return "voltage set\n";
         }
         if (c == "set_chip" || c == "set_row" || c == "set_all") {
@@ -1291,6 +1292,7 @@ struct Daemon {
                 else for (int i = 0; i < l->chips(); i++) if (!l->chip_off(i)) chips.push_back(i);
                 std::string why;
                 if (!l->set_chips(chips, mhz, off, why)) return "failed: " + why + "\n";
+                if (c == "set_all") remember_power(jh, 0, mhz);   // START MINING brings it back at this clock
                 ssink.kick();                      // the chips start on a fresh work now, not in up to 19 s
                 return "clock set\n";
             }
@@ -1305,7 +1307,9 @@ struct Daemon {
             else for (int i = 0; i < b->chips(); i++) if (!b->chip_off(i)) chips.push_back(i);
             if (!off && (mhz < 200 || mhz > 650)) return "failed: clock 200 to 650 MHz, or off\n";
             std::string why;
-            return b->set_chips(chips, mhz, off, why) ? "clock set\n" : "failed: " + why + "\n";
+            if (!b->set_chips(chips, mhz, off, why)) return "failed: " + why + "\n";
+            if (c == "set_all") remember_power(b->header(), b->volts_set(), mhz);   // START MINING brings it back here
+            return "clock set\n";
         }
         if (c == "hold" || c == "diag" || c == "rstprobe") {   // each powers an off board itself: Rev present
             double volts = Pic::V_START;
