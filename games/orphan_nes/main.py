@@ -330,12 +330,16 @@ def load(name):
 
 
 # ---------------------------------------------------------------- picture + sound
-def a26_merge(fb):
+def a26_merge(fb, rows=240):
     """Atari 2600: many games flicker (half their objects on each frame). The core keeps the last two frames;
-    show both at once, the brighter pixel of the two wins (like an emulator's phosphor mode)."""
+    show both at once, the brighter pixel of the two wins (like an emulator's phosphor mode). Rows past the end of
+    the frame (a 262-line frame from line 30 fills 232) are never written by the core: show them black."""
     a = np.frombuffer(fb, dtype=np.uint8)
     f0, f1 = a[:38400], a[38400:76800]
-    return array.array('I', np.where((f1 & 7) > (f0 & 7), f1, f0).tobytes())
+    m = np.where((f1 & 7) > (f0 & 7), f1, f0)
+    if rows < 240:
+        m[max(rows, 0) * 160:] = 0
+    return array.array('I', m.tobytes())
 
 
 def double_buffer():
@@ -389,12 +393,15 @@ def frames():
             while not (R(6) >> 28) & 1 and time.time() - t < 0.2:
                 time.sleep(0.002)
             tp = time.perf_counter()
+            # the held picture can't change and the sound has its own read window (768): read it without the bus
+            # lock, so sound() keeps up (a 2600 picture is 19200 words, about 14 ms)
             with lock:
                 W(4, 0)
-                fb = pop(512, FB_WORDS)
+            fb = pop(512, FB_WORDS)
+            with lock:
                 W(0, RUN)                          # capture again
         if SYS_ID == 'A261':
-            fb = a26_merge(fb)
+            fb = a26_merge(fb, (R(15) & 511) - (R(14) & 511))     # LINES in the last frame - YSTART
         state['pop_ms'] = state.get('pop_ms', 0.0) * 0.9 + (time.perf_counter() - tp) * 100
         nb += 1
         if not dbl or nb & 1:                  # the browser stream stays at 30 a second (board CPU)
@@ -421,7 +428,7 @@ def sound():
         last = (R(6) >> 16) & 0x7FF
         W(5, last)
     while True:
-        time.sleep(0.02)
+        time.sleep(0.01)
         with lock:
             wp = (R(6) >> 16) & 0x7FF
             n = (wp - last) & 0x7FF
@@ -467,6 +474,7 @@ cyd_meta = cyd_ctx.RawArray('i', 4)            # [picture number, SUB of slot 0,
 cyd_new = cyd_ctx.Event()
 cyd_stats = cyd_ctx.RawArray('d', 4)           # pictures/s, ms per picture, bytes, cpu %
 cyd_on = False
+cyd_wide = [False]                             # set by cyd_stream_kind() in the sender process
 
 
 def cyd_frame(fb):
@@ -548,8 +556,9 @@ def cyd_layout(fb):
         return PCE565[((w >> SH_PCE) & 511).reshape(240, 258)[:, :256]], 0, 32, 0, None
     if SYS_ID == 'A2E1':                       # 560 dots -> 256 columns (the CYD stream's widest row), centred
         return a2_colours(fb)[:, A2COLS], 0, 32, 24, A2565
-    if SYS_ID == 'A261':                       # 160 x 240 (the CYD stream takes rows up to 256 wide): 1:1, centred
-        return np.frombuffer(fb, dtype=np.uint8)[:160 * 240].reshape(240, 160), 0, 80, 0, A26565
+    if SYS_ID == 'A261':                       # 160 x 240: 2x wide fills the screen (CYD firmware with "wide2"),
+        img = np.frombuffer(fb, dtype=np.uint8)[:160 * 240].reshape(240, 160)   # else 1:1, centred
+        return (img, 2, 0, 0, A26565) if cyd_wide[0] else (img, 0, 80, 0, A26565)
     w = np.frombuffer(fb, dtype=np.uint32)[:, None]
     if SYS_ID == 'GB01':
         px = ((w >> SH_GB) & 3).astype(np.uint8).reshape(-1)[:160 * 144]
@@ -579,6 +588,7 @@ def cyd_stream_kind(host):
                 data += chunk
     except OSError:
         return None
+    cyd_wide[0] = b'"wide2":true' in data     # this firmware draws scale 2 (2x wide, 1x tall)
     if b'"game_udp":8093' in data:
         return 'udp'
     if b'"game_port":8092' in data:

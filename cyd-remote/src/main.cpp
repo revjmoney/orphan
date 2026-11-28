@@ -223,7 +223,8 @@ void frame(){
 
 // ---------------------------------------------------------------- game stream (TCP 8092, one connection kept open)
 // Messages: u8 type, u32 length (little endian), payload.
-//  1 MODE  u8 pixel bytes (1 = palette index, 2 = RGB565), u8 scale (0 = 1x, 1 = 1.5x blended), u8 flags (bit 0 hud),
+//  1 MODE  u8 pixel bytes (1 = palette index, 2 = RGB565), u8 scale (0 = 1x, 1 = 1.5x blended, 2 = 2x wide 1x tall:
+//          the Atari 2600's 160 x 240 fills the screen), u8 flags (bit 0 hud),
 //          u8 0, u16 src w, u16 src h, u16 x, u16 y, u16 palette count, palette (u16 RGB565 each). Clears the screen.
 //  2 ROWS  u16 first row, u16 count, then per row: u8 encoding (0 raw, 1 runs), u16 bytes, data.
 //          runs = (u8 count-1, value) pairs. With scale 1.5x the board sends whole row pairs (first row even).
@@ -273,6 +274,19 @@ static void gameDraw15(int r0,int r1){             // r0 even, r1 even
   gamePush(gameX,gameY+p*3,ow,pairs*3,b);
  }
 }
+// 2x wide, 1x tall (scale 2): each source pixel becomes two (the 2600's pixels are about twice as wide as tall)
+static void gameDraw2w(int r0,int r1){
+ int ow=gameW*2;
+ for(int r=r0;r<r1;r+=8){
+  int n=min(8,r1-r);uint16_t* b=gameStrip();
+  for(int k=0;k<n;k++){
+   uint16_t* o=b+k*ow;
+   if(gamePb==1){const uint8_t* src=gameFb+(r+k)*gameW;for(int c=0;c<gameW;c++){uint16_t v=gamePalSw[src[c]];*o++=v;*o++=v;}}
+   else{const uint16_t* src=(const uint16_t*)gameFb+(r+k)*gameW;for(int c=0;c<gameW;c++){uint16_t v=sw16(src[c]);*o++=v;*o++=v;}}
+  }
+  gamePush(gameX,gameY+r,ow,n,b);
+ }
+}
 static const uint8_t* gameMem=nullptr;static size_t gameMemLeft=0;   // set while a UDP packet is being parsed
 static bool gameRead(void* d,size_t n){
  if(gameMem){if(n>gameMemLeft)return false;memcpy(d,gameMem,n);gameMem+=n;gameMemLeft-=n;gameBytes+=n;return true;}
@@ -280,7 +294,7 @@ static bool gameRead(void* d,size_t n){
 }
 static bool gameRows(uint32_t len){
  uint16_t hdr[2];if(len<4 || !gameRead(hdr,4))return false;len-=4;
- int r0=hdr[0],n=hdr[1];if(!gameMode || n<1 || r0+n>gameH || (gameScale && ((r0|n)&1)))return false;
+ int r0=hdr[0],n=hdr[1];if(!gameMode || n<1 || r0+n>gameH || (gameScale==1 && ((r0|n)&1)))return false;
  const int rowBytes=gameW*gamePb;
  for(int r=r0;r<r0+n;r++){
   uint8_t enc;uint16_t nb;if(len<3 || !gameRead(&enc,1) || !gameRead(&nb,2))return false;len-=3;
@@ -303,7 +317,7 @@ static bool gameRows(uint32_t len){
  if(len)return false;
  uint32_t t0=micros();
  if(!gameWriting){tft.startWrite();gameWriting=true;}  // held until END: strips go out by DMA while packets arrive
- if(gameScale==1)gameDraw15(r0,r0+n);else gameDraw1x(r0,r0+n);
+ if(gameScale==1)gameDraw15(r0,r0+n);else if(gameScale==2)gameDraw2w(r0,r0+n);else gameDraw1x(r0,r0+n);
  gameDrawUs+=micros()-t0;
  return true;
 }
@@ -311,8 +325,8 @@ static bool gameModeMsg(uint32_t len){
  uint8_t h[14];if(len<14 || !gameRead(h,14))return false;
  int pb=h[0],sc=h[1],npal=h[12]|(h[13]<<8);
  int w=h[4]|(h[5]<<8),hh=h[6]|(h[7]<<8),x=h[8]|(h[9]<<8),y=h[10]|(h[11]<<8);
- int ow=sc?w*3/2:w,oh=sc?hh*3/2:hh;
- if((pb!=1 && pb!=2) || sc>1 || w<2 || w>256 || hh<2 || w*hh*pb>GameMaxBytes || (sc && ((w|hh)&1)) || x+ow>320 || y+oh>240
+ int ow=sc==1?w*3/2:sc==2?w*2:w,oh=sc==1?hh*3/2:hh;
+ if((pb!=1 && pb!=2) || sc>2 || w<2 || w>256 || hh<2 || w*hh*pb>GameMaxBytes || (sc==1 && ((w|hh)&1)) || x+ow>320 || y+oh>240
     || npal>256 || len!=(uint32_t)14+npal*2)return false;
  if(npal && !gameRead(gamePal,npal*2))return false;
  for(int i=0;i<npal;i++)gamePalSw[i]=sw16(gamePal[i]);
@@ -617,7 +631,7 @@ void controlRequest(){
  for(int n=0;n<30;n++){String header=c.readStringUntil('\n');header.trim();if(!header.length())break;header.toLowerCase();if(header.startsWith("content-length:"))length=header.substring(15).toInt();}
  String body,type="text/plain";int status=200;
  if(request.startsWith("GET /status ")){
-  JsonDocument d;d["online"]=online;d["target"]=target;d["view"]=views[view];d["ip"]=WiFi.localIP().toString();d["heap"]=ESP.getFreeHeap();d["graphics_port"]=8091;d["game_port"]=8092;d["game_bytes"]=gameBytes;d["rssi"]=WiFi.RSSI();d["game_udp"]=8093;d["udp_bytes"]=udpBytes;d["udp_packets"]=udpPackets;d["udp_lost"]=udpLost;d["udp_dropped"]=udpDropped;d["draw_ms"]=(uint32_t)(gameDrawUs/1000);d["dma_wait_ms"]=(uint32_t)(gameWaitUs/1000);d["channel"]=WiFi.channel();d["scale2"]=true;d["spi_mhz"]=spiMhz;d["frames"]=frameCount;d["fps"]=frameFps;d["transfer_ms"]=frameTransferMs;if(!isnan(chipTemperature))d["temperature"]=chipTemperature;
+  JsonDocument d;d["online"]=online;d["target"]=target;d["view"]=views[view];d["ip"]=WiFi.localIP().toString();d["heap"]=ESP.getFreeHeap();d["graphics_port"]=8091;d["game_port"]=8092;d["game_bytes"]=gameBytes;d["rssi"]=WiFi.RSSI();d["game_udp"]=8093;d["udp_bytes"]=udpBytes;d["udp_packets"]=udpPackets;d["udp_lost"]=udpLost;d["udp_dropped"]=udpDropped;d["draw_ms"]=(uint32_t)(gameDrawUs/1000);d["dma_wait_ms"]=(uint32_t)(gameWaitUs/1000);d["channel"]=WiFi.channel();d["scale2"]=true;d["wide2"]=true;d["spi_mhz"]=spiMhz;d["frames"]=frameCount;d["fps"]=frameFps;d["transfer_ms"]=frameTransferMs;if(!isnan(chipTemperature))d["temperature"]=chipTemperature;
   d["selected"]=selIp?IPAddress(selIp).toString():"";d["boards"]=nBoards;d["busy_sent"]=busySent;d["modes_taken"]=modesTaken;
   d["selected_age_ms"]=selIp?millis()-selSeen:0;d["owner"]=IPAddress(owner.sin_addr.s_addr).toString();
   d["scene_polls"]=scenePolls;d["scene_tiles_drawn"]=sceneTilesDrawn;d["scene_draw_ms"]=sceneDrawMs;
@@ -653,10 +667,11 @@ void controlRequest(){
   for(int y=0;y<240;y++){
    memset(line,0,sizeof(line));
    if(gameMode && gameFb){
-    int ow=gameScale?gameW*3/2:gameW,oh=gameScale?gameH*3/2:gameH,oy=y-gameY;
+    int ow=gameScale==1?gameW*3/2:gameScale==2?gameW*2:gameW,oh=gameScale==1?gameH*3/2:gameH,oy=y-gameY;
     if(oy>=0 && oy<oh){
-     if(!gameScale){
-      for(int c=0;c<gameW;c++)line[gameX+c]=gamePb==1?gamePal[gameFb[oy*gameW+c]]:((uint16_t*)gameFb)[oy*gameW+c];
+     if(gameScale!=1){
+      int k=gameScale==2?2:1;
+      for(int c=0;c<ow;c++)line[gameX+c]=gamePb==1?gamePal[gameFb[oy*gameW+c/k]]:((uint16_t*)gameFb)[oy*gameW+c/k];
      }else{
       int p=oy/3,k=oy%3;gameScaleRow(2*p,t0);gameScaleRow(2*p+1,t2);
       for(int c=0;c<ow;c++)line[gameX+c]=k==0?t0[c]:k==2?t2[c]:blend565(t0[c],t2[c]);
