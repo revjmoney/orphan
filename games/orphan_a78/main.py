@@ -17,6 +17,7 @@ import glob
 import hashlib
 import http.server
 import json
+import mmap
 import os
 import queue
 import signal
@@ -99,6 +100,21 @@ SYS = SYSTEMS[SYS_ID]
 ROMS = os.environ.get('ORPHAN_ROMS', '/opt/orphan-games/roms/' + SYS['dir'])
 FB_WORDS = SYS['words']
 RUN = 1                                        # CTRL value while running (+4 = Game Gear mode)
+# PC Engine frame DMA (orphan_pce_block CTRL[2]): the FPGA copies every finished picture over HP3 into one of two
+# slots in the OCM (on-chip RAM Linux does not use, mapped at FFFC0000), so reading a picture is one 0.5 ms copy
+# instead of 20640 register reads (about 15 ms that also held up the sound). ORPHAN_FRAME_DMA=0 turns it off; an
+# older bitstream without the DMA registers falls back to the register reads by itself.
+OCM_BASE, OCM_SLOT = 0xFFFC0000, 0x18000      # two 96 KB slots in the first 192 KB (the top 64 KB is left alone)
+FRAME_DMA = None
+if SYS_ID == 'PCE1' and os.environ.get('ORPHAN_FRAME_DMA', '1') != '0':
+    W(23, OCM_BASE)
+    W(24, OCM_BASE + OCM_SLOT)
+    if R(23) == OCM_BASE and R(24) == OCM_BASE + OCM_SLOT:
+        nesddr.hp_64bit()                      # HP3 in 64-bit mode (its write channel too)
+        _f = os.open('/dev/mem', os.O_RDWR | os.O_SYNC)
+        FRAME_DMA = mmap.mmap(_f, 2 * OCM_SLOT, mmap.MAP_SHARED, mmap.PROT_READ | mmap.PROT_WRITE, offset=OCM_BASE)
+        os.close(_f)
+        RUN = 1 | 4
 HW_PAD_DESIGNS = ('NES1', 'GB01', 'A261', 'A2E1', 'PCE1', 'A781', 'C641')               # designs with orphan_nespad (real NES pads on J1..J9)
 SUB = {'NES1': 0, 'GB01': 1, 'SMS1': 2, 'A261': 4, 'A2E1': 5, 'PCE1': 6, 'A781': 7, 'C641': 8}[SYS_ID]  # picture type in the WebSocket frame (3 = Game Gear)
 AUDIO_HZ = SYS['audio_hz']
@@ -363,10 +379,23 @@ def frames():
             dbl = None
             continue
         if dbl is None:
-            dbl = double_buffer()
-            print('frame buffer: %s' % ('double (every frame)' if dbl else 'freeze handshake (every other frame)'),
-                  flush=True)
-        if dbl:
+            dbl = 'dma' if FRAME_DMA is not None else double_buffer()
+            print('frame buffer: %s' % ('OCM frame DMA (every frame)' if dbl == 'dma' else
+                                       'double (every frame)' if dbl else 'freeze handshake (every other frame)'), flush=True)
+        if dbl == 'dma':
+            # the FPGA wrote the newest picture into an OCM slot by itself: wait for the copy count to move, then
+            # take that slot in one go (the next copy goes to the other slot)
+            t = time.time()
+            while (R(25) & 0xFFFF) == last and time.time() - t < 0.2:
+                time.sleep(0.002)
+            st = R(25)
+            if (st & 0xFFFF) == last:
+                continue                           # paused, or no picture yet
+            last = st & 0xFFFF
+            tp = time.perf_counter()
+            fb = array.array('I')
+            fb.frombytes(np.frombuffer(FRAME_DMA, dtype='<u4', count=FB_WORDS, offset=OCM_SLOT * (st >> 16 & 1)).tobytes())
+        elif dbl:
             t = time.time()
             while (R(12) & 0xFFFF) == last and time.time() - t < 0.2:
                 time.sleep(0.001)

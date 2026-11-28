@@ -11,6 +11,7 @@
 //
 // The ARM's view (word index in the slot):
 //   0 CTRL      [0] run (0 = held in reset; the cache tags are cleared meanwhile)  [1] freeze the frame at its end
+//               [2] frame DMA: every finished picture is copied over HP3 into slot 0 / slot 1 in turn (OCM)
 //   1 PADS      [7:0] pad 1 as NES bits (0 A = I, 1 B = II, 2 Select, 3 Start = Run, 4 Up, 5 Down, 6 Left, 7 Right)
 //   2 CART      [11:0] the HuCard's size in 4 KB units (the core's ROM_SZ: 128K, 256K, 384K, 512K, 768K and 2.5M
 //               cards get their chip mapping from it)
@@ -22,6 +23,9 @@
 //  15 PROBE     write: [21:0] cart offset: the FPGA reads those 8 bytes; read: [0] flips when done; 16 / 17 the bytes
 //  18 CACHE     read: [0] tags cleared since CTRL[0] went to 0       19 MISSES  cache misses in the last frame
 //  20 WAITS     console clocks spent waiting in the last frame        21 ERRORS DDR read errors   22 TOTAL misses
+//  23 / 24     DMA_SLOT0 / DMA_SLOT1: where the copies go (physical, 128-byte aligned; main.py: the OCM)
+//  25 DMA      read: [15:0] copies done, [16] the slot of the last one, [17] copying, [31:24] write errors
+//  26 DMA_CLKS read: bus clocks the last copy took (it must end inside the 1.4 ms vertical blank)
 //   512..767    read: frame buffer word, +1: 3 dots of 9 bits (GGGRRRBBB as the VCE gives them), dot 0 in [8:0];
 //               240 lines x 86 words, 256 dots a line (the middle 256 of 270; 360 / 540-dot lines scaled to 256)
 //   768..1023   read: audio word, +1: {right, left} signed 16-bit, 47.92 kHz
@@ -50,7 +54,19 @@ module orphan_pce_block #(parameter [3:0] SLOT = 4'd1) (
     input  wire        hp_rvalid,
     input  wire        hp_rlast,
     input  wire [1:0]  hp_rresp,
-    output wire        hp_rready
+    output wire        hp_rready,
+    // the frame DMA's write port (AXI3 write channels of the PS's HP3), on the bus clock: 16-beat bursts of 64 bits
+    output reg  [31:0] hpw_awaddr = 32'd0,
+    output wire [3:0]  hpw_awlen,
+    output reg         hpw_awvalid = 1'b0,
+    input  wire        hpw_awready,
+    output reg  [63:0] hpw_wdata = 64'd0,
+    output reg         hpw_wlast = 1'b0,
+    output reg         hpw_wvalid = 1'b0,
+    input  wire        hpw_wready,
+    input  wire [1:0]  hpw_bresp,
+    input  wire        hpw_bvalid,
+    output wire        hpw_bready
 );
     localparam FBW = 20640;                          // 240 lines x 86 words
     wire sel = (bus_addr[15:12] == SLOT);
@@ -66,10 +82,12 @@ module orphan_pce_block #(parameter [3:0] SLOT = 4'd1) (
     assign hp_rready = 1'b1;                         // a read is only asked for when there is room for it
 
     // ---------------------------------------------------------------- bus side registers
-    reg [1:0]  ctrl = 2'd0;
+    reg [2:0]  ctrl = 3'd0;
     reg [15:0] pads = 16'd0;
     reg [11:0] cart = 12'd0;
     reg [14:0] fb_rd = 15'd0;
+    reg        dma_use = 1'b0;                       // the frame DMA owns the frame buffer's read port
+    reg [14:0] dma_ra = 15'd0;
     reg [10:0] au_rd = 11'd0;
     reg [9:0]  ptw = 10'd0;
     reg [21:0] probe_off = 22'd0;
@@ -83,7 +101,7 @@ module orphan_pce_block #(parameter [3:0] SLOT = 4'd1) (
     reg [11:0] cart_s1 = 0, cart_s2 = 0;
     reg        pr_r1 = 0, pr_r2 = 0, pr_r3 = 0;
     always @(posedge c43) begin
-        ctrl_s1 <= ctrl; ctrl_s2 <= ctrl_s1; pads_s1 <= pads_all; pads_s2 <= pads_s1; cart_s1 <= cart; cart_s2 <= cart_s1;
+        ctrl_s1 <= ctrl[1:0]; ctrl_s2 <= ctrl_s1; pads_s1 <= pads_all; pads_s2 <= pads_s1; cart_s1 <= cart; cart_s2 <= cart_s1;
         pr_r1 <= probe_req; pr_r2 <= pr_r1; pr_r3 <= pr_r2;
     end
     // a start (CTRL[0] 0 -> 1) is a cold start: RESET and COLD_RESET stay on 32768 more clocks, the time the core
@@ -263,7 +281,7 @@ module orphan_pce_block #(parameter [3:0] SLOT = 4'd1) (
     end
     always @(posedge c43) if (fb_we) fb[fb_wa] <= fb_wd;
     reg [26:0] fbq = 27'd0;
-    always @(posedge clk) fbq <= fb[fb_rd];
+    always @(posedge clk) fbq <= fb[dma_use ? dma_ra : fb_rd];
 
     // ---------------------------------------------------------------- sound: the PSG averaged over 896 clocks
     (* ram_style = "block" *) reg [31:0] au [0:2047];
@@ -310,13 +328,65 @@ module orphan_pce_block #(parameter [3:0] SLOT = 4'd1) (
     reg [19:0] pt_wd = 20'd0;
     always @(posedge clk) if (pt_we) pt[pt_wa] <= pt_wd;
 
+    // ---------------------------------------------------------------- frame DMA (CTRL[2]) over HP3
+    // When a picture ends (the frame count moves) the whole frame buffer goes out as 645 bursts of 16 x 64 bits
+    // (two words a beat, the lower word first) into the slot not copied last; then the slot and the count change,
+    // so the ARM always reads a finished picture. The console writes no dots in the vertical blank (1.4 ms).
+    assign hpw_awlen = 4'd15;
+    assign hpw_bready = 1'b1;
+    localparam D_IDLE = 3'd0, D_AW = 3'd1, D_R0 = 3'd2, D_R1 = 3'd3, D_R2 = 3'd4, D_R3 = 3'd5, D_W = 3'd6, D_B = 3'd7;
+    reg [2:0]  dst = D_IDLE;
+    reg [31:0] dma_base0 = 32'hFFFC0000, dma_base1 = 32'hFFFD8000, daddr = 32'd0, dlo = 32'd0;
+    reg [15:0] dma_cnt = 16'd0, fr_seen = 16'd0;
+    reg        dma_slot = 1'b1, wslot = 1'b0;
+    reg [7:0]  dma_err = 8'd0;
+    reg [23:0] dma_clks = 24'd0, clk_n = 24'd0;
+    reg [14:0] dwa = 15'd0;
+    reg [3:0]  dbn = 4'd0;
+    always @(posedge clk) begin
+        if (!rstn) begin dst <= D_IDLE; hpw_awvalid <= 1'b0; hpw_wvalid <= 1'b0; hpw_wlast <= 1'b0; dma_use <= 1'b0; end
+        else begin
+            if (dst != D_IDLE && !clk_n[23]) clk_n <= clk_n + 1'b1;
+            case (dst)
+                D_IDLE: begin
+                    dma_use <= 1'b0;
+                    if (fr_s2 != fr_seen) begin                  // the gray-coded frame count moved (no decode: short path)
+                        fr_seen <= fr_s2;
+                        if (ctrl[2]) begin
+                            wslot <= !dma_slot; daddr <= dma_slot ? dma_base0 : dma_base1;
+                            dwa <= 15'd0; clk_n <= 24'd0; dma_use <= 1'b1; dst <= D_AW;
+                        end
+                    end
+                end
+                D_AW: if (!hpw_awvalid) begin hpw_awaddr <= daddr; hpw_awvalid <= 1'b1; end
+                      else if (hpw_awready) begin hpw_awvalid <= 1'b0; dbn <= 4'd0; dst <= D_R0; end
+                D_R0: begin dma_ra <= dwa; dst <= D_R1; end
+                D_R1: begin dma_ra <= dwa + 1'b1; dst <= D_R2; end
+                D_R2: begin dlo <= {5'd0, fbq}; dst <= D_R3; end                       // fb[dwa]
+                D_R3: begin hpw_wdata <= {5'd0, fbq, dlo}; hpw_wvalid <= 1'b1;          // fb[dwa + 1]
+                            hpw_wlast <= (dbn == 4'd15); dst <= D_W; end
+                D_W: if (hpw_wready) begin
+                         hpw_wvalid <= 1'b0; hpw_wlast <= 1'b0; dwa <= dwa + 2'd2; dbn <= dbn + 1'b1;
+                         dst <= (dbn == 4'd15) ? D_B : D_R0;
+                     end
+                D_B: if (hpw_bvalid) begin
+                         if (hpw_bresp != 2'b00 && dma_err != 8'hFF) dma_err <= dma_err + 1'b1;
+                         daddr <= daddr + 32'd128;
+                         if (dwa >= FBW) begin
+                             dma_slot <= wslot; dma_cnt <= dma_cnt + 1'b1; dma_clks <= clk_n; dma_use <= 1'b0; dst <= D_IDLE;
+                         end else dst <= D_AW;
+                     end
+            endcase
+        end
+    end
+
     // ---------------------------------------------------------------- registers
     always @(posedge clk) begin
         pt_we <= 1'b0;
-        if (!rstn) begin ctrl <= 2'd0; hw_enable <= 1'b0; hw_port1 <= 4'd1; hw_port2 <= 4'd2; hw_never <= 9'h000; end
+        if (!rstn) begin ctrl <= 3'd0; hw_enable <= 1'b0; hw_port1 <= 4'd1; hw_port2 <= 4'd2; hw_never <= 9'h000; end
         else if (bus_we && sel) begin
             case (idx)
-                10'd0: ctrl <= bus_wdata[1:0];
+                10'd0: ctrl <= bus_wdata[2:0];
                 10'd1: pads <= bus_wdata[15:0];
                 10'd2: cart <= bus_wdata[11:0];
                 10'd4: fb_rd <= bus_wdata[14:0];
@@ -328,6 +398,8 @@ module orphan_pce_block #(parameter [3:0] SLOT = 4'd1) (
                 10'd13: ptw <= bus_wdata[9:0];
                 10'd14: begin pt_we <= 1'b1; pt_wa <= ptw; pt_wd <= bus_wdata[19:0]; ptw <= ptw + 1'b1; end
                 10'd15: begin probe_off <= bus_wdata[21:0]; probe_req <= ~probe_req; end
+                10'd23: dma_base0 <= {bus_wdata[31:7], 7'd0};
+                10'd24: dma_base1 <= {bus_wdata[31:7], 7'd0};
                 default: ;
             endcase
         end
@@ -336,7 +408,7 @@ module orphan_pce_block #(parameter [3:0] SLOT = 4'd1) (
             else if (idx[9:8] == 2'b10) begin bus_rdata <= {5'd0, fbq}; fb_rd <= (fb_rd == FBW - 1) ? 15'd0 : fb_rd + 1'b1; end
             else if (idx[9:8] == 2'b11) begin bus_rdata <= auq; au_rd <= au_rd + 1'b1; end
             else case (idx)
-                10'd0: bus_rdata <= {30'd0, ctrl};
+                10'd0: bus_rdata <= {29'd0, ctrl};
                 10'd1: bus_rdata <= {16'd0, pads};
                 10'd2: bus_rdata <= {20'd0, cart};
                 10'd6: bus_rdata <= {3'd0, frz_s2, aw_b[11:0], fr_b};
@@ -354,6 +426,10 @@ module orphan_pce_block #(parameter [3:0] SLOT = 4'd1) (
                 10'd20: bus_rdata <= {8'd0, wlast};
                 10'd21: bus_rdata <= errors;
                 10'd22: bus_rdata <= total;
+                10'd23: bus_rdata <= dma_base0;
+                10'd24: bus_rdata <= dma_base1;
+                10'd25: bus_rdata <= {dma_err, 6'd0, dst != D_IDLE, dma_slot, dma_cnt};
+                10'd26: bus_rdata <= {8'd0, dma_clks};
                 default: bus_rdata <= 32'd0;
             endcase
         end

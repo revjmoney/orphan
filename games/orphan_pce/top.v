@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 // Orphan Games: PC Engine / TurboGrafx-16. Slot 0 info ("PCE1"), slot 1 the console (orphan_pce_block), slot 14 LEDs,
 // slot 15 fans. The HuCard (up to 4 MB) is in the board's DDR, read through the PS's HP2 port (orphan_bus_hp).
+// Every finished picture can be copied over HP3 into the OCM (orphan_pce_block's frame DMA, CTRL[2]).
 // The picture, sound and pads go through the ARM (browser / CYD); no video pins. Real NES pads can also plug into
 // any hashboard connector J1..J9 through a small adapter (orphan_nespad.v has the wiring); register HWPADS picks
 // which connector is pad 1 and pad 2 (J1 and J2 after reset). Only a picked connector whose own PLUG pin is
@@ -34,11 +35,20 @@ module top (
     wire [3:0]  hp_arlen;
     wire [63:0] hp_rdata;
     wire [1:0]  hp_rresp;
+    // the frame DMA's write port (HP3), on the bus clock
+    wire [31:0] hpw_awaddr;
+    wire [3:0]  hpw_awlen;
+    wire [63:0] hpw_wdata;
+    wire [1:0]  hpw_bresp;
+    wire        hpw_awvalid, hpw_awready, hpw_wlast, hpw_wvalid, hpw_wready, hpw_bvalid, hpw_bready;
     orphan_bus_hp u_bus (.clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_wstrb(wstrb),
                      .bus_we(we), .bus_re(re), .bus_rdata(rd_info | rd_pce | rd_led | rd_fan),
                      .hp_clk(hp_clk), .hp_araddr(hp_araddr), .hp_arlen(hp_arlen), .hp_arvalid(hp_arvalid),
                      .hp_arready(hp_arready), .hp_rdata(hp_rdata), .hp_rvalid(hp_rvalid), .hp_rlast(hp_rlast),
-                     .hp_rresp(hp_rresp), .hp_rready(hp_rready));
+                     .hp_rresp(hp_rresp), .hp_rready(hp_rready),
+                     .hpw_awaddr(hpw_awaddr), .hpw_awlen(hpw_awlen), .hpw_awvalid(hpw_awvalid), .hpw_awready(hpw_awready),
+                     .hpw_wdata(hpw_wdata), .hpw_wlast(hpw_wlast), .hpw_wvalid(hpw_wvalid), .hpw_wready(hpw_wready),
+                     .hpw_bresp(hpw_bresp), .hpw_bvalid(hpw_bvalid), .hpw_bready(hpw_bready));
     ardzy_info #(.SLOT(0), .PROJECT("PCE1"), .VERSION(1)) u_info (
         .clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_we(we), .bus_re(re),
         .bus_rdata(rd_info), .leds_n());
@@ -46,7 +56,10 @@ module top (
         .clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_we(we), .bus_re(re), .bus_rdata(rd_pce),
         .level(lvl), .hw_pads(hw_pads), .hw_drive(hw_drive), .hw_enable(hw_en), .hw_port1(port1), .hw_port2(port2), .hw_never(never),
         .hp_clk(hp_clk), .hp_araddr(hp_araddr), .hp_arlen(hp_arlen), .hp_arvalid(hp_arvalid), .hp_arready(hp_arready),
-        .hp_rdata(hp_rdata), .hp_rvalid(hp_rvalid), .hp_rlast(hp_rlast), .hp_rresp(hp_rresp), .hp_rready(hp_rready));
+        .hp_rdata(hp_rdata), .hp_rvalid(hp_rvalid), .hp_rlast(hp_rlast), .hp_rresp(hp_rresp), .hp_rready(hp_rready),
+        .hpw_awaddr(hpw_awaddr), .hpw_awlen(hpw_awlen), .hpw_awvalid(hpw_awvalid), .hpw_awready(hpw_awready),
+        .hpw_wdata(hpw_wdata), .hpw_wlast(hpw_wlast), .hpw_wvalid(hpw_wvalid), .hpw_wready(hpw_wready),
+        .hpw_bresp(hpw_bresp), .hpw_bvalid(hpw_bvalid), .hpw_bready(hpw_bready));
 
     // ---------------------------------------------------------------- real NES pads on the hashboard connectors
     orphan_nespad_ports u_pads (.clk(clk), .enable(hw_en), .port1(port1), .port2(port2), .plug(plug_in), .rxd(rxd_in), .never(never),

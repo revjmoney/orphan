@@ -1,7 +1,9 @@
 `timescale 1ns/1ps
 // Orphan PC Engine block: Orphan's own test HuCard (make_pce_testrom.py) in a model of the DDR (its two 4 KB pages
 // scrambled, random delays on HP2), the page table, the probe, then run: the picture is VCE colour 0 ($0AB), $1C7
-// while button I is held, the PSG plays, and the cache misses come and stop.
+// while button I is held, the PSG plays, and the cache misses come and stop. Then the frame DMA (CTRL[2]): every
+// finished picture is written over HP3 into two OCM slots (an AXI write model with random delays), word for word
+// the frame buffer, inside the vertical blank.
 // cd games && py -3 make_pce_testrom.py, then:
 // iverilog -g2005 -o pce.vvp sim/tb_pce.v orphan_pce/orphan_pce_block.v orphan_pce/pce_top_ghdl.v <ardzy_sim.v>
 module tb;
@@ -14,7 +16,33 @@ module tb;
     .bus_re(re), .bus_rdata(rdata), .level(level), .hw_pads(16'd0), .hw_drive(2'd0), .hw_enable(), .hw_port1(),
     .hw_port2(), .hw_never(),
     .hp_clk(hp_clk), .hp_araddr(hp_araddr), .hp_arlen(hp_arlen), .hp_arvalid(hp_arvalid), .hp_arready(hp_arready),
-    .hp_rdata(hp_rdata), .hp_rvalid(hp_rvalid), .hp_rlast(hp_rlast), .hp_rresp(hp_rresp), .hp_rready(hp_rready));
+    .hp_rdata(hp_rdata), .hp_rvalid(hp_rvalid), .hp_rlast(hp_rlast), .hp_rresp(hp_rresp), .hp_rready(hp_rready),
+    .hpw_awaddr(w_awaddr), .hpw_awlen(w_awlen), .hpw_awvalid(w_awvalid), .hpw_awready(w_awready), .hpw_wdata(w_wdata),
+    .hpw_wlast(w_wlast), .hpw_wvalid(w_wvalid), .hpw_wready(w_wready), .hpw_bresp(w_bresp), .hpw_bvalid(w_bvalid),
+    .hpw_bready(w_bready));
+  // ---- the OCM behind HP3 (192 KB at FFFC0000), clocked by clk: AW, then 16 W beats, then B, each after random waits
+  wire [31:0] w_awaddr; wire [3:0] w_awlen; wire w_awvalid, w_wlast, w_wvalid, w_bready; wire [63:0] w_wdata;
+  reg w_awready = 0, w_wready = 0, w_bvalid = 0; reg [1:0] w_bresp = 0;
+  reg [63:0] ocm [0:24575];
+  integer wl, wbeats, wseed = 11, writes = 0, badlast = 0; reg [31:0] wa;
+  always @(posedge clk) begin
+    if (w_awvalid && !w_awready) begin
+      wl = $urandom(wseed) % 6; repeat (wl) @(posedge clk);
+      w_awready <= 1; wa = w_awaddr; wbeats = w_awlen + 1; @(posedge clk); w_awready <= 0;
+      while (wbeats > 0) begin
+        wl = $urandom(wseed) % 3; repeat (wl) @(posedge clk);
+        w_wready <= 1; @(posedge clk);
+        while (!w_wvalid) @(posedge clk);
+        if (wa[31:18] == 14'h3FFF && wa[17:3] < 24576) ocm[wa[17:3]] = w_wdata; writes = writes + 1;
+        if (w_wlast !== (wbeats == 1)) badlast = badlast + 1;
+        w_wready <= 0; wa = wa + 8; wbeats = wbeats - 1;
+      end
+      wl = 2 + $urandom(wseed) % 20; repeat (wl) @(posedge clk);
+      w_bresp <= (wa[31:18] == 14'h3FFF) ? 2'b00 : 2'b10; w_bvalid <= 1; @(posedge clk); while (!w_bready) @(posedge clk); w_bvalid <= 0;
+    end
+  end
+  function [31:0] ow(input integer slot, input integer k); reg [63:0] q; begin
+    q = ocm[slot * 12288 + k / 2]; ow = k % 2 ? q[63:32] : q[31:0]; end endfunction
   task wr(input [9:0] i, input [31:0] v); begin @(posedge clk); addr <= {4'd1, i, 2'b00}; wdata <= v; we <= 1; @(posedge clk); we <= 0; end endtask
   task rd(input [9:0] i, output [31:0] v); begin @(posedge clk); addr <= {4'd1, i, 2'b00}; re <= 1; @(posedge clk); re <= 0;
     @(posedge clk); v = rdata; repeat (3) @(posedge clk); end endtask
@@ -97,6 +125,28 @@ module tb;
       if ($signed(v[15:0]) > au_max) au_max = $signed(v[15:0]); end
     $display("audio %0d .. %0d", au_min, au_max);
     check(au_max - au_min > 1000, "PSG channel 0 square wave: samples swing");
+    // ---- the frame DMA into the OCM
+    check(writes == 0, "no OCM writes while the DMA is off");
+    for (k = 0; k < 24576; k = k + 1) ocm[k] = 64'hDEADBEEFDEADBEEF;
+    grab;                                                 // the frame buffer through the registers
+    wr(23, 32'hFFFC0000); wr(24, 32'hFFFD8000);
+    rd(23, v); rd(24, v2); check(v == 32'hFFFC0000 && v2 == 32'hFFFD8000, "slot addresses read back");
+    rd(25, v2); wr(0, 5); frame_wait(3); rd(25, v);
+    $display("dma: %0d copies, last slot %0d, errors %0d, busy %0d", v[15:0] - v2[15:0], v[16], v[31:24], v[17]);
+    check(v[15:0] - v2[15:0] >= 2, "a copy every frame");
+    check(v[31:24] == 0 && badlast == 0, "no write errors, WLAST on the 16th beat");
+    rd(26, v2); $display("dma: %0d clocks for one frame (%0d us)", v2, v2 / 100);
+    check(v2 > 0 && v2 < 100000, "a copy takes under 1 ms (the vertical blank is 1.4 ms)");
+    // the picture changes a little from frame to frame: one of the two copies is of the frame grabbed just before
+    bad = 0; for (k = 0; k < 20640; k = k + 1) if (ow(0, k) !== {5'd0, fbm[k]}) bad = bad + 1;
+    cnt = 0; for (k = 0; k < 20640; k = k + 1) if (ow(1, k) !== {5'd0, fbm[k]}) cnt = cnt + 1;
+    $display("words that differ from the grabbed frame: slot 0 %0d, slot 1 %0d", bad, cnt);
+    check(bad == 0 || cnt == 0, "an OCM slot holds the grabbed frame word for word");
+    check(bad < 400 && cnt < 400, "both slots hold whole pictures (copies alternate)");
+    wr(1, 1); frame_wait(3); rd(25, v);
+    check(((ow(v[16], 100 * 86 + 42) >> 18) & 32'h1FF) == 32'h1C7, "button I shows in the DMA picture (dot 128 of row 100)");
+    wr(1, 0); wr(0, 1); frame_wait(1); v2 = writes; frame_wait(2);
+    check(writes == v2, "CTRL[2] off: the copies stop");
     $display("%s %0d/%0d", pass == total ? "PASS" : "FAIL", pass, total);
     $finish;
   end

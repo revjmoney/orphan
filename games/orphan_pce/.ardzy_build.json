@@ -1,23 +1,23 @@
 {
  "orphan_pce.bit": {
   "board": "s9",
-  "sha256": "1b861700f5dee63ff369146f31f00561555a4f85d4dba5fe8964b99563dbc249",
-  "date": "2026-11-27 10:13",
+  "sha256": "d04ba630bbe610f7695806f39aaeafd34c2089e933b1764ab842a8418d2bc163",
+  "date": "2026-11-27 23:13",
   "report": {
    "board": "s9",
    "board_name": "Antminer S9",
    "part": "xc7z010clg400-1",
    "top": "top",
-   "seconds": 2130,
-   "date": "2026-11-27 10:13",
+   "seconds": 1873,
+   "date": "2026-11-27 23:13",
    "used": {
-    "LUT": 12300,
-    "FF": 8472,
+    "LUT": 12661,
+    "FF": 8784,
     "BRAM": 51,
     "DSP": 3,
     "LUT_RAM": 0,
     "SRL": 1,
-    "CARRY": 495,
+    "CARRY": 521,
     "BUFG": 3,
     "MMCM_PLL": 1
    },
@@ -31,12 +31,12 @@
    "pins": 47,
    "clocks": {
     "clk": {
-     "fmax": 121.42,
+     "fmax": 139.18,
      "need": 100.0,
      "pass": true
     },
     "hp_clk": {
-     "fmax": 67.52,
+     "fmax": 65.61,
      "need": 42.94,
      "pass": true
     }
@@ -47,17 +47,17 @@
     {
      "clock": "clk",
      "cross": false,
-     "start": "u_pce.fr_s2[14]",
-     "end": "u_pce.fr_s2[14]",
-     "delay": 8.24,
-     "levels": 14,
+     "start": "u_pce.fr_b[15]",
+     "end": "u_pce.fr_b[15]",
+     "delay": 7.18,
+     "levels": 15,
      "logic_ns": 2.34,
-     "route_ns": 5.87,
+     "route_ns": 4.8,
      "steps": [
       {
-       "net": "u_pce.fr_s2[14]",
-       "ns": 0.46,
-       "src": "orphan_pce_block.v:299"
+       "net": "u_pce.fr_b[15]",
+       "ns": 0.31,
+       "src": "orphan_pce_block.v:317"
       }
      ]
     },
@@ -66,19 +66,19 @@
      "cross": false,
      "start": "u_pce.x[0]",
      "end": "u_pce (logic)",
-     "delay": 14.81,
-     "levels": 29,
-     "logic_ns": 7.06,
-     "route_ns": 7.69,
+     "delay": 15.24,
+     "levels": 30,
+     "logic_ns": 7.21,
+     "route_ns": 7.99,
      "steps": [
       {
        "net": "u_pce.x[0]",
-       "ns": 0.7,
-       "src": "orphan_pce_block.v:212"
+       "ns": 0.52,
+       "src": "orphan_pce_block.v:230"
       },
       {
        "net": "u_pce (logic)",
-       "ns": 0.33,
+       "ns": 0.64,
        "src": ""
       },
       {
@@ -88,7 +88,7 @@
       },
       {
        "net": "u_pce (logic)",
-       "ns": 0.69,
+       "ns": 0.52,
        "src": ""
       },
       {
@@ -101,22 +101,17 @@
     {
      "clock": "posedge clk -> posedge hp_clk",
      "cross": true,
-     "start": "u_pce.probe_off[16]",
-     "end": "u_pce (logic)",
-     "delay": 2.01,
-     "levels": 1,
-     "logic_ns": 0.6,
-     "route_ns": 1.41,
+     "start": "u_pce.cart[3]",
+     "end": "u_pce.cart[3]",
+     "delay": 1.63,
+     "levels": 0,
+     "logic_ns": 0.45,
+     "route_ns": 1.18,
      "steps": [
       {
-       "net": "u_pce.probe_off[16]",
-       "ns": 1.39,
-       "src": "orphan_pce_block.v:75"
-      },
-      {
-       "net": "u_pce (logic)",
-       "ns": 0.02,
-       "src": ""
+       "net": "u_pce.cart[3]",
+       "ns": 1.18,
+       "src": "orphan_pce_block.v:87"
       }
      ]
     },
@@ -125,15 +120,15 @@
      "cross": true,
      "start": "lvl[7]",
      "end": "lvl[7]",
-     "delay": 5.58,
+     "delay": 5.04,
      "levels": 7,
      "logic_ns": 1.79,
-     "route_ns": 3.78,
+     "route_ns": 3.24,
      "steps": [
       {
        "net": "lvl[7]",
-       "ns": 0.33,
-       "src": "orphan_pce_block.v:275"
+       "ns": 0.63,
+       "src": "orphan_pce_block.v:293"
       },
       {
        "net": "(logic)",

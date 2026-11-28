@@ -4,6 +4,7 @@
 // the DDR without crossing clocks, and the paths to the PS edge have 46 ns instead of 10.
 // Wiring after Ardzy's ardzy_ps7 / ardzy_bus_ddr (by chryso, GPL-3.0); the bus state machine is the same as
 // ardzy_bus. Only reading: the FPGA can not change Linux's memory through HP2.
+// HP3 (optional, bus clock): write channels only, for a frame DMA into the OCM (the PC Engine; others tie it off).
 // The HP ports read the DDR, not the ARM's caches: the ARM writes its caches back before the FPGA reads.
 // by JMSCNC, makers of RotatoCAM. Copyright (C) 2026 Rev. J. Money.
 module orphan_bus_hp (
@@ -25,7 +26,19 @@ module orphan_bus_hp (
     output wire        hp_rvalid,
     output wire        hp_rlast,
     output wire [1:0]  hp_rresp,
-    input  wire        hp_rready
+    input  wire        hp_rready,
+    // HP3 write channels (AXI3, 64-bit), clocked by clk; tie hpw_awvalid / hpw_wvalid to 0 when unused
+    input  wire [31:0] hpw_awaddr,
+    input  wire [3:0]  hpw_awlen,
+    input  wire        hpw_awvalid,
+    output wire        hpw_awready,
+    input  wire [63:0] hpw_wdata,
+    input  wire        hpw_wlast,
+    input  wire        hpw_wvalid,
+    output wire        hpw_wready,
+    output wire [1:0]  hpw_bresp,
+    output wire        hpw_bvalid,
+    input  wire        hpw_bready
 );
     wire [31:0] awaddr, wdata, araddr, rdata;
     wire [3:0]  awlen, wstrb, arlen;
@@ -85,7 +98,13 @@ module orphan_bus_hp (
         .SAXIHP2ARVALID(hp_arvalid), .SAXIHP2ARREADY(hp_arready), .SAXIHP2RDATA(hp_rdata), .SAXIHP2RVALID(hp_rvalid),
         .SAXIHP2RLAST(hp_rlast), .SAXIHP2RRESP(hp_rresp), .SAXIHP2RREADY(hp_rready),
         .SAXIHP2AWVALID(1'b0), .SAXIHP2WVALID(1'b0), .SAXIHP2BREADY(1'b1),
-        .SAXIHP3ARVALID(1'b0), .SAXIHP3AWVALID(1'b0), .SAXIHP3WVALID(1'b0),
+        .SAXIHP3ACLK(clk), .SAXIHP3ARVALID(1'b0), .SAXIHP3RREADY(1'b1),
+        .SAXIHP3AWADDR(hpw_awaddr), .SAXIHP3AWLEN(hpw_awlen), .SAXIHP3AWSIZE(2'd3), .SAXIHP3AWBURST(2'd1),
+        .SAXIHP3AWCACHE(4'b0011), .SAXIHP3AWID(6'd0), .SAXIHP3AWPROT(3'd0), .SAXIHP3AWQOS(4'd0), .SAXIHP3AWLOCK(2'd0),
+        .SAXIHP3RDISSUECAP1EN(1'b0), .SAXIHP3WRISSUECAP1EN(1'b0),
+        .SAXIHP3AWVALID(hpw_awvalid), .SAXIHP3AWREADY(hpw_awready), .SAXIHP3WDATA(hpw_wdata), .SAXIHP3WSTRB(8'hFF),
+        .SAXIHP3WLAST(hpw_wlast), .SAXIHP3WID(6'd0), .SAXIHP3WVALID(hpw_wvalid), .SAXIHP3WREADY(hpw_wready),
+        .SAXIHP3BRESP(hpw_bresp), .SAXIHP3BVALID(hpw_bvalid), .SAXIHP3BREADY(hpw_bready),
         .MAXIGP0AWADDR(awaddr), .MAXIGP0AWLEN(awlen), .MAXIGP0AWSIZE(awsize), .MAXIGP0AWBURST(awburst),
         .MAXIGP0AWID(awid), .MAXIGP0AWVALID(awvalid), .MAXIGP0AWREADY(awready),
         .MAXIGP0WDATA(wdata), .MAXIGP0WSTRB(wstrb), .MAXIGP0WLAST(wlast), .MAXIGP0WVALID(wvalid),

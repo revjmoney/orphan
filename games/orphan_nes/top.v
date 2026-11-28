@@ -37,7 +37,9 @@ module top (
                      .bus_we(we), .bus_re(re), .bus_rdata(rd_info | rd_nes | rd_led | rd_fan),
                      .hp_clk(hp_clk), .hp_araddr(hp_araddr), .hp_arlen(hp_arlen), .hp_arvalid(hp_arvalid),
                      .hp_arready(hp_arready), .hp_rdata(hp_rdata), .hp_rvalid(hp_rvalid), .hp_rlast(hp_rlast),
-                     .hp_rresp(hp_rresp), .hp_rready(hp_rready));
+                     .hp_rresp(hp_rresp), .hp_rready(hp_rready),
+                     .hpw_awaddr(32'd0), .hpw_awlen(4'd0), .hpw_awvalid(1'b0), .hpw_awready(), .hpw_wdata(64'd0),
+                     .hpw_wlast(1'b0), .hpw_wvalid(1'b0), .hpw_wready(), .hpw_bresp(), .hpw_bvalid(), .hpw_bready(1'b1));
     ardzy_info #(.SLOT(0), .PROJECT("NES2"), .VERSION(2)) u_info (
         .clk(clk), .rstn(rstn), .bus_addr(addr), .bus_wdata(wdata), .bus_we(we), .bus_re(re),
         .bus_rdata(rd_info), .leds_n());
