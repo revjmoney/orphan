@@ -22,6 +22,22 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PORT = 8000
 
 
+def build_info():
+    """What the bitstream uses and how fast it can run (the FPGA build report next to it), for the page's floorplan."""
+    try:
+        for v in json.load(open(os.path.join(HERE, '.ardzy_build.json'))).values():
+            r = v.get('report') if isinstance(v, dict) else None
+            if r:
+                c = r.get('clocks', {}).get('clk', {})
+                return {'used': r.get('used', {}), 'max': r.get('max', {}), 'fmax': c.get('fmax'), 'need': c.get('need')}
+    except (OSError, ValueError, AttributeError):
+        pass
+    return None
+
+
+BUILD = build_info()
+
+
 class Control:
     def __init__(self):
         self.lock, self.cancel = threading.Lock(), threading.Event()
@@ -46,6 +62,7 @@ class Control:
             s = dict(self.state)
             s['log'] = list(self.log)
         s['settings'] = settings.public()
+        s['build'] = BUILD
         try:
             s['temp'] = round(int(open('/sys/bus/iio/devices/iio:device0/in_temp0_raw').read()) * 503.975 / 4096 - 273.15, 1)
         except (OSError, ValueError):

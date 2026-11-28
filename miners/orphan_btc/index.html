@@ -55,7 +55,16 @@ dl.est{margin:0;display:grid;grid-template-columns:auto 1fr;gap:.45em .8em}
 dl.est dt{color:var(--muted);font-size:.88em}dl.est dd{margin:0;text-align:right;color:#d9e8d7;font-variant-numeric:tabular-nums}
 #coin{color:var(--orange)}
 footer{justify-content:space-between;gap:6px;flex-wrap:wrap}
-@media(max-width:800px){.metrics{grid-template-columns:repeat(2,1fr)}.work{grid-template-columns:1fr}}
+.die-wrap{position:relative;background:#05080a;border:1px solid #2d3b31;border-radius:3px;overflow:hidden}
+#die{display:block;width:100%;height:auto}
+.die-read{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.4em .9em;margin-top:.6em}
+.die-read div{border-left:2px solid #2f3e33;padding:.15em .55em;min-width:0}
+.die-read dt{color:var(--muted);font-size:.78em;text-transform:uppercase;letter-spacing:.07em}
+.die-read dd{margin:0;color:#d9e8d7;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.die-read dd b{color:var(--lime);font-weight:500}
+.die-read dd i{color:var(--orange);font-style:normal}
+@media(max-width:800px){.metrics{grid-template-columns:repeat(2,1fr)}.work{grid-template-columns:1fr}.die-read{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.die-read{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -102,6 +111,24 @@ footer{justify-content:space-between;gap:6px;flex-wrap:wrap}
   </dl>
   <p class="roots" id="estnote">Estimates use this board's live FPGA hashrate and the pool's own job (block reward incl. fees). Pool fees, luck and the 3 % dev fee are not subtracted.</p>
  </section>
+ <section class="panel" style="grid-column:1/-1" aria-labelledby="dieTitle">
+  <div class="panel-head"><h2 id="dieTitle">Silicon floorplan · fabric load</h2><span id="dieState">IDLE</span></div>
+  <div class="die-wrap"><canvas id="die" width="1000" height="440" role="img"
+   aria-label="Abstract floorplan of the Zynq-7010: the ARM side on the left, the AXI bus in the middle, the FPGA fabric with the SHA-256 units on the right. The live numbers are listed below it."></canvas></div>
+  <dl class="die-read">
+   <div><dt>Clock (measured from the core's cycle counter)</dt><dd id="dClk">-</dd></div>
+   <div><dt>SHA-256d units</dt><dd id="dUnits">-</dd></div>
+   <div><dt>Clocks per nonce batch</dt><dd id="dBatch">-</dd></div>
+   <div><dt>Fabric used (build report)</dt><dd id="dFab">-</dd></div>
+   <div><dt>Work fed over AXI (midstate + tail)</dt><dd id="dFeed">-</dd></div>
+   <div><dt>Results handed back by the FPGA</dt><dd id="dFind">-</dd></div>
+  </dl>
+  <p class="roots">An abstract floorplan drawn from the build report and the live registers: not a die photo and not
+   the real placement. Lime bursts cross the AXI bus each time the ARM writes a new midstate and header tail into
+   the FPGA; orange ones come back when the FPGA hands back a nonce. Each unit does two compressions of 64 rounds
+   (2 clocks a round); the sweep is slowed about a million times so it can be seen, and its speed follows the
+   measured clock.</p>
+ </section>
  <section class="panel" style="grid-column:1/-1">
   <div class="panel-head"><h2>Live miner log</h2><span id="cnt"></span></div>
   <pre class="logwindow" id="log">Waiting for miner events...</pre>
@@ -130,6 +157,7 @@ async function tick() {
     $('mode').textContent = (s.mode || 'idle').toUpperCase();
     $('msg').textContent = s.message || '';
     $('feeNote').hidden = !(s.devfee && s.devfee.active);
+    if (window.dieUpdate) dieUpdate(s);
     // coin + earnings estimates from the pool's own job and the live hashrate
     const ch = s.chain || {}, mk = s.market || {}, H = s.rate || 0, T32 = 4294967296;
     const fmt = (v, d) => v == null || !isFinite(v) ? '-' : Number(v).toLocaleString(undefined, {maximumFractionDigits: d});
@@ -168,6 +196,170 @@ tick(); setInterval(tick, 1000);
   function set(v) { on = v; btn.textContent = v ? 'FX on' : 'FX off'; cv.hidden = !v; if (!v) { cancelAnimationFrame(frame); frame = 0; } else if (!frame) frame = requestAnimationFrame(anim); }
   btn.onclick = () => { set(!on); try { localStorage.setItem('orphan-fx', on ? 'on' : 'off'); } catch (e) {} };
   set(on);
+})();
+</script>
+<script>
+// Silicon floorplan: an abstract Zynq-7010 (ARM side left, AXI GP0 in the middle, the PL fabric right), fed by
+// /api/status every second: s.fpga (work feeds, results, measured MHz, units) and s.build (the FPGA build report).
+(() => {
+  const cv = $('die'), g = cv.getContext('2d'), W = 1000, H = 440;
+  const LIME = '#d2ff51', ORANGE = '#f7931a', reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  // PL fabric: 61 x 38 tiles of 10 px; a BRAM column every 12th, a DSP column after it; the clock spine at row 18
+  const PX = 360, PY = 30, TC = 61, TR = 38, T = 10, SPINE = 18;
+  const kind = c => c % 12 === 6 ? 'bram' : c % 12 === 7 ? 'dsp' : 'clb';
+  let rnd = 7; const rand = () => (rnd = (rnd * 16807) % 2147483647) / 2147483647;
+  const tile = [];                          // per tile: which block sits there (or null) and a fixed fill pattern
+  for (let r = 0; r < TR; r++) for (let c = 0; c < TC; c++) tile.push({c, r, k: kind(c), who: null, fill: rand()});
+  const at = (c, r) => tile[r * TC + c];
+  // where each part of the design sits: units as bands (two above the spine, two below), control and the small
+  // blocks on the left. Sizes follow the design: units are most of the logic.
+  const BANDS = [[1, 8], [9, 17], [19, 27], [28, 36]];
+  const BLOCKS = [{id: 'ctrl', name: 'sha_miner: FSM, nonce batches, raw core', c: [1, 13], r: [1, 17]},
+    {id: 'bus', name: 'ardzy_bus + info', c: [1, 13], r: [19, 24]},
+    {id: 'led', name: 'LED scanner', c: [1, 13], r: [25, 29]},
+    {id: 'fan', name: 'fan', c: [1, 13], r: [30, 34]}];
+  function place(units) {
+    tile.forEach(t => t.who = null);
+    const mark = (id, c0, c1, r0, r1, dens) => { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const t = at(c, r); if (t.k === 'clb' && r !== SPINE && t.fill < dens) t.who = id; } };
+    BLOCKS.forEach(b => mark(b.id, b.c[0], b.c[1], b.r[0], b.r[1], b.id === 'ctrl' ? .7 : .45));
+    for (let u = 0; u < units; u++) mark('u' + u, 15, 59, BANDS[u][0], BANDS[u][1], .78);
+  }
+  let units = 0, mhz = 0, rate = 0, mining = false, fmax = null, used = null, max = null;
+  let feeds = -1, finds = -1, pulses = [], lastT = performance.now(), phase = 0, heat = 0;
+  place(0);
+  window.dieUpdate = s => {
+    const f = s.fpga || {}, b = s.build || {};
+    if (f.units && f.units !== units) { units = Math.min(4, f.units); place(units); }
+    mining = s.mode === 'mine'; rate = s.rate || 0; mhz = mining ? (f.mhz || 0) : 0;
+    fmax = b.fmax || null; used = b.used || null; max = b.max || null;
+    const now = performance.now();
+    if (feeds >= 0 && f.feeds > feeds) for (let i = 0; i < Math.min(3, f.feeds - feeds); i++) pulses.push({t0: now + i * 260, dir: 1});
+    if (finds >= 0 && f.finds > finds) for (let i = 0; i < Math.min(3, f.finds - finds); i++) pulses.push({t0: now + i * 260, dir: -1});
+    if (f.feeds !== undefined) feeds = f.feeds; if (f.finds !== undefined) finds = f.finds;
+    // the numbers under the picture
+    const pct = (k) => used && max && max[k] ? Math.round(100 * used[k] / max[k]) : null;
+    $('dieState').textContent = mining ? (mhz ? mhz.toFixed(1) + ' MHz · ' : '') + (rate / 1e6).toFixed(2) + ' MH/s' : 'IDLE';
+    $('dClk').innerHTML = mhz ? '<b>' + mhz.toFixed(2) + ' MHz</b>' + (fmax ? ' · timing limit ' + fmax.toFixed(1) + ' MHz (' +
+      Math.round(100 * (fmax / mhz - 1)) + ' % to spare)' : '') : (fmax ? 'idle · timing limit ' + fmax.toFixed(1) + ' MHz' : '-');
+    $('dUnits').innerHTML = units ? '<b>' + units + '</b> side by side · 2 x 64 rounds · 2 clocks a round' +
+      (rate && mining ? ' · ' + (rate / units / 1e3).toFixed(0) + ' kH/s each' : '') : '-';
+    $('dBatch').textContent = mining && rate && mhz && units ? Math.round(units * mhz * 1e6 / rate) + ' clocks for ' + units + ' nonces (two compressions: 258)' : '-';
+    $('dFab').textContent = used ? 'LUT ' + used.LUT + ' (' + pct('LUT') + ' %) · FF ' + pct('FF') + ' % · DSP ' + used.DSP + '/' + max.DSP + ' · BRAM ' + used.BRAM + '/' + max.BRAM : '-';
+    const ago = t => t ? Math.max(0, Math.round(Date.now() / 1000 - t)) + ' s ago' : 'none yet';
+    $('dFeed').innerHTML = f.feeds ? '<b>' + f.feeds + '</b> · last ' + ago(f.feed_t) + ' · job ' + (f.job || '-') + ' · en2 ' + (f.en2 || '-') : 'none yet';
+    $('dFind').innerHTML = f.finds ? '<i>' + f.finds + '</i> · last ' + ago(f.find_t) : 'none yet';
+    if (reduce.matches) draw(now);
+  };
+  function box(x, y, w, h, fill, stroke, label, sub) {
+    g.fillStyle = fill; g.fillRect(x, y, w, h); g.strokeStyle = stroke; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, w - 1, h - 1);
+    if (label) { g.fillStyle = '#d9e8d7'; g.font = '12px Consolas,monospace'; g.fillText(label, x + 7, y + 16); }
+    if (sub) { g.fillStyle = '#8fa08e'; g.font = '10px Consolas,monospace'; g.fillText(sub, x + 7, y + 30); }
+  }
+  // the bus route of a work feed: ARM core -> AXI GP0 -> sha_miner control -> the units
+  function route(u) { return [[165, 92], [310, 120], [350, 120], [PX + 7 * T, PY + 9 * T], [PX + 15 * T, PY + (BANDS[u][0] + BANDS[u][1]) / 2 * T + 5]]; }
+  function along(pts, f) {
+    const segs = []; let tot = 0;
+    for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push(d); tot += d; }
+    let d = f * tot;
+    for (let i = 0; i < segs.length; i++) { if (d <= segs[i]) { const k = d / segs[i]; return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * k, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * k]; } d -= segs[i]; }
+    return pts[pts.length - 1];
+  }
+  function draw(now) {
+    const dt = Math.min(.1, (now - lastT) / 1000); lastT = now;
+    // the visible sweep: one double hash in about 1.3 s at 100 MHz (the real one takes 2.6 us); follows the clock
+    if (mining && mhz) phase = (phase + dt * mhz / 100 / 1.3) % 1;
+    const want = mining && units && mhz ? Math.min(1, rate / (units * mhz * 1e6 / 258)) : 0;
+    heat += (want - heat) * Math.min(1, dt * 3);
+    g.clearRect(0, 0, W, H);
+    // the die, its seal ring and bond pads
+    g.fillStyle = '#0a0f0c'; g.fillRect(6, 6, W - 12, H - 12); g.strokeStyle = '#3a4a3f'; g.strokeRect(6.5, 6.5, W - 13, H - 13);
+    g.fillStyle = '#2b362e';
+    for (let x = 20; x < W - 20; x += 18) { g.fillRect(x, 10, 8, 6); g.fillRect(x, H - 16, 8, 6); }
+    for (let y = 26; y < H - 26; y += 18) { g.fillRect(10, y, 6, 8); g.fillRect(W - 16, y, 6, 8); }
+    // PS: the ARM side
+    box(30, 30, 270, 380, '#0d1611', '#2f4034');
+    g.fillStyle = '#8fa08e'; g.font = '10px Consolas,monospace'; g.fillText('PS · PROCESSING SYSTEM', 38, 44);
+    const feeding = pulses.some(p => p.dir > 0 && now >= p.t0 && now - p.t0 < 1200);
+    for (let k = 0; k < 2; k++) {                    // Linux runs the daemon on either core
+      const x = 40 + k * 130;
+      box(x, 52, 120, 82, feeding ? '#1d2a12' : '#121c15', feeding ? LIME : '#3d5143', 'Cortex-A9 #' + k, 'Linux (both cores)');
+      g.fillStyle = '#8fa08e'; g.font = '10px Consolas,monospace'; g.fillText('daemon: stratum,', x + 7, 100); g.fillText('merkle, midstate', x + 7, 113);
+    }
+    box(40, 144, 250, 44, '#111a14', '#33453a', 'SCU · L2 cache 512 KB');
+    box(40, 198, 120, 50, '#111a14', '#33453a', 'OCM 256 KB');
+    box(170, 198, 120, 50, '#111a14', '#33453a', 'DDR3 controller');
+    box(40, 258, 250, 64, '#101812', '#33453a', 'I/O: GigE · USB · SD · UART', 'the pool talks over GigE');
+    box(40, 332, 250, 68, '#101812', '#33453a', 'FCLK0 · ' + (mhz ? mhz.toFixed(1) : '100') + ' MHz', 'the clock the PL runs on');
+    // AXI GP0 between the two halves
+    g.fillStyle = '#0f1a14'; g.fillRect(304, 30, 52, 380);
+    for (let i = 0; i < 4; i++) { g.fillStyle = '#1f2c24'; g.fillRect(311 + i * 11, 34, 3, 372); }
+    g.save(); g.translate(342, 300); g.rotate(-Math.PI / 2); g.fillStyle = '#8fa08e'; g.font = '10px Consolas,monospace';
+    g.fillText('AXI GP0 · 32-bit · ardzy_bus', 0, 0); g.restore();
+    // PL fabric: tiles tinted by what sits there and how hard the units run
+    g.fillStyle = '#070b09'; g.fillRect(PX - 4, PY - 4, TC * T + 8, TR * T + 8);
+    for (const t of tile) {
+      const x = PX + t.c * T, y = PY + t.r * T;
+      let col;
+      if (t.r === SPINE) col = '#1a2a22';
+      else if (t.k === 'bram') col = '#101d2a';
+      else if (t.k === 'dsp') col = '#1c1426';
+      else if (!t.who) col = '#0f1511';
+      else if (t.who[0] === 'u') {
+        const u = +t.who.slice(1), off = (u * .37) % 1;
+        const hc = 17 + ((phase + off) % 1) * 84, near = Math.max(0, 1 - Math.abs(((hc - 17) % 42 + 17) - t.c) / 6);
+        const v = .18 + .5 * heat * (.55 + .45 * t.fill) + .6 * heat * near;
+        col = 'rgba(210,255,81,' + Math.min(.95, v).toFixed(3) + ')';
+      } else col = t.who === 'ctrl' ? 'rgba(210,255,81,' + (.16 + .25 * heat).toFixed(3) + ')' : 'rgba(163,175,162,.28)';
+      g.fillStyle = col; g.fillRect(x + 1, y + 1, T - 2, T - 2);
+    }
+    g.fillStyle = '#8fa08e'; g.font = '10px Consolas,monospace';
+    g.fillText('PL · ARTIX-7 FABRIC', PX, PY - 10);
+    g.fillText('BUFG · clock spine', PX + 15 * T, PY + SPINE * T + 8);
+    g.fillText('BRAM', PX + 6 * T - 2, PY + TR * T + 14); g.fillText('DSP', PX + 19 * T, PY + TR * T + 14);
+    for (const b of BLOCKS) { g.strokeStyle = b.id === 'ctrl' ? '#7a9a3c' : '#3d5143'; g.strokeRect(PX + b.c[0] * T + .5, PY + b.r[0] * T + .5, (b.c[1] - b.c[0] + 1) * T, (b.r[1] - b.r[0] + 1) * T);
+      const n = b.id === 'ctrl' ? 'sha_miner' : b.name;
+      g.fillStyle = '#060a07e6'; g.fillRect(PX + b.c[0] * T + 1, PY + b.r[0] * T + 1, g.measureText(n).width + 8, 14);
+      g.fillStyle = '#c9d6c7'; g.fillText(n, PX + b.c[0] * T + 4, PY + b.r[0] * T + 12); }
+    // the SHA-256d units: two strips of 64 rounds each, the round being worked on lit
+    for (let u = 0; u < units; u++) {
+      const [r0, r1] = BANDS[u], x0 = PX + 17 * T, w = 42 * T, y0 = PY + r0 * T + 14, sh = Math.max(8, (r1 - r0 + 1) * T / 2 - 14);
+      g.strokeStyle = '#7a9a3c'; g.strokeRect(PX + 15 * T + .5, PY + r0 * T + .5, 45 * T, (r1 - r0 + 1) * T);
+      const lbl = 'unit ' + u + ' · nonce base + ' + u;
+      g.fillStyle = '#060a07e6'; g.fillRect(PX + 15 * T + 1, PY + r0 * T + 1, g.measureText(lbl).width + 8, 13);
+      g.fillStyle = '#e6f5d6'; g.fillText(lbl, PX + 15 * T + 4, PY + r0 * T + 11);
+      g.fillStyle = '#050806e0'; g.fillRect(x0 - 22, y0 - 3, w + 26, 2 * sh + 10);         // the strips' own dark bed
+      g.strokeStyle = '#2f4034'; g.strokeRect(x0 - 21.5, y0 - 2.5, w + 25, 2 * sh + 9);
+      const p = (phase + (u * .37) % 1) % 1, round = Math.floor(p * 128);
+      for (let s = 0; s < 2; s++) for (let i = 0; i < 64; i++) {
+        const cx = x0 + i * w / 64, cy = y0 + s * (sh + 4), n = s * 64 + i, lag = round - n;
+        let a = .1;
+        if (mining && heat > .02) a = lag === 0 ? 1 : lag > 0 && lag < 10 ? .75 - lag * .06 : .14;
+        g.fillStyle = lag === 0 && mining ? '#ffffff' : 'rgba(210,255,81,' + (a * (.35 + .65 * heat)).toFixed(3) + ')';
+        g.fillRect(cx + .5, cy, w / 64 - 1.2, sh);
+      }
+      g.fillStyle = '#8fa08e'; g.fillText('C1', x0 - 18, y0 + sh - 2); g.fillText('C2', x0 - 18, y0 + 2 * sh + 2);
+    }
+    if (!units) { g.fillStyle = '#8fa08e'; g.font = '12px Consolas,monospace'; g.fillText('Start mining: the units appear with their live state.', PX + 15 * T, PY + 9 * T); }
+    // bus traffic: lime = a new midstate + tail going in, orange = a nonce coming back
+    pulses = pulses.filter(p => now - p.t0 < 1300);
+    for (const p of pulses) {
+      if (now < p.t0) continue;
+      const f = Math.min(1, (now - p.t0) / 1100);
+      for (let u = 0; u < Math.max(1, units); u++) {
+        const pts = route(u); if (p.dir < 0) pts.reverse();
+        for (let k = 0; k < 11; k++) {                 // 8 midstate words + 3 tail words
+          const q = f - k * .025; if (q < 0 || q > 1) continue;
+          const [x, y] = along(pts, q);
+          g.fillStyle = p.dir > 0 ? LIME : ORANGE; g.globalAlpha = 1 - k / 13; g.fillRect(x - 3, y - 3, 6, 6);
+        }
+      }
+      g.globalAlpha = 1;
+    }
+  }
+  function loop(now) { draw(now); if (!reduce.matches) requestAnimationFrame(loop); }
+  requestAnimationFrame(loop);
+  reduce.addEventListener('change', () => { if (!reduce.matches) requestAnimationFrame(loop); });
 })();
 </script>
 <script>(function(){var s=document.createElement('script');s.src='//'+location.hostname+':8080/fan.js';s.async=1;document.head.appendChild(s)})()</script>

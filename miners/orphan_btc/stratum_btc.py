@@ -87,12 +87,22 @@ def zero_bits_for(target):
     return max(1, min(32, 256 - target.bit_length()))
 
 
+# Live view of the FPGA for the page's floorplan: work feeds (midstate + tail over AXI), results handed back,
+# the clock measured from the core's own cycle counter. Kept across sessions (the dev fee starts a new one).
+LIVE = {'feeds': 0, 'feed_t': 0.0, 'finds': 0, 'find_t': 0.0, 'mhz': 0.0, 'units': 0, 'job': '', 'en2': '', 'nonce': 0}
+
+
 class Session:
     def __init__(self, sha, cfg, cancel, update, until=None):
         self.sha, self.cfg, self.cancel, self.update, self.until = sha, cfg, cancel, update, until
         self.sock, self.buf, self.seq, self.pending = None, b'', 10, {}
         self.en1, self.en2_size, self.job, self.target = '', 4, None, target_for(1)
         self.stats = dict(accepted=0, rejected=0, submitted=0, jobs=0, difficulty=None, best=0)
+        self.clk = None                                    # (time, CYCLES) at the last clock measurement
+        try:
+            LIVE['units'] = self.sha.r(126)                # UNITS: double-SHA-256 units side by side
+        except Exception:  # noqa: BLE001
+            pass
 
     def send(self, method, params, rid):
         self.sock.sendall((json.dumps({'id': rid, 'method': method, 'params': params}) + '\n').encode())
@@ -138,6 +148,9 @@ class Session:
         j['zb'], j['tgt'] = zero_bits_for(self.target), self.target
         self.sha.mine(j['header'], start=j['nonce'], count=(1 << 32) - j['nonce'], zero_bits=j['zb'], wait=False)
         self.current = (j['id'], j['en2'], self.target)
+        LIVE.update(feeds=LIVE['feeds'] + 1, feed_t=time.time(), job=str(j['id']), en2=j['en2hex'], nonce=j['nonce'])
+        self.clk = None                                    # CYCLES starts again from 0 with every search
+        self.update(fpga=dict(LIVE))
 
     def run(self):
         u = urlsplit(self.cfg['pool'])
@@ -182,11 +195,17 @@ class Session:
                 if st & 2:                                         # still searching
                     if time.monotonic() - getattr(self, 'shown', 0) > 1:
                         self.shown, el = time.monotonic(), time.monotonic() - t0
-                        self.update(rate=(done0 + self.sha.r(6)) / el if el > 1 else 0, hashes=done0 + self.sha.r(6))
+                        c, now = self.sha.r(7), time.monotonic()  # CYCLES: clocks spent on this search
+                        if self.clk and c > self.clk[1] and now > self.clk[0]:
+                            LIVE['mhz'] = round((c - self.clk[1]) / (now - self.clk[0]) / 1e6, 2)
+                        self.clk = (now, c)
+                        self.update(rate=(done0 + self.sha.r(6)) / el if el > 1 else 0, hashes=done0 + self.sha.r(6),
+                                    fpga=dict(LIVE))
                     continue
                 r = self.sha.result()
                 done0 += r['hashes']
                 if r['found']:
+                    LIVE.update(finds=LIVE['finds'] + 1, find_t=time.time())   # the FPGA handed back a nonce
                     nonce, value = r['nonce'], hash_value(j['header'], r['nonce'])
                     zb = 256 - value.bit_length()
                     self.stats['best'] = max(self.stats['best'], zb)
