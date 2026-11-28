@@ -447,14 +447,29 @@ uint32_t selIp=0,selSeen=0;                 // the picked board (network byte or
 uint32_t busySent=0,modesTaken=0;            // MODEs answered 'B' because another board is picked / MODEs taken
 portMUX_TYPE boardsMux=portMUX_INITIALIZER_UNLOCKED;
 String toastText;uint32_t toastUntil=0;bool toastShown=false,forceFullPicture=false;
+volatile bool boardsDirty=false;             // the list changed: saved to flash by the boards task (not under the lock)
 static void boardSeen(uint32_t ip,const char* name){
  if(!ip || ip==(uint32_t)WiFi.localIP())return;
  portENTER_CRITICAL(&boardsMux);
  int i=0;while(i<nBoards && boards[i].ip!=ip)i++;
- if(i==nBoards && nBoards<MaxBoards){boards[i].ip=ip;boards[i].name[0]=0;nBoards++;}
- if(i<nBoards){if(name && *name)strlcpy(boards[i].name,name,sizeof(boards[i].name));boards[i].seen=millis();}
+ if(i==nBoards && nBoards<MaxBoards){boards[i].ip=ip;boards[i].name[0]=0;nBoards++;boardsDirty=true;}
+ if(i<nBoards){if(name && *name && strcmp(boards[i].name,name)){strlcpy(boards[i].name,name,sizeof(boards[i].name));boardsDirty=true;}
+  boards[i].seen=millis();}
  if(ip==selIp)selSeen=millis();
  portEXIT_CRITICAL(&boardsMux);
+}
+// every board ever seen is kept in flash, so a restart knows them all before mDNS (which can miss a board) answers
+static void saveBoards(){
+ OrphanBoard copy[MaxBoards];int n;
+ portENTER_CRITICAL(&boardsMux);n=nBoards;memcpy(copy,boards,sizeof(copy));boardsDirty=false;portEXIT_CRITICAL(&boardsMux);
+ for(int i=0;i<n;i++)copy[i].seen=0;
+ Preferences p;p.begin("orphanremote");p.putBytes("boards",copy,n*sizeof(OrphanBoard));p.end();
+}
+static void loadBoards(){
+ OrphanBoard copy[MaxBoards];Preferences p;p.begin("orphanremote",true);
+ size_t len=p.getBytesLength("boards");if(len>sizeof(copy))len=0;if(len)p.getBytes("boards",copy,len);p.end();
+ for(size_t i=0;i<len/sizeof(OrphanBoard);i++){copy[i].name[sizeof(copy[i].name)-1]=0;boardSeen(copy[i].ip,copy[i].name);}
+ boardsDirty=false;
 }
 static bool selAlive(){return selIp && millis()-selSeen<10000;}
 bool otherBoard(WiFiClient& c){return selAlive() && (uint32_t)c.remoteIP()!=selIp;}   // a picked board is alive, c is not it
@@ -464,7 +479,7 @@ bool otherBoard(WiFiClient& c){return selAlive() && (uint32_t)c.remoteIP()!=selI
 TaskHandle_t discoverHandle=nullptr;
 volatile bool discovering=false;
 static void discoverTask(void*){
- static const char* names[]={"orphan","orphan-2","orphan-3","orphan-4","orphan-5","orphan-6","orphan-7","orphan-8","orphan-9"};
+ static const char* names[]={"orphan","orphan-1","orphan-2","orphan-3","orphan-4","orphan-5","orphan-6","orphan-7","orphan-8","orphan-9"};
  for(;;){
   discovering=true;
   String host;
@@ -472,7 +487,7 @@ static void discoverTask(void*){
    if(host.endsWith(".local"))host=host.substring(0,host.length()-6);
    IPAddress a=MDNS.queryHost(host,1500);if((uint32_t)a){boardSeen((uint32_t)a,host.c_str());resolvedTargetIp=(uint32_t)a;}
   }
-  for(int k=0;k<9;k++){
+  for(int k=0;k<10;k++){
    if(WiFi.status()!=WL_CONNECTED || heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)<8192)break;   // never when memory is short
    IPAddress a=MDNS.queryHost(names[k],600);if((uint32_t)a)boardSeen((uint32_t)a,names[k]);
    vTaskDelay(pdMS_TO_TICKS(200));
@@ -481,6 +496,7 @@ static void discoverTask(void*){
   // until the next sweep request: every 3 s see whether the picked board's display service answers (a plain TCP
   // connect, here on core 0: the picked board counts as alive whatever the screen shows)
   while(!ulTaskNotifyTake(pdTRUE,pdMS_TO_TICKS(3000))){
+   if(boardsDirty)saveBoards();
    uint32_t ip=selIp;if(!ip || WiFi.status()!=WL_CONNECTED)continue;
    int fd=socket(AF_INET,SOCK_STREAM,0);if(fd<0)continue;
    struct timeval tv={0,600000};setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&tv,sizeof(tv));
@@ -522,6 +538,7 @@ void nextBoard(){
  portEXIT_CRITICAL(&boardsMux);
  if(!best)best=first;
  if(!best){showToast("NO ORPHAN BOARDS FOUND YET, LOOKING...");if(discoverHandle && !discovering)xTaskNotifyGive(discoverHandle);return;}
+ if(best==selIp){showToast("ONLY THIS BOARD FOUND, LOOKING FOR MORE...");if(discoverHandle && !discovering)xTaskNotifyGive(discoverHandle);return;}
  selectBoard(best);
 }
 String boardsJson(){
@@ -641,6 +658,11 @@ void controlRequest(){
   String url=decodeForm(encoded.substring(encoded.indexOf('=')+1));
   if(count==(size_t)length && url.startsWith("http://") && url.length()<120){target=url;Preferences p;p.begin("orphanremote");p.putString("target",target);p.end();lastPoll=0;redrawScene=true;body="Target saved";}
   else {status=400;body="Use http://host:8090";}
+ }else if(request.startsWith("GET /hello")){            // a board announces itself: GET /hello?name=orphan-2
+  char name[20]="";int q=request.indexOf("name=");
+  if(q>0){int k=0;for(int i=q+5;i<(int)request.length() && k<19;i++){char ch=request[i];
+   if(isalnum((unsigned char)ch)||ch=='-'||ch=='_')name[k++]=ch;else break;}name[k]=0;}
+  boardSeen((uint32_t)c.remoteIP(),name);body="{\"ok\":true}";type="application/json";
  }else if(request.startsWith("GET /boards ")){
   body=boardsJson();type="application/json";
  }else if(request.startsWith("POST /select ") && length>0 && length<40){   // body "next" or a board's IP
@@ -694,6 +716,7 @@ void setup(){
  // (no 40 KB tile sprite: the views draw straight to the panel. With the 60 KB game picture in memory, game
  // traffic bursts emptied the heap and mDNS crashed the CYD when it could not get memory for a packet.)
  Preferences p;p.begin("orphanremote",true);target=p.getString("target",target);selIp=p.getUInt("sel",0);p.end();
+ loadBoards();
  if(selIp)boardSeen(selIp,nullptr);
  bool connected=connectSaved();
  Serial.printf("Orphan Remote: WiFi %s; IP %s\n",connected?"connected":"not connected",WiFi.localIP().toString().c_str());

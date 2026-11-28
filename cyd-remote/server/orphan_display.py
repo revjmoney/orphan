@@ -186,6 +186,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     type=data['type'],x=int(data.get('x',0)),y=int(data.get('y',0)),view=str(data.get('view','system'))[:32]))
             self.send(200,{'ok':True,'seq':seq})
         except Exception as exc:self.send(400,{'error':str(exc)})
+def announce():
+    """Tell the ORPHAN Remote (the CYD named in /etc/orphan/cyd) that this board is here, every 30 s, so a double
+    tap can switch to it even when the CYD's mDNS lookup misses it (GET /hello?name=<this board's hostname>)."""
+    while True:
+        try:
+            cyd=open('/etc/orphan/cyd').read().strip()
+            if cyd:
+                urllib.request.urlopen('http://%s/hello?name=%s'%(cyd,socket.gethostname()[:19]),timeout=3).read()
+        except Exception:
+            pass
+        time.sleep(30)
+
+
 if __name__=='__main__':
     threading.Thread(target=collect,daemon=True).start()
+    threading.Thread(target=announce,daemon=True).start()
     http.server.ThreadingHTTPServer(('0.0.0.0',8090),Handler).serve_forever()
