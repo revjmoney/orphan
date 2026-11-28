@@ -216,7 +216,7 @@ def ps_state():
             name, rest = line.split(':', 1)
             if name.strip() not in ('lo', 'sit0') and not name.strip().startswith(('wl', 'tun', 'docker')):
                 f = rest.split()
-                ps['net'] = [int(f[0]), int(f[8])]               # bytes in, bytes out
+                ps['net'] = [int(f[0]), int(f[8]), int(f[1]), int(f[9])]   # bytes in, out, packets in, out
                 break
         for line in open('/proc/diskstats'):
             f = line.split()

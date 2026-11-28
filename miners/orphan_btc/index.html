@@ -115,6 +115,8 @@ footer{justify-content:space-between;gap:6px;flex-wrap:wrap}
   <div class="panel-head"><h2 id="dieTitle">Silicon floorplan · fabric load</h2><span id="dieState">IDLE</span></div>
   <div class="die-wrap"><canvas id="die" width="1000" height="440" role="img"
    aria-label="Abstract floorplan of the Zynq-7010: the ARM side on the left, the AXI bus in the middle, the FPGA fabric with the SHA-256 units on the right. The live numbers are listed below it."></canvas></div>
+  <div class="die-wrap" style="margin-top:.5em"><canvas id="scope" width="1000" height="236" role="img"
+   aria-label="Logic analyzer view: the clock, the miner's busy flag, register writes and reads, work feeds, nonces back, fan PWM and tach, LED 0, network packets in and out and interrupts, each at its measured rate."></canvas></div>
   <dl class="die-read">
    <div><dt>Clock (measured from the core's cycle counter)</dt><dd id="dClk">-</dd></div>
    <div><dt>SHA-256d units</dt><dd id="dUnits">-</dd></div>
@@ -138,7 +140,11 @@ footer{justify-content:space-between;gap:6px;flex-wrap:wrap}
    LEDs (drawn with the same timing as the hardware, which does not report its position); the fan's PWM and tach
    pins blink with the duty and the pulses it measured. On the ARM side every block lights with Linux's own
    counters: each core's busy time, RAM in use and page faults (DDR), interrupts (the GIC), network, SD card and UART
-   bytes; the dots between them follow those rates (the OCM is not used by Linux, USB has no counter here).</p>
+   bytes; the dots between them follow those rates (the OCM is not used by Linux, USB has no counter here).
+   FCLK0 always runs while a design is loaded: its ticks (drawn about 50 million times slower) cross to the BUFG
+   spine and ripple through the flip-flops, and the logic shimmers as hard as the units work. The logic analyzer
+   below shows the last 2 seconds: the busy flag, work feeds and nonces as they happened, every other channel at its
+   measured rate (the count per second is real; where each pulse falls inside its second is spread out).</p>
  </section>
  <section class="panel" style="grid-column:1/-1">
   <div class="panel-head"><h2>Live miner log</h2><span id="cnt"></span></div>
@@ -273,7 +279,8 @@ tick(); setInterval(tick, 1000);
         pgf: r(p.pgfault, q && q.pgfault), intr: r(p.intr, q && q.intr), ctxt: r(p.ctxt, q && q.ctxt),
         netIn: p.net && q && q.net ? r(p.net[0], q.net[0]) : null, netOut: p.net && q && q.net ? r(p.net[1], q.net[1]) : null,
         sdR: p.sd && q && q.sd ? r(p.sd[0] * 512, q.sd[0] * 512) : null, sdW: p.sd && q && q.sd ? r(p.sd[1] * 512, q.sd[1] * 512) : null,
-        uart: r(p.uart, q && q.uart)};
+        uart: r(p.uart, q && q.uart),
+        pktIn: p.net && q && q.net && p.net.length > 3 ? r(p.net[2], q.net[2]) : null, pktOut: p.net && q && q.net && p.net.length > 3 ? r(p.net[3], q.net[3]) : null};
       lastPs = p; lastPsT = t;
       const n = v => v == null ? '-' : Math.round(v).toLocaleString();
       $('dLinux').textContent = (psr.load ? psr.load.map((v, k) => 'CPU' + k + ' ' + Math.round(100 * v) + ' %').join(' · ') + ' · ' : '') +
@@ -282,13 +289,14 @@ tick(); setInterval(tick, 1000);
         (psr.sdR != null ? ' · SD read ' + kb(psr.sdR) + ', write ' + kb(psr.sdW) : '') + (psr.uart != null ? ' · UART ' + Math.round(psr.uart) + ' B/s' : '');
     }
     if (s.mode === 'mine' && !wasMining) eyeT = performance.now();     // the scanner starts on LED 0 when mining starts
+    if (!busyLog.length || busyLog[busyLog.length - 1][1] !== (s.mode === 'mine')) busyLog.push([performance.now(), s.mode === 'mine']);
     wasMining = s.mode === 'mine';
     if (f.units && f.units !== units) { units = Math.min(4, f.units); place(units); }
     mining = s.mode === 'mine'; rate = s.rate || 0; mhz = mining ? (f.mhz || 0) : 0;
     fmax = b.fmax || null; used = b.used || null; max = b.max || null;
     const now = performance.now();
-    if (feeds >= 0 && f.feeds > feeds) for (let i = 0; i < Math.min(3, f.feeds - feeds); i++) pulses.push({t0: now + i * 260, dir: 1});
-    if (finds >= 0 && f.finds > finds) for (let i = 0; i < Math.min(3, f.finds - finds); i++) pulses.push({t0: now + i * 260, dir: -1});
+    if (feeds >= 0 && f.feeds > feeds) for (let i = 0; i < Math.min(3, f.feeds - feeds); i++) { pulses.push({t0: now + i * 260, dir: 1}); feedLog.push(now + i * 260); }
+    if (finds >= 0 && f.finds > finds) for (let i = 0; i < Math.min(3, f.finds - finds); i++) { pulses.push({t0: now + i * 260, dir: -1}); findLog.push(now + i * 260); }
     if (f.feeds !== undefined) feeds = f.feeds; if (f.finds !== undefined) finds = f.finds;
     // the numbers under the picture
     const pct = (k) => used && max && max[k] ? Math.round(100 * used[k] / max[k]) : null;
@@ -309,7 +317,7 @@ tick(); setInterval(tick, 1000);
     const rpm = fan ? fan.tach.map((c, k) => c ? 'J' + (k + 1) + ' ' + (c * 30).toLocaleString() + ' rpm' : '').filter(Boolean) : [];
     $('dFan').textContent = fan ? 'duty ' + fan.duty + ' % · ' + (rpm.length ? rpm.join(' · ') : 'no tach pulses') : '-';
     $('dLed').textContent = led ? (led.id ? (mining ? 'scanning: driven by the miner\'s busy wire inside the FPGA' : 'idle: the LEDs show the status bits') + ' · MODE ' + led.mode : 'not in this bitstream') : '-';
-    if (reduce.matches) draw(now);
+    if (reduce.matches) { draw(now); drawScope(now); }
   };
   function box(x, y, w, h, fill, stroke, label, sub) {
     g.fillStyle = fill; g.fillRect(x, y, w, h); g.strokeStyle = stroke; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, w - 1, h - 1);
@@ -370,7 +378,13 @@ tick(); setInterval(tick, 1000);
     lit(103, 258, 60, 64, Math.min(1, ((psr.sdR || 0) + (psr.sdW || 0)) / 2e5), '#ffd27a', 'SD', psr.sdR != null ? kb(psr.sdR + psr.sdW) : '');
     lit(166, 258, 60, 64, Math.min(1, (psr.uart || 0) / 200), '#c9d6c7', 'UART', psr.uart != null ? Math.round(psr.uart) + ' B/s' : '');
     lit(229, 258, 61, 64, 0, '#c9d6c7', 'USB', 'idle');
-    lit(40, 332, 250, 68, mining ? .35 : .05, LIME, 'FCLK0 · ' + (mhz ? mhz.toFixed(1) : '100') + ' MHz', 'the clock the PL runs on');
+    lit(40, 332, 250, 68, .25 + (mining ? .2 : 0), LIME, 'FCLK0 · ' + (mhz ? mhz.toFixed(2) + ' MHz measured' : '100 MHz'), '');
+    {                                                 // its square wave, scrolling (drawn ~10^8 times slower)
+      const ck = 2.2 * (mhz || 100) / 100; g.save(); g.beginPath(); g.rect(46, 352, 238, 42); g.clip();
+      g.globalCompositeOperation = 'lighter'; g.shadowColor = LIME; g.shadowBlur = 8; g.strokeStyle = LIME; g.lineWidth = 1.6; g.beginPath();
+      for (let x = 46; x <= 284; x++) { const tt = now / 1000 - (284 - x) / 120, y = ((tt * ck) % 1 + 1) % 1 < .5 ? 360 : 388;
+        if (x === 46) g.moveTo(x, y); else g.lineTo(x, y); }
+      g.stroke(); g.restore(); }
     // traffic between them, one dot per share of the measured rate (white: cores <-> L2, gold: memory, green:
     // network, amber: SD card, red: interrupts into the GIC)
     const flows = [
@@ -387,7 +401,8 @@ tick(); setInterval(tick, 1000);
     }
     psDots = psDots.filter(d => now - d.t0 < 700);
     for (const d of psDots) { const f = (now - d.t0) / 700, [x, y] = along(d.pts, f < .5 ? f * 2 : 2 - f * 2);
-      g.fillStyle = d.col; g.globalAlpha = .85; g.fillRect(x - 2.5, y - 2.5, 5, 5); }
+      g.save(); g.globalCompositeOperation = 'lighter'; g.shadowColor = d.col; g.shadowBlur = 9;
+      g.fillStyle = d.col; g.globalAlpha = .9; g.fillRect(x - 2.5, y - 2.5, 5, 5); g.restore(); }
     g.globalAlpha = 1;
     // AXI GP0 between the two halves
     g.fillStyle = '#0f1a14'; g.fillRect(304, 30, 52, 380);
@@ -396,24 +411,37 @@ tick(); setInterval(tick, 1000);
     g.fillText('AXI GP0 · 32-bit · ardzy_bus', 0, 0); g.restore();
     // PL fabric: tiles tinted by what sits there and how hard the units run
     g.fillStyle = '#070b09'; g.fillRect(PX - 4, PY - 4, TC * T + 8, TR * T + 8);
+    // FCLK0 always runs while a design is loaded (mining or not). Each visible tick (a few a second, scaled by the
+    // measured MHz) leaves the spine and ripples out through the flip-flops; the logic shimmers as it switches.
+    const clkHz = 2.2 * (mhz || 100) / 100, rp = (now / 1000 * clkHz) % 1, high = rp < .5;
+    const act = {ctrl: .3 + .6 * heat, bus: busy('all'), fan: fan ? .25 + .6 * fan.duty / 100 : .2, led: mining ? .7 : .15};
     for (const t of tile) {
-      const x = PX + t.c * T, y = PY + t.r * T;
-      let col;
-      if (t.r === SPINE) col = '#1a2a22';
-      else if (t.k === 'bram') col = '#101d2a';
-      else if (t.k === 'dsp') col = '#1c1426';
-      else if (!t.who) col = '#0f1511';
+      const x = PX + t.c * T, y = PY + t.r * T, dist = Math.abs(t.r - SPINE) + t.c * .12;
+      const ripple = Math.max(0, 1 - Math.abs(dist - rp * 26) / 1.8);
+      let rgb, a;
+      if (t.r === SPINE) { rgb = '210,255,81'; a = .2 + .75 * Math.max(0, 1 - Math.abs(t.c - rp * TC * 1.4) / 3) + (high ? .1 : 0); }
+      else if (t.k === 'bram') { rgb = '70,130,200'; a = .12 + .12 * ripple; }
+      else if (t.k === 'dsp') { rgb = '170,110,220'; a = .12 + .12 * ripple; }
+      else if (!t.who) { rgb = '150,170,150'; a = .05 + .1 * ripple; }
       else if (t.who[0] === 'u') {
         const u = +t.who.slice(1), off = (u * .37) % 1;
         const hc = 17 + ((phase + off) % 1) * 84, near = Math.max(0, 1 - Math.abs(((hc - 17) % 42 + 17) - t.c) / 6);
-        const v = .18 + .5 * heat * (.55 + .45 * t.fill) + .6 * heat * near;
-        col = 'rgba(210,255,81,' + Math.min(.95, v).toFixed(3) + ')';
-      } else if (t.who === 'ctrl') col = 'rgba(210,255,81,' + (.16 + .25 * heat + .25 * busy('ctrl') * t.fill).toFixed(3) + ')';
-      else if (t.who === 'bus') col = 'rgba(201,214,199,' + (.16 + .55 * busy('all') * t.fill).toFixed(3) + ')';
-      else if (t.who === 'fan') col = 'rgba(95,211,255,' + (.34 + .4 * (fan ? fan.duty / 100 : 0) + .25 * busy('fan') * t.fill).toFixed(3) + ')';
-      else col = 'rgba(216,168,255,' + (.14 + (mining ? .3 : 0) + .3 * busy('led') * t.fill).toFixed(3) + ')';
-      g.fillStyle = col; g.fillRect(x + 1, y + 1, T - 2, T - 2);
+        rgb = '210,255,81'; a = .14 + .4 * heat * (.55 + .45 * t.fill) + .6 * heat * near + .45 * heat * Math.random() + .3 * ripple;
+      } else {
+        rgb = t.who === 'fan' ? '95,211,255' : t.who === 'led' ? '216,168,255' : t.who === 'bus' ? '220,232,218' : '210,255,81';
+        const v = act[t.who] || 0; a = .14 + .25 * v + .4 * v * Math.random() + .3 * ripple;
+      }
+      g.fillStyle = 'rgba(' + rgb + ',' + Math.min(.97, a).toFixed(3) + ')'; g.fillRect(x + 1, y + 1, T - 2, T - 2);
     }
+    // the clock tree: FCLK0 -> across AXI -> BUFG spine -> branches into every column of the fabric
+    const sy = PY + SPINE * T + 5, trunk = [[290, 372], [358, 372], [358, sy], [PX + TC * T, sy]];
+    g.save(); g.globalCompositeOperation = 'lighter'; g.shadowColor = LIME; g.shadowBlur = high ? 10 : 4;
+    g.strokeStyle = 'rgba(210,255,81,' + (high ? .75 : .3) + ')'; g.lineWidth = high ? 2 : 1.2;
+    g.beginPath(); g.moveTo(trunk[0][0], trunk[0][1]); for (let i = 1; i < trunk.length; i++) g.lineTo(trunk[i][0], trunk[i][1]); g.stroke();
+    g.lineWidth = 1; g.strokeStyle = 'rgba(210,255,81,' + (high ? .4 : .14) + ')';
+    for (const c of [14.5, 30, 45, 60]) { const x = PX + c * T; g.beginPath(); g.moveTo(x, PY + 2); g.lineTo(x, PY + TR * T - 2); g.stroke(); }
+    const [px, py] = along(trunk, rp); g.fillStyle = '#ffffff'; g.shadowBlur = 16; g.beginPath(); g.arc(px, py, 3.5, 0, 7); g.fill();
+    g.restore();
     g.fillStyle = '#8fa08e'; g.font = '10px Consolas,monospace';
     g.fillText('PL · ARTIX-7 FABRIC', PX, PY - 10);
     g.fillText('BUFG · clock spine', PX + 15 * T, PY + SPINE * T + 8);
@@ -477,7 +505,8 @@ tick(); setInterval(tick, 1000);
         for (let k = 0; k < 11; k++) {                 // 8 midstate words + 3 tail words
           const q = f - k * .025; if (q < 0 || q > 1) continue;
           const [x, y] = along(pts, q);
-          g.fillStyle = p.dir > 0 ? LIME : ORANGE; g.globalAlpha = 1 - k / 13; g.fillRect(x - 3, y - 3, 6, 6);
+          g.save(); g.globalCompositeOperation = 'lighter'; g.shadowColor = p.dir > 0 ? LIME : ORANGE; g.shadowBlur = 12;
+          g.fillStyle = p.dir > 0 ? LIME : ORANGE; g.globalAlpha = 1 - k / 13; g.fillRect(x - 3, y - 3, 6, 6); g.restore();
         }
       }
       g.globalAlpha = 1;
@@ -496,11 +525,70 @@ tick(); setInterval(tick, 1000);
     for (const d of dots) {
       const f = (now - d.t0) / 900, pts = toBlock(d.id), q = d.read ? (f < .5 ? f * 2 : 2 - f * 2) : f;
       const [x, y] = along(pts, q);
-      g.fillStyle = DOT[d.id]; g.globalAlpha = d.read && f >= .5 ? 1 : .7; g.fillRect(x - 3, y - 3, 6, 6);
+      g.save(); g.globalCompositeOperation = 'lighter'; g.shadowColor = DOT[d.id]; g.shadowBlur = 9;
+      g.fillStyle = DOT[d.id]; g.globalAlpha = d.read && f >= .5 ? 1 : .75; g.fillRect(x - 3, y - 3, 6, 6); g.restore();
     }
     g.globalAlpha = 1;
   }
-  function loop(now) { draw(now); if (!reduce.matches) requestAnimationFrame(loop); }
+  // ---- logic analyzer: 12 channels over the last 2 s. Levels and events come from the board: the busy flag and
+  // work feeds / nonces as they were seen, the others at their measured rate (where each pulse falls inside its
+  // second is spread out, the count is real). The clock and the PWMs are drawn very much slower than they run.
+  const sc = $('scope'), sx = sc.getContext('2d'), SW = 1000, SH = 236, SL = 118, WIN = 2000;
+  const busyLog = [], feedLog = [], findLog = [];
+  const hsh = (b, i, c) => { const v = Math.sin(b * 12.9898 + i * 78.233 + c * 37.719) * 43758.5453; return v - Math.floor(v); };
+  function chans() {
+    const sum = p => Object.keys(rates).filter(k => k[0] === p).reduce((a, k) => a + rates[k], 0);
+    const tach = fan ? fan.tach.find(c => c) || 0 : 0, tj = fan ? fan.tach.findIndex(c => c) : -1;
+    const oneWay = 1.5 * 100 / (mhz || 100);
+    return [
+      ['FCLK0', LIME, 'clock', 2.2 * (mhz || 100) / 100, (mhz ? mhz.toFixed(2) : '100') + ' MHz'],
+      ['sha busy', LIME, 'busy', 0, mining ? 'high' : 'low'],
+      ['AXI write', LIME, 'events', sum('w'), Math.round(sum('w')) + '/s'],
+      ['AXI read', '#dce8da', 'events', sum('r'), Math.round(sum('r')) + '/s'],
+      ['work feed', LIME, 'log', feedLog, feeds > 0 ? feeds + ' total' : '-'],
+      ['nonce back', ORANGE, 'log', findLog, finds > 0 ? finds + ' total' : '-'],
+      ['fan PWM', '#5fd3ff', 'pwm', fan ? fan.duty / 100 : 0, fan ? fan.duty + ' %' : '-'],
+      ['fan tach' + (tj >= 0 ? ' J' + (tj + 1) : ''), '#5fd3ff', 'events', tach, tach ? (tach * 30).toLocaleString() + ' rpm' : '-'],
+      ['LED 0', '#ff8a5a', 'led', oneWay, mining ? 'scanning' : 'status'],
+      ['net in', '#7fe7c4', 'events', psr.pktIn || 0, psr.pktIn != null ? Math.round(psr.pktIn) + ' pkt/s' : '-'],
+      ['net out', '#7fe7c4', 'events', psr.pktOut || 0, psr.pktOut != null ? Math.round(psr.pktOut) + ' pkt/s' : '-'],
+      ['IRQ', '#ff9a8a', 'events', psr.intr || 0, psr.intr != null ? Math.round(psr.intr) + '/s' : '-']];
+  }
+  function drawScope(now) {
+    const w = SW - SL - 118, pxms = w / WIN, rowH = 17, top = 22, x0 = SL;
+    sx.clearRect(0, 0, SW, SH); sx.fillStyle = '#05080a'; sx.fillRect(0, 0, SW, SH);
+    sx.font = '10px Consolas,monospace'; sx.fillStyle = '#8fa08e'; sx.fillText('LOGIC ANALYZER · last 2 s · live from the board', 10, 14);
+    sx.fillText('now', x0 + w - 18, 14);
+    for (let t = 0; t <= WIN; t += 100) { sx.fillStyle = t % 500 ? '#0e1612' : '#17241b'; sx.fillRect(x0 + t * pxms, top - 4, 1, SH - top); }
+    const bLvl = t => { let v = false; for (const [tt, on] of busyLog) { if (tt <= t) v = on; else break; } return v; };
+    chans().forEach(([name, col, kind, arg, val], i) => {
+      const yb = top + i * rowH + 13, yh = yb - 10;
+      sx.fillStyle = '#a9b8a7'; sx.fillText(name, 10, yb - 1); sx.fillStyle = col; sx.fillText(val, x0 + w + 8, yb - 1);
+      sx.save(); sx.beginPath(); sx.rect(x0, yh - 3, w, 16); sx.clip();
+      sx.globalCompositeOperation = 'lighter'; sx.shadowColor = col; sx.shadowBlur = 6; sx.strokeStyle = col; sx.lineWidth = 1.3;
+      const level = (fn) => { sx.beginPath(); let prev = null;
+        for (let x = 0; x <= w; x++) { const t = now - WIN + x / pxms, y = fn(t) ? yh : yb;
+          if (prev === null) sx.moveTo(x0 + x, y); else if (y !== prev) { sx.lineTo(x0 + x, prev); sx.lineTo(x0 + x, y); } else sx.lineTo(x0 + x, y); prev = y; }
+        sx.stroke(); };
+      if (kind === 'clock') level(t => ((t / 1000 * arg) % 1) < .5);
+      else if (kind === 'busy') level(t => bLvl(t));
+      else if (kind === 'pwm') level(t => arg > 0 && ((t / 160) % 1) < arg);
+      else if (kind === 'led') level(t => { if (!bLvl(t)) return false; const tt = ((t - eyeT) / 1000) % (2 * arg), pos = 3 * (tt < arg ? tt / arg : 2 - tt / arg);
+        return ((t / 45) % 1) < Math.pow(Math.max(0, 1 - pos / 1.5), 2); });
+      else {
+        sx.beginPath(); sx.moveTo(x0, yb); sx.lineTo(x0 + w, yb); sx.globalAlpha = .35; sx.stroke(); sx.globalAlpha = 1;
+        const marks = [];
+        if (kind === 'log') arg.forEach(t => { if (t >= now - WIN && t <= now) marks.push([t, 30]); });
+        else { const n = Math.min(160, Math.round(arg)); for (let b = Math.floor((now - WIN) / 1000); b <= Math.floor(now / 1000); b++)
+          for (let k = 0; k < n; k++) { const t = b * 1000 + hsh(b, k, i) * 1000; if (t >= now - WIN && t <= now) marks.push([t, 2]); } }
+        for (const [t, len] of marks) { const x = x0 + (t - now + WIN) * pxms; sx.fillStyle = col; sx.fillRect(x, yh, Math.max(1.5, len * pxms), yb - yh); }
+      }
+      sx.restore();
+    });
+    while (feedLog.length && feedLog[0] < now - WIN - 1000) feedLog.shift();
+    while (findLog.length && findLog[0] < now - WIN - 1000) findLog.shift();
+  }
+  function loop(now) { draw(now); drawScope(now); if (!reduce.matches) requestAnimationFrame(loop); }
   requestAnimationFrame(loop);
   reduce.addEventListener('change', () => { if (!reduce.matches) requestAnimationFrame(loop); });
 })();
