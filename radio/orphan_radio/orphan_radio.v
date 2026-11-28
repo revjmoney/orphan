@@ -9,7 +9,7 @@
 //   0  plain pin: J8 pin 12 read as a 1-bit signal (loopback wire from the test transmitter)
 //   1  internal loopback: the test transmitter's bit, no wire
 //   2  zero-parts antenna: J8 pin 12 is its own 1-bit sigma-delta ADC. Whenever it reads high the FPGA pulls
-//      it low for SD_PULSE clocks, so the node hovers at the input threshold (board 4.7k pull-up + pin
+//      it low for SD_PULSE clocks, so the node hovers at the input threshold (the FPGA's weak pull-up + pin
 //      capacitance); RF on a wire antenna on the pin changes how often that happens.
 //   3  RC sigma-delta: J8 pin 15 drives the inverted input bit back through R to the input node (R + C parts).
 // Test transmitter: J8 pin 5, a square-wave carrier whose duty cycle carries an AM tone. Keep it on short wires.

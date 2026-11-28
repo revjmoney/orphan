@@ -86,11 +86,16 @@ struct dm {
     float tr[NT], ti[NT], hi[256], hq[256];
     int hp, cur_taps;
     double pll_ph, pll_w, dc, agc, pi_, pq_, bfo, de, lvl;
+    double sq_m, sq_v, sq_g; int sq_open;    /* AM / SAM squelch: envelope mean, variance, gain, open */
 };
+/* Squelch (AM and SAM): noise alone has an envelope whose spread is 0.52 of its mean (Rayleigh); a carrier makes
+   it much steadier. Open below 0.40, close above 0.47, fade over about 40 ms. ORPHAN_SQUELCH=0 turns it off. */
+static int squelch_on = 1;
 static struct dm DA = {.cur_taps = -1, .agc = 0.05}, DS[3] = {{.cur_taps = -1, .agc = 0.05}, {.cur_taps = -1, .agc = 0.05}, {.cur_taps = -1, .agc = 0.05}};
 
 static void make_taps(struct dm *d, int mode) {
     double fc = 0, bw = 4500;
+    if (mode == D_AM || mode == D_SAM) bw = 3000;     /* +-3 kHz: less noise than the old +-4.5 kHz */
     if (mode == D_USB) { fc = 1650; bw = 1400; } else if (mode == D_LSB) { fc = -1650; bw = 1400; }
     else if (mode == D_CW) { bw = 250; } else if (mode == D_NFM) { bw = 5000; }
     double s = 0, h[NT], m = (NT - 1) / 2.0;
@@ -104,7 +109,7 @@ static void make_taps(struct dm *d, int mode) {
 
 /* fpga_am: tuner A's AM audio from the FPGA, or NAN when there is none (slices B..D) */
 static float demod(struct dm *d, float I, float Q, int mode, float fpga_am) {
-    if (mode == D_AM && !isnan(fpga_am)) return fpga_am;
+    (void)fpga_am;                          /* AM is done here now: filtered, true magnitude (Fable review 2026-11-28) */
     if (d->cur_taps != mode) make_taps(d, mode);
     d->hi[d->hp] = I / 32768.0f; d->hq[d->hp] = Q / 32768.0f;
     float yr = 0, yi = 0;
@@ -121,7 +126,16 @@ static float demod(struct dm *d, float I, float Q, int mode, float fpga_am) {
         d->pll_ph += d->pll_w + 0.005 * err; if (d->pll_ph > M_PI) d->pll_ph -= 2 * M_PI; if (d->pll_ph < -M_PI) d->pll_ph += 2 * M_PI;
         d->dc += (zr - d->dc) * 0.002; a = zr - d->dc; }
     d->agc = fmax(fabs(a), fmax(d->agc * 0.9997, 1e-4));
-    return (float)(0.45 * a / d->agc * 32767.0);
+    float out = (float)(0.45 * a / d->agc * 32767.0);
+    if (squelch_on && (mode == D_AM || mode == D_SAM)) {
+        double mg = sqrt((double)yr * yr + (double)yi * yi), k = 1.0 / 1200;   /* about 0.1 s */
+        d->sq_m += (mg - d->sq_m) * k; d->sq_v += ((mg - d->sq_m) * (mg - d->sq_m) - d->sq_v) * k;
+        double r = sqrt(d->sq_v) / (d->sq_m + 1e-12);
+        if (d->sq_open && r > 0.47) d->sq_open = 0; else if (!d->sq_open && r < 0.40) d->sq_open = 1;
+        d->sq_g += ((d->sq_open ? 1.0 : 0.0) - d->sq_g) * 0.002;
+        out *= (float)d->sq_g;
+    }
+    return out;
 }
 
 /* the decoders' own narrow low-pass (+-250 Hz around the dial), separate from the listening demodulator */
@@ -605,6 +619,7 @@ static int run_iq_stdin(const char *shm) {
 int main(int argc, char **argv) {
     ccir_init();
     signal(SIGINT, on_sig); signal(SIGTERM, on_sig);
+    { const char *q = getenv("ORPHAN_SQUELCH"); if (q && !strcmp(q, "0")) squelch_on = 0; }
     if (argc == 3 && !strcmp(argv[1], "--iq-stdin")) return run_iq_stdin(argv[2]);
     if (argc >= 3 && !strcmp(argv[1], "--file")) {                         /* offline test */
         static struct rxshm local; S = &local; memset(S, 0, sizeof *S); S->hum_depth = 0.7f;

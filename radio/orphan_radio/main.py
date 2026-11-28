@@ -149,6 +149,8 @@ def set_param(k, v):
 def control_loop():
     while True:
         time.sleep(0.05)
+        if scan_busy.is_set():
+            continue                            # a scan holds its own fixed gain: the steps must compare
         with lock:
             c = R(8)
             d = R(11)
@@ -523,7 +525,7 @@ def scan(start, stop, stp):
         while f <= stop + 1e-6:
             with lock:
                 W(1, step(f * 1000))
-            time.sleep(0.004)                   # CIC settles in < 1 ms
+            time.sleep(0.012)                   # CIC settles in < 1 ms; rxd polls the FIFO every 5 ms
             z = fresh_iq(256)
             levels.append(round(float(abs(z).mean()), 1) if len(z) else 0)
             f += stp

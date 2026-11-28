@@ -50,8 +50,8 @@ is in this design; set the speed in the menu's **Cooling** screen).
 
 - **3.3 V only.** The J1 to J9 connector pins go straight to the FPGA: no buffer, no protection, and they are
   **not 5 V tolerant**. Never connect 5 V logic, a 5 V supply or anything with a DC voltage above 3.3 V.
-- Every FPGA line on the J connectors has a **4.7k pull-up to 3.3 V** on the board. The zero-parts antenna mode
-  uses that pull-up as part of its circuit.
+- The board has **no pull-ups** on the J connectors' FPGA pins (measured, see docs/headers.md). This design turns
+  on the FPGA's own weak pull-up on J8 pin 12, and the zero-parts antenna mode uses it as part of its circuit.
 - **Transmitting needs a licence.** The test transmitter on J8 pin 5 is for bench tests only. Keep it on a short
   wire into a dummy load, a resistor, or a direct short jumper to J8 pin 12. Never connect an antenna to it.
 - A long antenna wire can pick up static. Do not leave a long outdoor wire on the input in stormy weather, and
@@ -88,15 +88,15 @@ LSB, CW and NFM are demodulated on the ARM side and reach the browser and TCP po
 
 Put a wire on **J8 pin 12** and choose input mode **Wire** in the **I/O** tab. In this mode the pin is its own
 1-bit converter: whenever it reads high the FPGA pulls it low for a few clocks, so the pin hovers at its switching
-point (the board's 4.7k pull-up plus the pin's own capacitance), and RF on the wire changes how often that happens.
+point (the FPGA's weak pull-up plus the pin's own capacitance), and RF on the wire changes how often that happens.
 
 Be honest with yourself about what to expect: this is a **first test**. It proves the chain works, but most of what
 you see on the spectrum is **the board's own noise**. Strong local signals (an AM broadcast station, a nearby
 test transmitter) are the realistic catches.
 
-### Coming after bench tests: the RC sigma-delta front end
+### The RC sigma-delta front end (first bench test 2026-11-28)
 
-> **Not bench-tested yet. This section is a plan, not an instruction.**
+> **First results only. The part values below are a starting point, not a finished design.**
 
 The design already has an **RC** input mode: J8 pin 15 drives the inverted input bit back through a resistor to the
 input node, which makes a proper first-order sigma-delta converter. The planned circuit:
@@ -105,9 +105,24 @@ input node, which makes a proper first-order sigma-delta converter. The planned 
 - a capacitor from the input node to **ground**,
 - the antenna coupled into that node.
 
-The planned starting point for the bench tests is about **4.7 kOhm** and **220 pF**, with **that connector's 4.7k
-pull-up lifted** and the input **biased near 1.2 V**. These numbers are untested. Measured values and a schematic
-will be published after testing; until then, stay with the zero-parts mode.
+Pick **RC** as the input mode in the **I/O** tab. The first build used 1 kOhm and 1 nF (1 us): the loop balances
+(density about 52 %) and AM carriers show in the scan, but they sit only a few dB over the noise, too weak for
+programme audio. Why: the node is a current summer, full scale is the feedback current (1.65 V / R), and the
+1 nF to ground divides the antenna (about 100 to 200 pF for a 10 to 20 m wire) down to about 12 %. A simulation of
+this loop and its DSP (10 mV antenna signal at 1 MHz) gives the signal over noise for:
+
+| Resistor / capacitor | Signal over noise |
+|---|---|
+| 1 kOhm / 1 nF (first build) | 15 dB |
+| 4.7 kOhm / 220 pF | 27 dB |
+| **10 kOhm / 100 pF** | **32 dB** |
+| 22 kOhm / 47 pF | 36 dB |
+
+Also put 470 ohm to 1 kOhm in series with the antenna's coupling capacitor (it keeps strong shortwave and the
+feedback edges off the wire). With a resistor above about 4.7 kOhm the FPGA's own pull-up on the input (about
+10 to 40 kOhm) starts to shift the balance: a later build turns it off. The noise floor rises 6 dB per octave,
+so this is a longwave / medium wave receiver; above a few MHz use the Network NESDR mode. Many carriers below
+600 kHz carry a 60 Hz hum comb: they are switching power supplies, not beacons.
 
 ## The radio page
 
